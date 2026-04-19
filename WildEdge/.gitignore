@@ -1,0 +1,19 @@
+.build/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Xcode
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcuserdatad/
+*.xcuserstate
+
+# Swift playgrounds
+timeline.xctimeline
+playground.xcworkspace

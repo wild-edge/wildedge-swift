@@ -1,0 +1,19 @@
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# Xcode user and build files
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcuserdatad/
+*.xcuserstate
+
+# CocoaPods (examples app)
+WildEdgeExamples/Pods/
