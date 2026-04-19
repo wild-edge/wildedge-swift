@@ -11,7 +11,7 @@ let package = Package(
         .executable(name: "WildEdgeExamples", targets: ["WildEdgeExamples"])
     ],
     dependencies: [
-        .package(path: "../WildEdge")
+        .package(path: "../../WildEdge")
     ],
     targets: [
         .executableTarget(

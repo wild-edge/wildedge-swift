@@ -6,7 +6,7 @@ This directory contains iOS SDK usage scenarios.
 
 Recommended:
 
-1. Open `SPMExamples/Package.swift` in Xcode.
+1. Open `WildEdgeExamples/SPMExamples/Package.swift` in Xcode.
 2. Xcode will load the Swift Package as a workspace.
 3. Run the `WildEdgeExamples` target.
 
@@ -19,20 +19,20 @@ The SDK reads DSN from the `WILDEDGE_DSN` environment variable.
 Example terminal run:
 
 ```bash
-cd SPMExamples
+cd WildEdgeExamples/SPMExamples
 export WILDEDGE_DSN="https://<secret>@ingest.wildedge.dev/<key>"
 swift run
 ```
 
 ## Contents
 
-- `iOSAppSample/` - full SwiftUI iOS app that demonstrates an end-to-end SDK flow
-- `SPMExamples/Sources/WildEdgeExamples/CoroutinesExample.swift` - async/await and AsyncStream-based tracking examples
-- `SPMExamples/Sources/WildEdgeExamples/GalleryExample.swift` - gallery and token-streaming equivalent
-- `SPMExamples/Sources/WildEdgeExamples/MLKitExample.swift` - detection equivalent using Google ML Kit Face Detection
-- `SPMExamples/Sources/WildEdgeExamples/OnnxExample.swift` - ONNX session equivalent using ONNX Runtime (onnxruntime.ai)
-- `SPMExamples/Sources/WildEdgeExamples/TFLiteExample.swift` - TFLite classification equivalent using TensorFlow Lite
-- `SPMExamples/Sources/WildEdgeExamples/TracingExample.swift` - trace/span equivalent for a pipeline
+- `../iOSAppSample/` - full SwiftUI iOS app that demonstrates an end-to-end SDK flow
+- `CoroutinesExample.swift` - async/await and AsyncStream-based tracking examples
+- `GalleryExample.swift` - gallery and token-streaming equivalent
+- `MLKitExample.swift` - detection equivalent using Google ML Kit Face Detection
+- `OnnxExample.swift` - ONNX session equivalent using ONNX Runtime (onnxruntime.ai)
+- `TFLiteExample.swift` - TFLite classification equivalent using TensorFlow Lite
+- `TracingExample.swift` - trace/span equivalent for a pipeline
 
 ## ML Kit On iOS
 
@@ -80,5 +80,5 @@ The examples directory includes a ready `Podfile` with:
 Steps:
 
 1. Open `Podfile` and change the target name from `WildEdgeExamplesApp` to your app target name.
-2. Run `pod install` in `SPMExamples`.
+2. Run `pod install` in `WildEdgeExamples/SPMExamples`.
 3. Open the `.xcworkspace` instead of `.xcodeproj`.
