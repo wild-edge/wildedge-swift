@@ -5,7 +5,7 @@ options:
     iOS: "14.0"
 packages:
   WildEdge:
-    path: ../../WildEdge
+    path: ../..
 targets:
   WildEdgeiOSSample:
     type: application

@@ -1,51 +1,37 @@
-# WildEdge
+# WildEdge Swift SDK
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Platform](https://img.shields.io/badge/platform-iOS%2013%2B%20%7C%20macOS%2012%2B-brightgreen.svg)](WildEdge/Package.swift)
+[![Platform](https://img.shields.io/badge/platform-iOS%2013%2B%20%7C%20macOS%2012%2B-brightgreen.svg)](Package.swift)
 
-On-device ML inference monitoring for iOS. Tracks latency, confidence,
+On-device ML inference monitoring for Swift (iOS, macOS). Tracks latency, confidence,
 drift, and hardware metrics without ever sending raw inputs.
 
-> **Pre-release:** API is unstable until v1.0.
-
-## Samples
+## Repository overview
 
 | Sample | What it shows |
 |---|---|
-| [iOSAppSample](WildEdgeExamples/iOSAppSample) | iOS app integration using SwiftUI |
-| [SPMExamples](WildEdgeExamples/SPMExamples) | Swift Package examples runnable from terminal/Xcode |
-| [TFLiteExample.swift](WildEdgeExamples/SPMExamples/Sources/WildEdgeExamples/TFLiteExample.swift) | TensorFlow Lite inference tracking |
-| [OnnxExample.swift](WildEdgeExamples/SPMExamples/Sources/WildEdgeExamples/OnnxExample.swift) | ONNX Runtime inference tracking |
-| [MLKitExample.swift](WildEdgeExamples/SPMExamples/Sources/WildEdgeExamples/MLKitExample.swift) | ML Kit-style detection instrumentation |
-| [TracingExample.swift](WildEdgeExamples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
+| [Sources](Sources) | SDK source code |
+| [iOSAppSample](Examples/iOSAppSample) | iOS app integration using SwiftUI |
+| [SPMExamples](Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
+| [TFLiteExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/TFLiteExample.swift) | TensorFlow Lite inference tracking |
+| [OnnxExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/OnnxExample.swift) | ONNX Runtime inference tracking |
+| [MLKitExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/MLKitExample.swift) | ML Kit-style detection instrumentation |
+| [TracingExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
 
-To run package samples:
 
-```bash
-cd WildEdgeExamples/SPMExamples
-export WILDEDGE_DSN="https://<secret>@ingest.wildedge.dev/<key>"
-swift run
-```
+## Get a DSN from WildEdge
 
-Without a DSN the SDK runs in noop mode: all tracking calls work, events are discarded locally.
+To run the examples or use the SDK in your application, you need a WildEdge DSN.
+A DSN is a single configuration value that contains your Project Key and connection details for the WildEdge API. To get your DSN:
 
-## Install
+1. Navigate to `https://wildedge.dev/` and sign up or log in.
+2. Open the dashboard at `https://app.wildedge.dev/`.
+3. Create a project (or open an existing project).
+4. Copy the project DSN for later.
 
-Add WildEdge with Swift Package Manager.
+## Add the SDK to your project
 
-### Xcode
-
-1. Open your app in Xcode.
-2. Go to `File > Add Package Dependencies...`.
-3. Add:
-
-```text
-https://github.com/wild-edge/wildedge-swift.git
-```
-
-4. Select product `WildEdge`.
-
-### Package.swift
+Add the WildEdge Swift SDK dependency to your `Package.swift` file:
 
 ```swift
 dependencies: [
@@ -61,23 +47,32 @@ targets: [
 ]
 ```
 
+#### Alternative to editing Package.swift: add the SDK in Xcode
+
+1. Open your project in Xcode.
+2. Go to `File > Add Package Dependencies...`.
+3. Add: https://github.com/wild-edge/wildedge-swift.git
+4. Select product `WildEdge`.
+
 ## Setup
+
+Once you add the dependency to your project, initialize the SDK:
 
 ```swift
 import WildEdge
 
 let wildEdge: WildEdgeClient = WildEdge.initialize { builder in
-    builder.dsn = "https://<secret>@ingest.wildedge.dev/<key>" // or WILDEDGE_DSN env var
-    // builder.appVersion = "1.2.3" // optional
+    builder.dsn = "https://<secret>@ingest.wildedge.dev/<key>"
     // builder.debug = true          // verbose logs
 }
 ```
 
 If no DSN is set, `WildEdge.initialize` returns a no-op client.
+For iOS project, call `WildEdge.initialize` at `AppDelegate::didFinishLaunchingWithOptions`. 
 
-## Integrations
+## Usage
 
-The Swift SDK uses explicit model handles (`registerModel` + `trackInference`) as the primary integration pattern.
+The Swift SDK uses explicit model handles (`registerModel` + `trackInference`) as its primary integration pattern. Model & Inference 
 
 ### TFLite
 
@@ -106,146 +101,9 @@ _ = handle.trackInference(
 )
 ```
 
-### ONNX Runtime
-
-```swift
-import WildEdge
-
-let handle = wildEdge.registerModel(
-    modelId: "face_detector_int8",
-    info: ModelInfo(
-        modelName: "Face Detector",
-        modelVersion: "1.0",
-        modelSource: "local",
-        modelFormat: "onnx",
-        quantization: "int8"
-    )
-)
-
-let start = Date()
-let outputs = try session.run(withInputs: inputs, outputNames: outputNames, runOptions: nil)
-_ = handle.trackInference(
-    durationMs: Int(Date().timeIntervalSince(start) * 1000),
-    inputModality: .image,
-    outputModality: .detection,
-    outputMeta: DetectionOutputMeta(numPredictions: outputs.count).toMap()
-)
-```
-
-### ML Kit
-
-```swift
-import WildEdge
-
-let handle = wildEdge.registerModel(
-    modelId: "face-detector",
-    info: ModelInfo(
-        modelName: "Face Detector",
-        modelVersion: "16.1",
-        modelSource: "local",
-        modelFormat: "mlkit"
-    )
-)
-
-let start = Date()
-faceDetector.process(visionImage) { faces, error in
-    let durationMs = Int(Date().timeIntervalSince(start) * 1000)
-
-    if error != nil {
-        _ = handle.trackInference(
-            durationMs: durationMs,
-            inputModality: .image,
-            outputModality: .detection,
-            success: false,
-            errorCode: "mlkit_face_detection_error"
-        )
-        return
-    }
-
-    _ = handle.trackInference(
-        durationMs: durationMs,
-        inputModality: .image,
-        outputModality: .detection,
-        outputMeta: DetectionOutputMeta(numPredictions: (faces ?? []).count).toMap()
-    )
-}
-```
-
-### Remote models
-
-For direct remote LLM/API calls, use `modelSource = "api"` and `modelFormat = "remote"`:
-
-```swift
-let handle = wildEdge.registerModel("gpt-4o-mini", info: ModelInfo(
-    modelName: "GPT-4o mini",
-    modelVersion: "2024-07-18",
-    modelSource: "api",
-    modelFormat: "remote"
-))
-
-let inputMeta = WildEdge.analyzeText(prompt).toMap()
-let start = Date()
-let response = try await callRemoteApi(prompt)
-
-_ = handle.trackInference(
-    durationMs: Int(Date().timeIntervalSince(start) * 1000),
-    inputModality: .text,
-    outputModality: .generation,
-    inputMeta: inputMeta,
-    outputMeta: GenerationOutputMeta(
-        tokensIn: response.usage.promptTokens,
-        tokensOut: response.usage.completionTokens
-    ).toMap()
-)
-```
-
-### Manual tracking
-
-```swift
-let handle = wildEdge.registerModel("my-model", info: ModelInfo(
-    modelName: "MobileNet",
-    modelVersion: "v3",
-    modelSource: "local",
-    modelFormat: "custom"
-))
-
-handle.trackLoad(durationMs: 120, accelerator: .cpu, coldStart: true)
-
-let start = Date()
-let output = model.run(input)
-_ = output
-
-let inferenceId = handle.trackInference(
-    durationMs: Int(Date().timeIntervalSince(start) * 1000),
-    inputModality: .image,
-    outputModality: .detection
-)
-
-handle.trackFeedback(.thumbsUp, relatedInferenceId: inferenceId)
-handle.trackUnload()
-```
-
-## Feedback types
-
-`FeedbackType` has built-in values and custom signals.
-
-| Value | Meaning |
-|---|---|
-| `.thumbsUp` | User explicitly approved the result |
-| `.thumbsDown` | User explicitly rejected the result |
-| `.accepted` | User accepted/used result without editing |
-| `.edited` | User accepted but modified the result |
-| `.rejected` | User dismissed or ignored the result |
-| `.custom("...")` | Domain-specific signal |
-
-`trackFeedback` links to the latest inference automatically. For earlier inferences, pass `relatedInferenceId`:
-
-```swift
-let inferenceId = handle.trackInference(durationMs: 42)
-handle.trackFeedback(.edited, relatedInferenceId: inferenceId, editDistance: 5)
-```
-
 ## Tracing
+
+You can group inferences by using 
 
 ```swift
 wildEdge.trace("user-query") { trace in
@@ -292,24 +150,6 @@ Available metadata types: `DetectionOutputMeta`, `GenerationOutputMeta`, `Embedd
 | `lowConfidenceThreshold` | `0.5` | Sampling threshold |
 | `debug` | `false` | Verbose logs (or `WILDEDGE_DEBUG=true`) |
 
-## Testing
-
-`WildEdge.initialize()` returns `WildEdgeClient`; depend on this protocol and inject noop in tests:
-
-```swift
-let prodClient: WildEdgeClient = WildEdge.initialize { $0.dsn = "..." }
-let testClient: WildEdgeClient = NoopWildEdgeClient()
-```
-
-Noop client executes `trace`/`span` blocks and drops events.
-
-## Lifecycle
-
-```swift
-wildEdge.flush() // default timeout 5s
-wildEdge.close() // stops consumer and attempts final flush
-```
-
 ## AI-assisted integration
 
 Paste this prompt into your coding agent:
@@ -340,37 +180,36 @@ Integrate the WildEdge Swift SDK into this project.
 ### Run unit tests
 
 ```bash
-cd WildEdge
 swift test
 ```
 
 ### Run a single test class
 
 ```bash
-cd WildEdge
 swift test --filter DsnParserTests
 ```
 
 ### Build the library
 
 ```bash
-cd WildEdge
 swift build -c release
 ```
 
 ### Build/run examples
 
 ```bash
-cd WildEdgeExamples/SPMExamples
+cd Examples/SPMExamples
 swift run
 ```
 
 ## Requirements
 
-- No required transitive runtime dependencies in `WildEdge`
+- `WildEdge` has no required transitive runtime dependencies
 - External ML frameworks are integrated by your app (TensorFlow Lite, ONNX Runtime, ML Kit, Core ML)
 
 ## Repo layout
 
-- [WildEdge](WildEdge): Swift SDK package
-- [WildEdgeExamples](WildEdgeExamples): iOS app + SwiftPM examples
+- [Package.swift](Package.swift): Swift SDK package manifest
+- [Sources](Sources): SDK source code
+- [Tests](Tests): SDK test suite
+- [Examples](Examples): iOS app and SwiftPM examples

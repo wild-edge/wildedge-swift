@@ -11,13 +11,13 @@ let package = Package(
         .executable(name: "WildEdgeExamples", targets: ["WildEdgeExamples"])
     ],
     dependencies: [
-        .package(path: "../../WildEdge")
+        .package(path: "../..")
     ],
     targets: [
         .executableTarget(
             name: "WildEdgeExamples",
             dependencies: [
-                .product(name: "WildEdge", package: "WildEdge")
+                .product(name: "WildEdge", package: "wildedge-swift")
             ]
         )
     ]

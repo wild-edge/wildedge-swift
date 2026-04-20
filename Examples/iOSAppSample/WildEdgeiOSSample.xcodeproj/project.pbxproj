@@ -16,7 +16,7 @@
 
 /* Begin PBXFileReference section */
 		126DDA7945D27584710FD927 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		270F4D2CE929FEB142EF1557 /* WildEdge */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WildEdge; path = ../../WildEdge; sourceTree = SOURCE_ROOT; };
+		270F4D2CE929FEB142EF1557 /* WildEdge */ = {isa = PBXFileReference; lastKnownFileType = folder; name = WildEdge; path = ../..; sourceTree = SOURCE_ROOT; };
 		4067D874E725C479487B6304 /* WildEdgeiOSSampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WildEdgeiOSSampleApp.swift; sourceTree = "<group>"; };
 		882C5405AA405B8F43AA829C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		918A7EAB48CE4871CED31D2F /* DemoViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoViewModel.swift; sourceTree = "<group>"; };
@@ -116,7 +116,7 @@
 			mainGroup = 93497368CF9726FFCD9973C9;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				FDB359E4A531DDDBDDAF37AC /* XCLocalSwiftPackageReference "../../WildEdge" */,
+				FDB359E4A531DDDBDDAF37AC /* XCLocalSwiftPackageReference "../.." */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F1414AE8667EB9A6459E71E5 /* Products */;
@@ -324,9 +324,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		FDB359E4A531DDDBDDAF37AC /* XCLocalSwiftPackageReference "../../WildEdge" */ = {
+		FDB359E4A531DDDBDDAF37AC /* XCLocalSwiftPackageReference "../.." */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../WildEdge;
+			relativePath = ../..;
 		};
 /* End XCLocalSwiftPackageReference section */
 

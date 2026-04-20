@@ -16,4 +16,5 @@ DerivedData/
 *.xcuserstate
 
 # CocoaPods (examples app)
-WildEdgeExamples/Pods/
+Examples/Pods/
+Examples/SPMExamples/Pods/

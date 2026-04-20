@@ -26,7 +26,7 @@ Open in Xcode:
 2. Xcode will load the Swift Package as a workspace.
 3. Run the `WildEdgeExamples` target.
 
-Run from terminal:
+or run from terminal:
 
 ```bash
 cd SPMExamples
