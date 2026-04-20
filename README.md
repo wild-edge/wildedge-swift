@@ -72,7 +72,7 @@ For iOS project, call `WildEdge.initialize` at `AppDelegate::didFinishLaunchingW
 
 ## Usage
 
-The Swift SDK uses explicit model handles (`registerModel` + `trackInference`) as its primary integration pattern. Model & Inference 
+The Swift SDK uses explicit model handles (`registerModel` + `trackInference`) as its primary integration pattern.
 
 ### TFLite
 
@@ -103,7 +103,7 @@ _ = handle.trackInference(
 
 ## Tracing
 
-You can group inferences by using 
+You can group inferences into a named trace using `wildEdge.trace`:
 
 ```swift
 wildEdge.trace("user-query") { trace in
@@ -171,7 +171,7 @@ Integrate the WildEdge Swift SDK into this project.
 
 ## Development
 
-### Requirements
+#### Build requirements
 
 - Xcode 15+ (recommended)
 - Swift 5.9+
@@ -202,7 +202,7 @@ cd Examples/SPMExamples
 swift run
 ```
 
-## Requirements
+## Runtime dependencies
 
 - `WildEdge` has no required transitive runtime dependencies
 - External ML frameworks are integrated by your app (TensorFlow Lite, ONNX Runtime, ML Kit, Core ML)
