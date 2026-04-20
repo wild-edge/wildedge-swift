@@ -4,7 +4,7 @@ This directory contains two Swift SDK example tracks: a full iOS app sample (`iO
 
 ## DSN Configuration
 
-To use the Swift SDK, you need to obtain a DSN (configuration parameter).
+To run the examples, you need to obtain a DSN (configuration parameter).
 
 1. Navigate to `https://wildedge.dev/` and sign up or log in.
 2. Open the dashboard at `https://app.wildedge.dev/`.
