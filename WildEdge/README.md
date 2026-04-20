@@ -1,4 +1,4 @@
-# WildEdge iOS SDK (Swift)
+# WildEdge Swift SDK.
 
 Swift Package for monitoring on-device ML inference.
 
