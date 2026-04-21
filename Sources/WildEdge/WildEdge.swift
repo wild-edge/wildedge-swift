@@ -76,6 +76,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         self.registry = registry
         self.consumer = consumer
         self.debug = debug
+        ORTInterceptor.install(client: self)
     }
 
     public func registerModel(modelId: String, info: ModelInfo) -> ModelHandle {
