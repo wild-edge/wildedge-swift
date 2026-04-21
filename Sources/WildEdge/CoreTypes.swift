@@ -71,7 +71,7 @@ public enum FeedbackType {
 
 public struct ModelInfo {
     public var modelName: String
-    public var modelVersion: String
+    public var modelVersion: String?
     public var modelSource: String
     public var modelFormat: String
     public var modelFamily: String?
@@ -79,7 +79,7 @@ public struct ModelInfo {
 
     public init(
         modelName: String,
-        modelVersion: String,
+        modelVersion: String? = nil,
         modelSource: String,
         modelFormat: String,
         modelFamily: String? = nil,
@@ -96,10 +96,12 @@ public struct ModelInfo {
     internal func toMap() -> [String: Any] {
         var map: [String: Any] = [
             "model_name": modelName,
-            "model_version": modelVersion,
             "model_source": modelSource,
             "model_format": modelFormat,
         ]
+        if let modelVersion {
+            map["model_version"] = modelVersion
+        }
         if let modelFamily {
             map["model_family"] = modelFamily
         }
