@@ -77,6 +77,8 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         self.consumer = consumer
         self.debug = debug
         ORTInterceptor.install(client: self)
+        MLKitDetectorInterceptor.install(client: self)
+        MLKitModelManagerInterceptor.install(client: self)
     }
 
     public func registerModel(modelId: String, info: ModelInfo) -> ModelHandle {

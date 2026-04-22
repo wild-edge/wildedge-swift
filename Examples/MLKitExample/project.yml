@@ -1,0 +1,19 @@
+name: MLKitExample
+options:
+  bundleIdPrefix: dev.wildedge
+targets:
+  MLKitExample:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.5"
+    sources:
+      - path: Sources/MLKitExample
+    info:
+      path: Sources/MLKitExample/Info.plist
+      properties:
+        CFBundleIdentifier: dev.wildedge.MLKitExample
+        UILaunchScreen: {}
+        NSCameraUsageDescription: "Camera access is not used in this example."
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"

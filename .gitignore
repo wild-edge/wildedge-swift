@@ -18,3 +18,4 @@ DerivedData/
 # CocoaPods (examples app)
 Examples/Pods/
 Examples/SPMExamples/Pods/
+Examples/MLKitExample/Pods/
