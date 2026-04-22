@@ -11,21 +11,13 @@ let package = Package(
         .executable(name: "WildEdgeExamples", targets: ["WildEdgeExamples"])
     ],
     dependencies: [
-        .package(path: "../.."),
-        .package(url: "https://github.com/microsoft/onnxruntime-swift-package-manager", exact: "1.24.2")
+        .package(path: "../..")
     ],
     targets: [
         .executableTarget(
             name: "WildEdgeExamples",
             dependencies: [
                 .product(name: "WildEdge", package: "wildedge-swift")
-            ]
-        ),
-        .executableTarget(
-            name: "OnnxExample",
-            dependencies: [
-                .product(name: "WildEdge", package: "wildedge-swift"),
-                .product(name: "onnxruntime", package: "onnxruntime-swift-package-manager")
             ]
         )
     ]

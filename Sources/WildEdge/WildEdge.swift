@@ -325,18 +325,38 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         }
     }
 
+    public private(set) static var shared: WildEdgeClient = NoopWildEdgeClient()
+
+    internal private(set) static var autoInitFired = false
+
+    internal static func autoInit() {
+        let debug = ProcessInfo.processInfo.environment[Config.envDebug] == "true"
+        if debug { print("[wildedge] auto-init triggered via +load") }
+        autoInitFired = true
+        let client = Builder().build()
+        shared = client
+        if debug {
+            let active = !(client is NoopWildEdgeClient)
+            print("[wildedge] auto-init complete: \(active ? "active" : "noop (no DSN)")")
+        }
+    }
+
     @discardableResult
     public static func `init`(_ block: (Builder) -> Void = { _ in }) -> WildEdgeClient {
         let builder = Builder()
         block(builder)
-        return builder.build()
+        let client = builder.build()
+        shared = client
+        return client
     }
 
     @discardableResult
     public static func initialize(_ block: (Builder) -> Void = { _ in }) -> WildEdgeClient {
         let builder = Builder()
         block(builder)
-        return builder.build()
+        let client = builder.build()
+        shared = client
+        return client
     }
 
     public static func analyzeText(

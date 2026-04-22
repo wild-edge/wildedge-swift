@@ -15,7 +15,13 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "WildEdge"
+            name: "WildEdgeLoader",
+            path: "Sources/WildEdgeLoader",
+            publicHeadersPath: ""
+        ),
+        .target(
+            name: "WildEdge",
+            dependencies: ["WildEdgeLoader"]
         ),
         .testTarget(
             name: "WildEdgeTests",
