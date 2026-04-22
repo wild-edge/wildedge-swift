@@ -16,6 +16,9 @@ let package = Package(
             dependencies: [
                 .product(name: "WildEdge", package: "wildedge-swift"),
                 .product(name: "onnxruntime", package: "onnxruntime-swift-package-manager")
+            ],
+            resources: [
+                .copy("add_mul_add.onnx")
             ]
         )
     ]
