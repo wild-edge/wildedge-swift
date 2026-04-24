@@ -256,6 +256,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
 
         public init() {
             dsn = ProcessInfo.processInfo.environment[Config.envDsn]
+                ?? Bundle.main.object(forInfoDictionaryKey: Config.envDsn) as? String
         }
 
         public func build() -> WildEdgeClient {

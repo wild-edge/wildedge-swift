@@ -58,13 +58,20 @@ targets: [
 
 ### Auto-init (recommended)
 
-Set `WILDEDGE_DSN` in your environment (or Xcode scheme) and the SDK initializes itself before `main()` runs — no code required:
+The SDK initializes itself before `main()` runs. Provide the DSN via either:
 
+**Environment variable** (Xcode scheme or process environment):
 ```
 WILDEDGE_DSN=https://<secret>@ingest.wildedge.dev/<key>
 ```
 
-`WildEdge.shared` is then ready for use anywhere in your app. Set `WILDEDGE_DEBUG=true` to see verbose auto-init and event logs.
+**Info.plist** (checked as fallback when the env var is absent):
+```xml
+<key>WILDEDGE_DSN</key>
+<string>https://<secret>@ingest.wildedge.dev/<key></string>
+```
+
+`WildEdge.shared` is then ready for use anywhere in your app. Set `WILDEDGE_DEBUG=true` (env var) to see verbose auto-init and event logs.
 
 ### Manual init
 
@@ -183,7 +190,7 @@ Available metadata types: `DetectionOutputMeta`, `GenerationOutputMeta`, `Embedd
 
 | Parameter | Default | Description |
 |---|---|---|
-| `dsn` | `nil` | `https://<secret>@ingest.wildedge.dev/<key>` (or `WILDEDGE_DSN`) |
+| `dsn` | `nil` | `https://<secret>@ingest.wildedge.dev/<key>` (or `WILDEDGE_DSN` env var / Info.plist key) |
 | `appVersion` | auto-detected | App version attached to every batch |
 | `batchSize` | `10` | Events per request |
 | `maxQueueSize` | `200` | Max in-memory events |
