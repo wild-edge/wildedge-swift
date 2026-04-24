@@ -13,9 +13,9 @@ drift, and hardware metrics without ever sending raw inputs.
 | [Sources](Sources) | SDK source code |
 | [iOSAppSample](Examples/iOSAppSample) | iOS app integration using SwiftUI |
 | [SPMExamples](Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
+| [OnnxExample](Examples/OnnxExample) | Zero-code ONNX Runtime tracking via auto-interceptor |
+| [MLKitExample](Examples/MLKitExample) | Zero-code ML Kit tracking via auto-interceptor |
 | [TFLiteExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/TFLiteExample.swift) | TensorFlow Lite inference tracking |
-| [OnnxExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/OnnxExample.swift) | ONNX Runtime inference tracking |
-| [MLKitExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/MLKitExample.swift) | ML Kit-style detection instrumentation |
 | [TracingExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
 
 
@@ -56,25 +56,67 @@ targets: [
 
 ## Setup
 
-Once you add the dependency to your project, initialize the SDK:
+### Auto-init (recommended)
+
+Set `WILDEDGE_DSN` in your environment (or Xcode scheme) and the SDK initializes itself before `main()` runs — no code required:
+
+```
+WILDEDGE_DSN=https://<secret>@ingest.wildedge.dev/<key>
+```
+
+`WildEdge.shared` is then ready for use anywhere in your app. Set `WILDEDGE_DEBUG=true` to see verbose auto-init and event logs.
+
+### Manual init
+
+Call `WildEdge.initialize` explicitly when you need programmatic control (e.g. reading the DSN from a config file):
 
 ```swift
 import WildEdge
 
 let wildEdge: WildEdgeClient = WildEdge.initialize { builder in
     builder.dsn = "https://<secret>@ingest.wildedge.dev/<key>"
-    // builder.debug = true          // verbose logs
+    // builder.debug = true
 }
 ```
 
-If no DSN is set, `WildEdge.initialize` returns a no-op client.
-For iOS project, call `WildEdge.initialize` at `AppDelegate::didFinishLaunchingWithOptions`. 
+For iOS, call this at `AppDelegate.application(_:didFinishLaunchingWithOptions:)`. If no DSN is set, `WildEdge.initialize` returns a no-op client.
 
 ## Usage
 
-The Swift SDK uses explicit model handles (`registerModel` + `trackInference`) as its primary integration pattern.
+### ONNX Runtime — zero-code integration
 
-### TFLite
+The SDK automatically intercepts `ORTSession` creation and `run` calls at the ObjC runtime level — no import or code changes needed. Just run your existing ONNX code and events appear in the dashboard:
+
+```swift
+import OnnxRuntimeBindings
+// No WildEdge calls required.
+
+let env = try ORTEnv(loggingLevel: .warning)
+let session = try ORTSession(env: env, modelPath: modelPath, sessionOptions: nil)
+let outputs = try session.run(withInputs: inputs, outputNames: ["output"], runOptions: nil)
+// load, inference, and unload are tracked automatically.
+```
+
+### ML Kit — zero-code integration
+
+All built-in ML Kit detectors (Face, Object, Image Labeler, Text Recognizer, Barcode Scanner, Pose) are intercepted automatically. Remote model downloads via `ModelManager` are also tracked:
+
+```swift
+import MLKitFaceDetection
+import MLKitVision
+// No WildEdge calls required.
+
+let detector = FaceDetector.faceDetector(options: options)
+// ↑ trackLoad fires automatically
+
+detector.process(VisionImage(image: image)) { faces, error in
+    // ↑ trackInference fires automatically
+}
+```
+
+### TFLite — manual integration
+
+TFLite does not have an ObjC-accessible runtime layer that WildEdge can hook, so use explicit model handles:
 
 ```swift
 import WildEdge
@@ -157,13 +199,18 @@ Paste this prompt into your coding agent:
 ```text
 Integrate the WildEdge Swift SDK into this project.
 
-1. Find all ML inference code (TensorFlow Lite, ONNX Runtime, ML Kit, Core ML, remote LLM APIs).
-2. For each inference site:
+1. Initialize WildEdge once at app startup:
+   - Preferred: set WILDEDGE_DSN env var — the SDK auto-inits before main().
+   - Alternative: call WildEdge.initialize { $0.dsn = "YOUR_DSN" } at app launch.
+
+2. ONNX Runtime and ML Kit are intercepted automatically — no code changes needed for those.
+
+3. For all other ML inference code (TensorFlow Lite, Core ML, remote LLM APIs):
    - Register a stable model handle with wildEdge.registerModel(modelId:info:)
    - Add trackLoad()/trackUnload() for model lifecycle when applicable
    - Time inference and call trackInference(...)
    - Add success/failure tracking with errorCode on failures
-3. Initialize WildEdge once at app startup using WildEdge.initialize { $0.dsn = "YOUR_DSN" }.
+
 4. Wrap multi-step pipelines in wildEdge.trace("name") { }.
 5. Add lifecycle hooks for flush() and close().
 6. Send only metadata (WildEdge.analyzeText(...).toMap(), outputMeta maps), never raw inputs.
