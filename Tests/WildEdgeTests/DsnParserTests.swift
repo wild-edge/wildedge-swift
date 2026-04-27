@@ -3,26 +3,14 @@ import XCTest
 
 final class DsnParserTests: XCTestCase {
     func testParseDsnExtractsSecretAndHost() throws {
-        let dsn = try configuredDsn()
-        let parsed = try WildEdge.Builder.parseDsn(dsn)
-
-        let components = try XCTUnwrap(URLComponents(string: dsn))
-        let expectedSecret = try XCTUnwrap(components.user)
-        let scheme = try XCTUnwrap(components.scheme)
-        let host = try XCTUnwrap(components.host)
-        var expectedHost = "\(scheme)://\(host)"
-        if let port = components.port {
-            expectedHost += ":\(port)"
-        }
-
-        XCTAssertEqual(parsed.secret, expectedSecret)
-        XCTAssertEqual(parsed.host, expectedHost)
+        let parsed = try WildEdge.Builder.parseDsn("https://test-secret@ingest.wildedge.dev/test-key")
+        XCTAssertEqual(parsed.secret, "test-secret")
+        XCTAssertEqual(parsed.host, "https://ingest.wildedge.dev")
     }
 
     func testParseDsnKeepsPortWhenPresent() throws {
-        let secret = extractSecret(from: try configuredDsn())
-        let parsed = try WildEdge.Builder.parseDsn("https://\(secret)@localhost:8443/key")
-        XCTAssertEqual(parsed.secret, secret)
+        let parsed = try WildEdge.Builder.parseDsn("https://test-secret@localhost:8443/key")
+        XCTAssertEqual(parsed.secret, "test-secret")
         XCTAssertEqual(parsed.host, "https://localhost:8443")
     }
 

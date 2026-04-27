@@ -67,7 +67,7 @@ internal final class MLKitDetectorInterceptor {
     // MARK: - Shared state
 
     private static let lock = NSLock()
-    private static var installed = false
+    private static var swizzledClassNames: Set<String> = []
     private static weak var activeClient: WildEdge?
 
     // Shared across all detector classes — ObjectIdentifier is globally unique per live object.
@@ -84,15 +84,19 @@ internal final class MLKitDetectorInterceptor {
     static func install(client: WildEdge) {
         lock.lock()
         activeClient = client
-        let alreadyInstalled = installed
-        if !installed { installed = true }
         lock.unlock()
-
-        guard !alreadyInstalled else { return }
 
         let debug = ProcessInfo.processInfo.environment["WILDEDGE_DEBUG"] == "true"
         for config in allConfigs {
             guard let cls = NSClassFromString(config.className) else { continue }
+
+            lock.lock()
+            let alreadySwizzled = swizzledClassNames.contains(config.className)
+            if !alreadySwizzled { swizzledClassNames.insert(config.className) }
+            lock.unlock()
+
+            guard !alreadySwizzled else { continue }
+
             if debug { print("[wildedge] MLKitDetectorInterceptor: swizzling \(config.className)") }
             installFactory(on: cls, config: config)
             installProcess(on: cls, config: config)
