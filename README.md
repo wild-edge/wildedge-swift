@@ -1,5 +1,6 @@
 # WildEdge Swift SDK
 
+[![CI](https://github.com/wild-edge/wildedge-swift/actions/workflows/swift.yml/badge.svg?branch=main)](https://github.com/wild-edge/wildedge-swift/actions/workflows/swift.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Platform](https://img.shields.io/badge/platform-iOS%2013%2B%20%7C%20macOS%2012%2B-brightgreen.svg)](Package.swift)
 
