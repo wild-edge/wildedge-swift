@@ -261,6 +261,10 @@ swift run
 - `WildEdge` has no required transitive runtime dependencies
 - External ML frameworks are integrated by your app (TensorFlow Lite, ONNX Runtime, ML Kit, Core ML)
 
+## Documentation
+
+Full documentation is available at **[docs.wildedge.dev](https://docs.wildedge.dev)**.
+
 ## Repo layout
 
 - [Package.swift](Package.swift): Swift SDK package manifest
