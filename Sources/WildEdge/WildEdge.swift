@@ -59,6 +59,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     private let registry: ModelRegistry
     private let consumer: Consumer?
     private let debug: Bool
+    private let hardwareSampler = HardwareSampler()
 
     private let lock = NSLock()
     private var handles: [String: ModelHandle] = [:]
@@ -76,6 +77,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         self.registry = registry
         self.consumer = consumer
         self.debug = debug
+        hardwareSampler.start()
         ORTInterceptor.install(client: self)
         MLKitDetectorInterceptor.install(client: self)
         MLKitModelManagerInterceptor.install(client: self)
@@ -98,7 +100,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             modelId: modelId,
             info: info,
             publish: { [weak self] event in self?.publish(event: event) },
-            hardwareSnapshot: { nil },
+            hardwareSnapshot: { [weak self] in self?.hardwareSampler.snapshot() },
             activeSpanContext: { [weak self] in self?.activeSpan }
         )
         handles[modelId] = handle
@@ -168,6 +170,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         closed = true
         lock.unlock()
 
+        hardwareSampler.stop()
         consumer?.close(timeoutMs: timeoutMs)
     }
 

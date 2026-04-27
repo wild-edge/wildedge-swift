@@ -20,4 +20,6 @@ internal enum Config {
 
     static let httpTimeoutMs: TimeInterval = 15_000
     static let errorMsgMaxLen = 200
+
+    static let defaultHardwareSamplingIntervalMs: Int64 = 5_000
 }
