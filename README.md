@@ -15,7 +15,7 @@ drift, and hardware metrics without ever sending raw inputs.
 | [SPMExamples](Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
 | [OnnxExample](Examples/OnnxExample) | Zero-code ONNX Runtime tracking via auto-interceptor |
 | [MLKitExample](Examples/MLKitExample) | Zero-code ML Kit tracking via auto-interceptor |
-| [TFLiteExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/TFLiteExample.swift) | TensorFlow Lite inference tracking |
+| [TFLiteExample](Examples/TFLiteExample) | TensorFlow Lite manual inference tracking |
 | [TracingExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
 
 

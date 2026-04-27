@@ -1,0 +1,18 @@
+name: TFLiteExample
+options:
+  bundleIdPrefix: dev.wildedge
+targets:
+  TFLiteExample:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.5"
+    sources:
+      - path: Sources/TFLiteExample
+    info:
+      path: Sources/TFLiteExample/Info.plist
+      properties:
+        CFBundleIdentifier: dev.wildedge.TFLiteExample
+        UILaunchScreen: {}
+    settings:
+      base:
+        SWIFT_VERSION: "5.9"
