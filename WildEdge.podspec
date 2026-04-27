@@ -4,7 +4,7 @@ Pod::Spec.new do |s|
   s.summary          = 'WildEdge ML observability SDK'
   s.homepage         = 'https://wildedge.dev'
   s.license          = { :type => 'Proprietary' }
-  s.author           = { 'WildEdge' => 'team@wildedge.dev' }
+  s.author           = { 'WildEdge' => 'contact@wildedge.dev' }
   s.source           = { :path => '.' }
 
   s.ios.deployment_target  = '13.0'
