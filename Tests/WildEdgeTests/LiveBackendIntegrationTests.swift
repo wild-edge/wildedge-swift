@@ -156,6 +156,41 @@ final class LiveBackendIntegrationTests: XCTestCase {
         client.close(timeoutMs: 5_000)
     }
 
+    func testTrackLoadWithoutAcceleratorFlushesToBackend() throws {
+        try requireLiveTestsEnabled()
+
+        let dsn = try XCTUnwrap(
+            ProcessInfo.processInfo.environment["WILDEDGE_DSN"],
+            "WILDEDGE_DSN must be set for live backend integration tests"
+        )
+
+        let client = WildEdge.initialize { builder in
+            builder.dsn = dsn
+            builder.debug = true
+            builder.flushIntervalMs = 60_000
+        }
+
+        XCTAssertFalse(client is NoopWildEdgeClient)
+
+        let handle = client.registerModel(
+            modelId: "live-load-no-accelerator-model",
+            info: ModelInfo(
+                modelName: "Live Load No Accelerator Model",
+                modelVersion: "1.0",
+                modelSource: "local",
+                modelFormat: "tflite"
+            )
+        )
+
+        handle.trackLoad(durationMs: 42)
+
+        XCTAssertGreaterThan(client.pendingCount, 0)
+        client.flush(timeoutMs: 5_000)
+        XCTAssertEqual(client.pendingCount, 0, "Expected queue to be drained after flush")
+
+        client.close(timeoutMs: 5_000)
+    }
+
     private func requireLiveTestsEnabled() throws {
         let enabled = ProcessInfo.processInfo.environment["WILDEDGE_LIVE_TESTS"]?.lowercased()
         let isEnabled = enabled == "1" || enabled == "true" || enabled == "yes"

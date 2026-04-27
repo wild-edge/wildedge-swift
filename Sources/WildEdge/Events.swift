@@ -103,7 +103,7 @@ internal func buildModelLoadEvent(
     ]
 
     if let memoryBytes { load["memory_bytes"] = memoryBytes }
-    if let accelerator { load["accelerator"] = accelerator.rawValue }
+    load["accelerator"] = (accelerator ?? .cpu).rawValue
     if let errorCode { load["error_code"] = errorCode }
     if let coldStart { load["cold_start"] = coldStart }
     if let threads { load["threads"] = threads }
