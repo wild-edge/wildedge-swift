@@ -101,7 +101,7 @@ PODS:
   - nanopb/decode (3.30910.0)
   - nanopb/encode (3.30910.0)
   - PromisesObjC (2.4.0)
-  - WildEdge (0.1.0)
+  - WildEdge (1.0.0)
 
 DEPENDENCIES:
   - GoogleMLKit/BarcodeScanning (~> 9.0)
@@ -164,7 +164,7 @@ SPEC CHECKSUMS:
   MLKitXenoCommon: 1a4268c1222a6043047af5bb9435028206c63287
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
-  WildEdge: 2fd4ad32042e85ed1e3d263940848b156becf409
+  WildEdge: 94642caf25b6fbed425e5ccf5d6e13d53c2b1f20
 
 PODFILE CHECKSUM: 2828a9525083ae803a06cc5fdc54e131a7187eb2
 
