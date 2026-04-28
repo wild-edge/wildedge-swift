@@ -190,6 +190,62 @@ final class LiveBackendIntegrationTests: XCTestCase {
         client.close(timeoutMs: 5_000)
     }
 
+    func testHardwareSnapshotFieldsFlushToBackend() throws {
+        try requireLiveTestsEnabled()
+
+        let dsn = try XCTUnwrap(
+            ProcessInfo.processInfo.environment["WILDEDGE_DSN"],
+            "WILDEDGE_DSN must be set for live backend integration tests"
+        )
+
+        // Sample hardware directly and assert always-available fields.
+        let sampler = HardwareSampler(intervalMs: 60_000)
+        sampler.start()
+        defer { sampler.stop() }
+        let hw: HardwareContext = sampler.snapshot()
+
+        XCTAssertNotNil(hw.thermalState,        "thermalState must always be readable")
+        XCTAssertNotNil(hw.memoryAvailableBytes, "memoryAvailableBytes must always be readable")
+        XCTAssertNotNil(hw.acceleratorActual,   "acceleratorActual must always be set")
+
+        print("""
+        [hw-snapshot] \
+        thermal=\(hw.thermalState ?? "nil") \
+        mem=\(hw.memoryAvailableBytes.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .memory) } ?? "nil") \
+        accelerator=\(hw.acceleratorActual?.rawValue ?? "nil") \
+        battery=\(hw.batteryLevel.map { String(format: "%.0f%%", $0 * 100) } ?? "nil") \
+        charging=\(hw.batteryCharging.map { "\($0)" } ?? "nil") \
+        gpuBusy=\(hw.gpuBusyPercent.map { "\($0)%" } ?? "nil") \
+        cpuTemp=\(hw.cpuTempCelsius.map { String(format: "%.1f°C", $0) } ?? "nil") \
+        cpuFreq=\(hw.cpuFreqMhz.map { "\($0) MHz" } ?? "nil") \
+        cpuFreqMax=\(hw.cpuFreqMaxMhz.map { "\($0) MHz" } ?? "nil")
+        """)
+
+        // Send an inference event to the backend — the client attaches the hardware snapshot automatically.
+        let client = WildEdge.initialize { builder in
+            builder.dsn = dsn
+            builder.debug = true
+            builder.flushIntervalMs = 60_000
+        }
+        defer { client.close(timeoutMs: 5_000) }
+
+        let handle = client.registerModel(
+            modelId: "live-hw-snapshot-model",
+            info: ModelInfo(
+                modelName: "HW Snapshot Test",
+                modelVersion: "1.0",
+                modelSource: "local",
+                modelFormat: "coreml"
+            )
+        )
+
+        _ = handle.trackInference(durationMs: 8, inputModality: .image, outputModality: .classification)
+
+        XCTAssertGreaterThan(client.pendingCount, 0)
+        client.flush(timeoutMs: 5_000)
+        XCTAssertEqual(client.pendingCount, 0, "Expected queue to be drained after hardware snapshot flush")
+    }
+
     private func requireLiveTestsEnabled() throws {
         let enabled = ProcessInfo.processInfo.environment["WILDEDGE_LIVE_TESTS"]?.lowercased()
         let isEnabled = enabled == "1" || enabled == "true" || enabled == "yes"

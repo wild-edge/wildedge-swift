@@ -42,7 +42,6 @@ final class EventsBuilderTests: XCTestCase {
             deviceId: "test-device-id",
             deviceType: "ios",
             deviceModel: "iPhone",
-            osName: "iOS",
             osVersion: "18.0",
             appVersion: "1.0",
             sdkVersion: "test-sdk",
