@@ -27,7 +27,6 @@ final class LiveBackendIntegrationTests: XCTestCase {
                 deviceId: "test-device-id",
                 deviceType: "ios",
                 deviceModel: "iPhone",
-                osName: "iOS",
                 osVersion: "18.0",
                 appVersion: "live-test",
                 sdkVersion: "test-sdk",

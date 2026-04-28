@@ -5,7 +5,6 @@ public struct DeviceInfo {
     public var deviceId: String
     public var deviceType: String
     public var deviceModel: String
-    public var osName: String
     public var osVersion: String
     public var appVersion: String?
     public var sdkVersion: String
@@ -21,7 +20,6 @@ public struct DeviceInfo {
         deviceId: String,
         deviceType: String = "ios",
         deviceModel: String,
-        osName: String,
         osVersion: String,
         appVersion: String? = nil,
         sdkVersion: String,
@@ -36,7 +34,6 @@ public struct DeviceInfo {
         self.deviceId = deviceId
         self.deviceType = deviceType
         self.deviceModel = deviceModel
-        self.osName = osName
         self.osVersion = osVersion
         self.appVersion = appVersion
         self.sdkVersion = sdkVersion
@@ -60,7 +57,6 @@ public struct DeviceInfo {
             deviceId: deviceId,
             deviceType: "ios",
             deviceModel: HardwareDetection.deviceModel(),
-            osName: processInfo.operatingSystemVersionString,
             osVersion: "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)",
             appVersion: appVersion,
             sdkVersion: Config.sdkVersion,
@@ -79,7 +75,6 @@ public struct DeviceInfo {
             "device_id": deviceId,
             "device_type": deviceType,
             "device_model": deviceModel,
-            "os_name": osName,
             "os_version": osVersion,
             "sdk_version": sdkVersion,
             "locale": locale,
