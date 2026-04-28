@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'WildEdge'
-  s.version          = '1.0.0'
+  s.version          = '1.0.5'
   s.summary          = 'WildEdge ML observability SDK'
   s.homepage         = 'https://wildedge.dev'
   s.license          = { :type => 'Proprietary' }
