@@ -11,13 +11,13 @@ drift, and hardware metrics without ever sending raw inputs.
 
 | Sample | What it shows |
 |---|---|
-| [Sources](Sources) | SDK source code |
-| [iOSAppSample](Examples/iOSAppSample) | iOS app integration using SwiftUI |
-| [SPMExamples](Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
-| [OnnxExample](Examples/OnnxExample) | Zero-code ONNX Runtime tracking via auto-interceptor |
-| [MLKitExample](Examples/MLKitExample) | Zero-code ML Kit tracking via auto-interceptor |
-| [TFLiteExample](Examples/TFLiteExample) | TensorFlow Lite manual inference tracking |
-| [TracingExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
+| [Sources](https://github.com/wild-edge/wildedge-swift/tree/main/Sources) | SDK source code |
+| [iOSAppSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/iOSAppSample) | iOS app integration using SwiftUI |
+| [SPMExamples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
+| [OnnxExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/OnnxExample) | Zero-code ONNX Runtime tracking via auto-interceptor |
+| [MLKitExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/MLKitExample) | Zero-code ML Kit tracking via auto-interceptor |
+| [TFLiteExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteExample) | TensorFlow Lite manual inference tracking |
+| [TracingExample.swift](https://github.com/wild-edge/wildedge-swift/blob/main/Examples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
 
 
 ## Get a DSN from WildEdge
@@ -268,7 +268,7 @@ Full documentation is available at **[docs.wildedge.dev](https://docs.wildedge.d
 
 ## Repo layout
 
-- [Package.swift](Package.swift): Swift SDK package manifest
-- [Sources](Sources): SDK source code
-- [Tests](Tests): SDK test suite
-- [Examples](Examples): iOS app and SwiftPM examples
+- [Package.swift](https://github.com/wild-edge/wildedge-swift/blob/main/Package.swift): Swift SDK package manifest
+- [Sources](https://github.com/wild-edge/wildedge-swift/tree/main/Sources): SDK source code
+- [Tests](https://github.com/wild-edge/wildedge-swift/tree/main/Tests): SDK test suite
+- [Examples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples): iOS app and SwiftPM examples
