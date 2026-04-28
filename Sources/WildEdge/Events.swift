@@ -54,6 +54,11 @@ internal func buildInferenceEvent(
         inference["generation_config"] = generationConfig
     }
 
+    let hw = hardware?.toMap() ?? [:]
+    if !hw.isEmpty {
+        inference["hardware"] = hw
+    }
+
     var event: [String: Any] = [
         "event_id": newEventId(),
         "event_type": "inference",
@@ -77,11 +82,6 @@ internal func buildInferenceEvent(
     }
     if let agentId {
         event["agent_id"] = agentId
-    }
-
-    let hw = hardware?.toMap() ?? [:]
-    if !hw.isEmpty {
-        event["hardware"] = hw
     }
 
     return event
