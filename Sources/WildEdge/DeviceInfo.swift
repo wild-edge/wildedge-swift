@@ -94,7 +94,7 @@ public struct DeviceInfo {
             map["ram_total_bytes"] = ramTotalBytes
         }
         if let gpuModel {
-            map["gpu_model"] = gpuModel
+            map["gpu_name"] = gpuModel
         }
         return map
     }
