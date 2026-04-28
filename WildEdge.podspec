@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.homepage         = 'https://wildedge.dev'
   s.license          = { :type => 'Proprietary' }
   s.author           = { 'WildEdge' => 'contact@wildedge.dev' }
-  s.source           = { :path => '.' }
+  s.source           = { :git => 'https://github.com/wild-edge/wildedge-swift.git', :tag => s.version.to_s }
 
   s.ios.deployment_target  = '13.0'
 
