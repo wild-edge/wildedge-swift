@@ -11,7 +11,7 @@ end
 
 target 'MLKitExample' do
   use_frameworks!
-  pod 'WildEdge', :path => '../..'
+  pod 'WildEdge', '~> 1.0'
   pod 'GoogleMLKit/FaceDetection',      '~> 9.0'
   pod 'GoogleMLKit/ObjectDetection',    '~> 9.0'
   pod 'GoogleMLKit/ImageLabeling',      '~> 9.0'

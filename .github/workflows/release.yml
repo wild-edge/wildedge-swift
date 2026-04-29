@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  bump:
+    if: github.ref_type == 'tag'
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Extract version from tag
+      id: version
+      run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+    - name: Bump Config.sdkVersion and podspec version
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        sed -i '' "s/sdkVersion = \"wildedge-swift-[^\"]*\"/sdkVersion = \"wildedge-swift-$VERSION\"/" Sources/WildEdge/Config.swift
+        sed -i '' "s/s\.version.*= '[^']*'/s.version          = '$VERSION'/" WildEdge.podspec
+        sed -i '' "s/:tag => 'v[^']*'/:tag => 'v$VERSION'/" WildEdge.podspec
+        sed -i '' "s/from: \"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"/from: \"$VERSION\"/" README.md
+        sed -i '' "s/pod 'WildEdge', '[^']*'/pod 'WildEdge', '$VERSION'/" README.md
+        echo "Bumped to $VERSION"
+
+    - name: Commit and push
+      id: commit
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add Sources/WildEdge/Config.swift WildEdge.podspec README.md
+        git commit -m "Bump version to ${{ steps.version.outputs.version }}"
+        git push origin HEAD:main
+        echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Move tag to version bump commit
+      run: |
+        git tag -f ${{ github.ref_name }}
+        git push origin ${{ github.ref_name }} --force
+
+  publish:
+    needs: bump
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.bump.outputs.sha }}
+
+    - name: Build
+      run: swift build -v
+
+    - name: Run tests
+      run: swift test -v
+
+    - name: Publish to CocoaPods
+      env:
+        COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+      run: |
+        gem install cocoapods --no-document
+        pod trunk push WildEdge.podspec --allow-warnings

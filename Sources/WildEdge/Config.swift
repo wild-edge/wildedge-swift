@@ -1,7 +1,7 @@
 import Foundation
 
 internal enum Config {
-    static let sdkVersion = "wildedge-swift-1.0.5"
+    static let sdkVersion = "wildedge-swift-1.0.10"
     static let protocolVersion = "1.0"
 
     static let envDsn = "WILDEDGE_DSN"

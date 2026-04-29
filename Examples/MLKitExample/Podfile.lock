@@ -101,7 +101,7 @@ PODS:
   - nanopb/decode (3.30910.0)
   - nanopb/encode (3.30910.0)
   - PromisesObjC (2.4.0)
-  - WildEdge (1.0.0)
+  - WildEdge (1.0.5)
 
 DEPENDENCIES:
   - GoogleMLKit/BarcodeScanning (~> 9.0)
@@ -110,7 +110,7 @@ DEPENDENCIES:
   - GoogleMLKit/ObjectDetection (~> 9.0)
   - GoogleMLKit/PoseDetection (~> 9.0)
   - GoogleMLKit/TextRecognition (~> 9.0)
-  - WildEdge (from `../..`)
+  - WildEdge (~> 1.0)
 
 SPEC REPOS:
   trunk:
@@ -136,10 +136,7 @@ SPEC REPOS:
     - MLKitXenoCommon
     - nanopb
     - PromisesObjC
-
-EXTERNAL SOURCES:
-  WildEdge:
-    :path: "../.."
+    - WildEdge
 
 SPEC CHECKSUMS:
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
@@ -164,8 +161,8 @@ SPEC CHECKSUMS:
   MLKitXenoCommon: 1a4268c1222a6043047af5bb9435028206c63287
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
-  WildEdge: 94642caf25b6fbed425e5ccf5d6e13d53c2b1f20
+  WildEdge: 8a78724d88354fbdad7f000f3209f0e9542fc820
 
-PODFILE CHECKSUM: 2828a9525083ae803a06cc5fdc54e131a7187eb2
+PODFILE CHECKSUM: 3e14ca07745547b6e959978d6754a889f39c4b35
 
 COCOAPODS: 1.16.2

@@ -1,6 +1,6 @@
 # WildEdge Swift SDK
 
-[![CI](https://github.com/wild-edge/wildedge-swift/actions/workflows/swift.yml/badge.svg?branch=main)](https://github.com/wild-edge/wildedge-swift/actions/workflows/swift.yml)
+[![CI](https://github.com/wild-edge/wildedge-swift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/wild-edge/wildedge-swift/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Platform](https://img.shields.io/badge/platform-iOS%2013%2B%20%7C%20macOS%2012%2B-brightgreen.svg)](Package.swift)
 
@@ -11,13 +11,13 @@ drift, and hardware metrics without ever sending raw inputs.
 
 | Sample | What it shows |
 |---|---|
-| [Sources](Sources) | SDK source code |
-| [iOSAppSample](Examples/iOSAppSample) | iOS app integration using SwiftUI |
-| [SPMExamples](Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
-| [OnnxExample](Examples/OnnxExample) | Zero-code ONNX Runtime tracking via auto-interceptor |
-| [MLKitExample](Examples/MLKitExample) | Zero-code ML Kit tracking via auto-interceptor |
-| [TFLiteExample](Examples/TFLiteExample) | TensorFlow Lite manual inference tracking |
-| [TracingExample.swift](Examples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
+| [Sources](https://github.com/wild-edge/wildedge-swift/tree/main/Sources) | SDK source code |
+| [iOSAppSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/iOSAppSample) | iOS app integration using SwiftUI |
+| [SPMExamples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
+| [OnnxExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/OnnxExample) | Zero-code ONNX Runtime tracking via auto-interceptor |
+| [MLKitExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/MLKitExample) | Zero-code ML Kit tracking via auto-interceptor |
+| [TFLiteExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteExample) | TensorFlow Lite manual inference tracking |
+| [TracingExample.swift](https://github.com/wild-edge/wildedge-swift/blob/main/Examples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
 
 
 ## Get a DSN from WildEdge
@@ -32,11 +32,13 @@ A DSN is a single configuration value that contains your Project Key and connect
 
 ## Add the SDK to your project
 
-Add the WildEdge Swift SDK dependency to your `Package.swift` file:
+### Swift Package Manager
+
+Add the dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/wild-edge/wildedge-swift.git", branch: "main")
+    .package(url: "https://github.com/wild-edge/wildedge-swift.git", from: "1.0.5")
 ],
 targets: [
     .target(
@@ -48,12 +50,24 @@ targets: [
 ]
 ```
 
-#### Alternative to editing Package.swift: add the SDK in Xcode
+Or add it directly in Xcode via `File > Add Package Dependencies...` using:
+```
+https://github.com/wild-edge/wildedge-swift.git
+```
 
-1. Open your project in Xcode.
-2. Go to `File > Add Package Dependencies...`.
-3. Add: https://github.com/wild-edge/wildedge-swift.git
-4. Select product `WildEdge`.
+### CocoaPods
+
+Add the pod to your `Podfile`:
+
+```ruby
+pod 'WildEdge', '1.0.10'
+```
+
+Then run:
+
+```bash
+pod install
+```
 
 ## Setup
 
@@ -268,7 +282,7 @@ Full documentation is available at **[docs.wildedge.dev](https://docs.wildedge.d
 
 ## Repo layout
 
-- [Package.swift](Package.swift): Swift SDK package manifest
-- [Sources](Sources): SDK source code
-- [Tests](Tests): SDK test suite
-- [Examples](Examples): iOS app and SwiftPM examples
+- [Package.swift](https://github.com/wild-edge/wildedge-swift/blob/main/Package.swift): Swift SDK package manifest
+- [Sources](https://github.com/wild-edge/wildedge-swift/tree/main/Sources): SDK source code
+- [Tests](https://github.com/wild-edge/wildedge-swift/tree/main/Tests): SDK test suite
+- [Examples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples): iOS app and SwiftPM examples
