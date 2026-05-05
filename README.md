@@ -214,6 +214,29 @@ Available metadata types: `DetectionOutputMeta`, `GenerationOutputMeta`, `Embedd
 | `lowConfidenceThreshold` | `0.5` | Sampling threshold |
 | `debug` | `false` | Verbose logs (or `WILDEDGE_DEBUG=true`) |
 
+## Diagnostics
+
+Call `diagnostics()` on any `WildEdgeClient` to inspect the SDK's internal state at runtime:
+
+```swift
+let diag = wildEdge.diagnostics()
+print(diag.processMemoryBytes)        // physical memory footprint of the process (bytes)
+print(diag.systemAvailableMemoryBytes) // system-wide free memory, nil if unavailable
+print(diag.eventQueueCount)           // number of events buffered in the queue
+print(diag.eventQueueBytes)           // in-memory data size of buffered events (bytes)
+print(diag.eventQueueSerialisedBytes) // JSON-serialised size of buffered events (bytes)
+```
+
+| Field | Description |
+|---|---|
+| `processMemoryBytes` | Physical memory footprint of the current process (`phys_footprint` via `task_vm_info`) |
+| `systemAvailableMemoryBytes` | System-wide available memory (free + inactive VM pages); `nil` if the kernel call fails |
+| `eventQueueCount` | Number of events currently buffered and waiting to be flushed |
+| `eventQueueBytes` | In-memory data size of all buffered events, measured via `MemoryLayout` |
+| `eventQueueSerialisedBytes` | JSON-serialised byte size of all buffered events |
+
+`eventQueueBytes` reflects the raw data payload (string UTF-8 lengths, numeric storage widths). `eventQueueSerialisedBytes` is always larger because JSON adds structural overhead (quotes, colons, brackets).
+
 ## AI-assisted integration
 
 Paste this prompt into your coding agent:
