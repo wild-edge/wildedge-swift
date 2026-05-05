@@ -1,10 +1,14 @@
 import Foundation
 
+private let _isoFormatter: ISO8601DateFormatter = {
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    f.timeZone = TimeZone(secondsFromGMT: 0)
+    return f
+}()
+
 internal func isoNow() -> String {
-    let formatter = ISO8601DateFormatter()
-    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
-    return formatter.string(from: Date())
+    _isoFormatter.string(from: Date())
 }
 
 internal func newEventId() -> String {
