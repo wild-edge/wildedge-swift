@@ -18,6 +18,7 @@ public protocol WildEdgeClient: AnyObject {
     func flush(timeoutMs: Int64)
     func close(timeoutMs: Int64)
     var pendingCount: Int { get }
+    func diagnostics() -> SDKDiagnostics
 }
 
 public extension WildEdgeClient {
@@ -176,6 +177,29 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
 
     public var pendingCount: Int {
         queue.length()
+    }
+
+    public func diagnostics() -> SDKDiagnostics {
+        SDKDiagnostics(
+            processMemoryBytes: Self.processPhysicalFootprint(),
+            systemAvailableMemoryBytes: hardwareSampler.snapshot().memoryAvailableBytes,
+            eventQueueCount: queue.length(),
+            eventQueueBytes: queue.inMemoryBytes(),
+            eventQueueSerialisedBytes: queue.serialisedSize()
+        )
+    }
+
+    private static func processPhysicalFootprint() -> Int64 {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(
+            MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size
+        )
+        let kr = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        return kr == KERN_SUCCESS ? Int64(info.phys_footprint) : 0
     }
 
     deinit {
@@ -441,6 +465,16 @@ public final class NoopWildEdgeClient: WildEdgeClient {
     }
 
     public var pendingCount: Int { 0 }
+
+    public func diagnostics() -> SDKDiagnostics {
+        SDKDiagnostics(
+            processMemoryBytes: 0,
+            systemAvailableMemoryBytes: nil,
+            eventQueueCount: 0,
+            eventQueueBytes: 0,
+            eventQueueSerialisedBytes: 0
+        )
+    }
 }
 
 private final class NullSpanOwner: SpanOwner {

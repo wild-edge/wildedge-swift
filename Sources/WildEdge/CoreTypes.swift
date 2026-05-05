@@ -262,6 +262,19 @@ public struct TextInputMeta {
     }
 }
 
+public struct SDKDiagnostics {
+    /// Physical memory footprint of the current process (phys_footprint from task_vm_info).
+    public let processMemoryBytes: Int64
+    /// System-wide available memory (free + inactive VM pages). Nil if the kernel call fails.
+    public let systemAvailableMemoryBytes: Int64?
+    /// Number of events currently buffered in the queue.
+    public let eventQueueCount: Int
+    /// In-memory data size of all buffered events, in bytes.
+    public let eventQueueBytes: Int
+    /// JSON-serialised size of all buffered events, in bytes.
+    public let eventQueueSerialisedBytes: Int
+}
+
 public struct HardwareContext {
     public var thermalState: String?
     public var thermalStateRaw: String?
