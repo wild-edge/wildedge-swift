@@ -273,6 +273,8 @@ public struct SDKDiagnostics {
     public let eventQueueBytes: Int
     /// JSON-serialised size of all buffered events, in bytes.
     public let eventQueueSerialisedBytes: Int
+    /// Time taken to JSON-serialise all buffered events, in milliseconds.
+    public let jsonSerialisationMs: Double
 }
 
 public struct HardwareContext {

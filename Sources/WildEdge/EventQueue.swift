@@ -57,6 +57,20 @@ internal final class EventQueue {
         }
     }
 
+    func serialisedSizeWithTiming() -> (bytes: Int, elapsedMs: Double) {
+        lock.lock()
+        let snapshot = events
+        lock.unlock()
+        let start = DispatchTime.now()
+        let bytes = snapshot.reduce(0) { total, event in
+            let data = (try? JSONSerialization.data(withJSONObject: event)) ?? Data()
+            return total + data.count
+        }
+        let end = DispatchTime.now()
+        let ns = end.uptimeNanoseconds - start.uptimeNanoseconds
+        return (bytes, Double(ns) / 1_000_000)
+    }
+
     private static func dataSize(of value: Any) -> Int {
         switch value {
         case let dict as [String: Any]:

@@ -180,12 +180,14 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     }
 
     public func diagnostics() -> SDKDiagnostics {
-        SDKDiagnostics(
+        let (serialisedBytes, serialisationMs) = queue.serialisedSizeWithTiming()
+        return SDKDiagnostics(
             processMemoryBytes: Self.processPhysicalFootprint(),
             systemAvailableMemoryBytes: hardwareSampler.snapshot().memoryAvailableBytes,
             eventQueueCount: queue.length(),
             eventQueueBytes: queue.inMemoryBytes(),
-            eventQueueSerialisedBytes: queue.serialisedSize()
+            eventQueueSerialisedBytes: serialisedBytes,
+            jsonSerialisationMs: serialisationMs
         )
     }
 
@@ -472,7 +474,8 @@ public final class NoopWildEdgeClient: WildEdgeClient {
             systemAvailableMemoryBytes: nil,
             eventQueueCount: 0,
             eventQueueBytes: 0,
-            eventQueueSerialisedBytes: 0
+            eventQueueSerialisedBytes: 0,
+            jsonSerialisationMs: 0
         )
     }
 }
