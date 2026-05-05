@@ -295,10 +295,29 @@ internal func buildMemoryWarningEvent(
 }
 
 internal func jsonData(_ object: Any) -> Data? {
-    guard JSONSerialization.isValidJSONObject(object) else {
+    let sanitized = sanitizeFloats(object)
+    guard JSONSerialization.isValidJSONObject(sanitized) else {
         return nil
     }
-    return try? JSONSerialization.data(withJSONObject: object)
+    return try? JSONSerialization.data(withJSONObject: sanitized)
+}
+
+// JSONSerialization serialises Swift Doubles using their full binary representation
+// (e.g. 0.9 → "0.90000000000000002"). Converting to NSDecimalNumber via Swift's
+// shortest-decimal String representation (Grisu/Dragon4) produces clean output.
+private func sanitizeFloats(_ value: Any) -> Any {
+    switch value {
+    case let dict as [String: Any]:
+        return dict.mapValues { sanitizeFloats($0) }
+    case let array as [Any]:
+        return array.map { sanitizeFloats($0) }
+    case let v as Double:
+        return NSDecimalNumber(string: String(v))
+    case let v as Float:
+        return NSDecimalNumber(string: String(v))
+    default:
+        return value
+    }
 }
 
 internal func buildBatch(
