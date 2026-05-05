@@ -295,7 +295,10 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
 
             do {
                 let parsed = try Self.parseDsn(dsn)
-                let queue = EventQueue(maxSize: maxQueueSize)
+                let queueFileURL = FileManager.default
+                    .urls(for: .cachesDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("dev.wildedge.eventqueue.ndjson")
+                let queue = EventQueue(maxSize: maxQueueSize, fileURL: queueFileURL)
                 let registry = ModelRegistry()
                 let transmitter = Transmitter(host: parsed.host, apiKey: parsed.secret)
                 let detectedDevice = device ?? DeviceInfo.detect(appVersion: appVersion, projectSecret: parsed.secret)
