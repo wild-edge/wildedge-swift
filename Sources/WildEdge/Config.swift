@@ -6,6 +6,7 @@ internal enum Config {
 
     static let envDsn = "WILDEDGE_DSN"
     static let envDebug = "WILDEDGE_DEBUG"
+    static let envPersistQueueToDisk = "WILDEDGE_PERSIST_QUEUE_TO_DISK"
 
     static let defaultFlushIntervalMs: Int64 = 60_000
     static let defaultBatchSize = 10
@@ -13,6 +14,7 @@ internal enum Config {
     static let defaultMaxEventAgeMs: Int64 = 900_000
     static let defaultShutdownFlushTimeoutMs: Int64 = 5_000
     static let defaultLowConfidenceThreshold: Double = 0.5
+    static let defaultPersistQueueToDisk = true
 
     static let backoffMinMs: UInt64 = 1_000
     static let backoffMaxMs: UInt64 = 60_000
