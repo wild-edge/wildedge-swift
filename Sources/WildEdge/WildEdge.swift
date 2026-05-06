@@ -281,11 +281,16 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         public var flushIntervalMs: Int64 = Config.defaultFlushIntervalMs
         public var maxEventAgeMs: Int64 = Config.defaultMaxEventAgeMs
         public var lowConfidenceThreshold: Double = Config.defaultLowConfidenceThreshold
+        public var persistQueueToDisk: Bool = Config.defaultPersistQueueToDisk
         public var debug: Bool = ProcessInfo.processInfo.environment[Config.envDebug] == "true"
 
         public init() {
             dsn = ProcessInfo.processInfo.environment[Config.envDsn]
                 ?? Bundle.main.object(forInfoDictionaryKey: Config.envDsn) as? String
+            persistQueueToDisk = Self.resolvePersistQueueToDisk(
+                environmentValue: ProcessInfo.processInfo.environment[Config.envPersistQueueToDisk],
+                infoDictionaryValue: Bundle.main.object(forInfoDictionaryKey: Config.envPersistQueueToDisk)
+            )
         }
 
         public func build() -> WildEdgeClient {
@@ -295,9 +300,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
 
             do {
                 let parsed = try Self.parseDsn(dsn)
-                let queueFileURL = FileManager.default
-                    .urls(for: .cachesDirectory, in: .userDomainMask)[0]
-                    .appendingPathComponent("dev.wildedge.eventqueue.ndjson")
+                let queueFileURL = Self.eventQueueFileURL(persistQueueToDisk: persistQueueToDisk)
                 let queue = EventQueue(maxSize: maxQueueSize, fileURL: queueFileURL)
                 let registry = ModelRegistry()
                 let transmitter = Transmitter(host: parsed.host, apiKey: parsed.secret)
@@ -352,6 +355,46 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             }
 
             return (secret, normalizedHost)
+        }
+
+        internal static func eventQueueFileURL(persistQueueToDisk: Bool) -> URL? {
+            guard persistQueueToDisk else { return nil }
+            return FileManager.default
+                .urls(for: .cachesDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("dev.wildedge.eventqueue.ndjson")
+        }
+
+        internal static func resolvePersistQueueToDisk(
+            environmentValue: String?,
+            infoDictionaryValue: Any?
+        ) -> Bool {
+            if let environmentValue, let parsed = parseBool(environmentValue) {
+                return parsed
+            }
+            if let parsed = parseBool(infoDictionaryValue) {
+                return parsed
+            }
+            return Config.defaultPersistQueueToDisk
+        }
+
+        private static func parseBool(_ value: Any?) -> Bool? {
+            switch value {
+            case let value as Bool:
+                return value
+            case let value as NSNumber:
+                return value.boolValue
+            case let value as String:
+                switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+                case "1", "true", "yes", "y", "on":
+                    return true
+                case "0", "false", "no", "n", "off":
+                    return false
+                default:
+                    return nil
+                }
+            default:
+                return nil
+            }
         }
 
         internal enum ParseError: Error, Equatable {
