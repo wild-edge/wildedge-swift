@@ -87,6 +87,7 @@ WILDEDGE_DSN=https://<secret>@ingest.wildedge.dev/<key>
 ```
 
 `WildEdge.shared` is then ready for use anywhere in your app. Set `WILDEDGE_DEBUG=true` (env var) to see verbose auto-init and event logs.
+Set `WILDEDGE_PERSIST_QUEUE_TO_DISK=false` to keep the event queue memory-only for testing or profiling. The same key also works in `Info.plist`.
 
 ### Manual init
 
@@ -97,6 +98,7 @@ import WildEdge
 
 let wildEdge: WildEdgeClient = WildEdge.initialize { builder in
     builder.dsn = "https://<secret>@ingest.wildedge.dev/<key>"
+    // builder.persistQueueToDisk = false
     // builder.debug = true
 }
 ```
@@ -209,6 +211,7 @@ Available metadata types: `DetectionOutputMeta`, `GenerationOutputMeta`, `Embedd
 | `appVersion` | auto-detected | App version attached to every batch |
 | `batchSize` | `10` | Events per request |
 | `maxQueueSize` | `200` | Max in-memory events |
+| `persistQueueToDisk` | `true` | Mirror the queue to `Caches/dev.wildedge.eventqueue.ndjson`; set `false` for memory-only buffering (or `WILDEDGE_PERSIST_QUEUE_TO_DISK=false`) |
 | `flushIntervalMs` | `60_000` | Background flush interval |
 | `maxEventAgeMs` | `900_000` | Old events are dropped |
 | `lowConfidenceThreshold` | `0.5` | Sampling threshold |
