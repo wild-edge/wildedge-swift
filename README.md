@@ -297,6 +297,25 @@ cd Examples/SPMExamples
 swift run
 ```
 
+## Binary size impact
+
+Measured on minimal apps compiled with `-Osize` and stripped, targeting `arm64-apple-ios14.0` and `arm64-apple-macos12.0`.
+
+| | iOS install | iOS `.ipa` | macOS install | macOS `.zip` |
+|---|---|---|---|---|
+| Without SDK | 90 KB | 14 KB | 53 KB | 9 KB |
+| With SDK | 315 KB | 122 KB | 299 KB | 118 KB |
+| **Delta** | **+225 KB** | **+107 KB** | **+246 KB** | **+109 KB** |
+
+**Segment breakdown (release, `-Osize`)**
+
+| Segment | Size | What it is |
+|---|---|---|
+| `__TEXT` (code) | 176 KB | Executable machine instructions |
+| `__DATA` | 21 KB | Globals, vtables, ObjC metadata |
+
+Download size is the zipped `.app`/`.ipa` binary delta. Apple's App Store LZFSE compressor achieves similar ratios, so real-world download overhead is around **~100 KB** on both platforms.
+
 ## Runtime dependencies
 
 - `WildEdge` has no required transitive runtime dependencies
