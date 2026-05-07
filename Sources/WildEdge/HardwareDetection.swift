@@ -6,12 +6,27 @@ import UIKit
 
 internal enum HardwareDetection {
     static func deviceModel() -> String {
-        #if os(iOS)
-        let device = UIDevice.current
-        return "\(device.model)"
+        deviceModelIdentifier()
+    }
+
+    static func deviceModelIdentifier() -> String {
+        #if targetEnvironment(simulator)
+        return ProcessInfo.processInfo.environment["SIMULATOR_MODEL_IDENTIFIER"] ?? "simulator"
+        #elseif os(iOS)
+        // hw.machine → "iPhone17,1", "iPad16,3", etc.
+        return sysctl("hw.machine")
         #else
-        return "Mac"
+        // hw.model → "MacBookPro18,3", "Mac14,7", etc. (hw.machine returns arch on macOS)
+        return sysctl("hw.model")
         #endif
+    }
+
+    private static func sysctl(_ key: String) -> String {
+        var size = 0
+        sysctlbyname(key, nil, &size, nil, 0)
+        var buf = [CChar](repeating: 0, count: size)
+        sysctlbyname(key, &buf, &size, nil, 0)
+        return String(cString: buf)
     }
 
     static func cpuArchitecture() -> String? {
@@ -35,19 +50,13 @@ internal enum HardwareDetection {
 
     static func availableAccelerators() -> [Accelerator] {
         var accelerators: [Accelerator] = [.cpu]
-
         #if os(iOS)
-        if #available(iOS 13.0, *) {
-            accelerators.append(.gpu)
-        }
-        if #available(iOS 14.0, *) {
-            accelerators.append(.npu)
-        }
+        if #available(iOS 13.0, *) { accelerators.append(.gpu) }
+        if #available(iOS 14.0, *) { accelerators.append(.npu) }
         #else
         accelerators.append(.gpu)
         accelerators.append(.npu)
         #endif
-
         return accelerators
     }
 
