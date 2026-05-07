@@ -1,6 +1,3 @@
-# This workflow will build a Swift project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-swift
-
 name: CI
 
 on:
@@ -11,12 +8,136 @@ on:
 
 jobs:
   build:
-
     runs-on: macos-latest
-
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: swift build -v
-    - name: Run tests
-      run: swift test -v
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build -v
+      - name: Run tests
+        run: swift test -v
+
+  binary-size:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Debug
+        run: swift build -c debug 2>&1 | tail -1
+
+      - name: Build Release
+        run: swift build -c release 2>&1 | tail -1
+
+      - name: Measure sizes
+        id: sizes
+        run: |
+          pack() {
+            local config=$1
+            local out=/tmp/WildEdge-${config}.a
+            ar rcs "$out" $(find .build/${config}/WildEdge.build -name "*.o" | sort)
+            cp "$out" /tmp/WildEdge-${config}-stripped.a
+            strip -S /tmp/WildEdge-${config}-stripped.a
+            echo "${config}_full=$(wc -c < $out | tr -d ' ')"
+            echo "${config}_stripped=$(wc -c < /tmp/WildEdge-${config}-stripped.a | tr -d ' ')"
+          }
+          pack debug   >> $GITHUB_OUTPUT
+          pack release >> $GITHUB_OUTPUT
+
+          # Per-segment totals (release)
+          size $(find .build/release/WildEdge.build -name "*.o") | tail -n +2 | \
+            awk 'BEGIN{t=0;d=0} {t+=$1;d+=$2} END{
+              printf "seg_text=%d\n", t
+              printf "seg_data=%d\n", d
+              printf "seg_total=%d\n", t+d
+              # Download size estimate: LZFSE compresses compiled Swift ~45%
+              printf "release_compressed=%d\n", (t+d)*55/100
+            }' >> $GITHUB_OUTPUT
+
+      - name: Write summary
+        run: |
+          fmt_kb() { python3 -c "v=int('$1'); print(f'{v:,} bytes ({v/1024:.0f} KB)')"; }
+          kb()     { python3 -c "print(f'{int(\"$1\")/1024:.0f}')"; }
+
+          DEBUG_FULL=${{ steps.sizes.outputs.debug_full }}
+          DEBUG_STRIPPED=${{ steps.sizes.outputs.debug_stripped }}
+          REL_FULL=${{ steps.sizes.outputs.release_full }}
+          REL_STRIPPED=${{ steps.sizes.outputs.release_stripped }}
+          REL_COMPRESSED=${{ steps.sizes.outputs.release_compressed }}
+          SEG_TEXT=${{ steps.sizes.outputs.seg_text }}
+          SEG_DATA=${{ steps.sizes.outputs.seg_data }}
+          SEG_TOTAL=${{ steps.sizes.outputs.seg_total }}
+
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          ## WildEdge SDK — iOS App Binary Size Impact
+
+          ### Summary
+
+          | Metric | Size |
+          |---|---|
+          | **Install size** (on-device, linked segments) | **$(kb $SEG_TOTAL) KB** |
+          | **Download size** (App Store, est.) | **~$(kb $REL_COMPRESSED) KB** |
+          | Static archive \`.a\` (pre-link) | $(kb $REL_STRIPPED) KB |
+
+          > The archive is $(kb $REL_STRIPPED) KB but the linker only copies code and data
+          > segments into the app binary — symbol tables and relocation metadata are
+          > discarded at link time.
+
+          ### Segment breakdown
+
+          | Segment | Size | What it is |
+          |---|---|---|
+          | \`__TEXT\` (code) | **$(kb $SEG_TEXT) KB** | Executable machine instructions |
+          | \`__DATA\` | **$(kb $SEG_DATA) KB** | Initiailsed globals, vtables, ObjC metadata |
+          | \`__BSS\` | 0 KB | Zero-initialised globals (no binary cost) |
+
+          ### Per-component breakdown (\`__TEXT\`, release)
+
+          | Component | KB | Notes |
+          |---|---|---|
+          $(size $(find .build/release/WildEdge.build -name "*.o") | tail -n +2 | \
+            awk '{printf "| `%s` | %d KB | |\n", $NF, $1/1024}' | \
+            sed 's|.build/release/WildEdge.build/||g' | \
+            sed 's/.swift.o//g' | sort -t'|' -k3 -rn)
+
+          ### Build configurations
+
+          | Configuration | Archive (.a) | Stripped |
+          |---|---|---|
+          | Debug   | $(fmt_kb $DEBUG_FULL)   | $(fmt_kb $DEBUG_STRIPPED) |
+          | Release | $(fmt_kb $REL_FULL) | $(fmt_kb $REL_STRIPPED) |
+          EOF
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const install_kb    = Math.round(${{ steps.sizes.outputs.seg_total }}    / 1024);
+            const download_kb   = Math.round(${{ steps.sizes.outputs.release_compressed }} / 1024);
+            const text_kb       = Math.round(${{ steps.sizes.outputs.seg_text }}     / 1024);
+            const data_kb       = Math.round(${{ steps.sizes.outputs.seg_data }}     / 1024);
+            const archive_kb    = Math.round(${{ steps.sizes.outputs.release_stripped }} / 1024);
+
+            const body = [
+              '## WildEdge SDK — iOS App Binary Size Impact',
+              '',
+              '| Metric | Size |',
+              '|---|---|',
+              `| **Install size** (on-device) | **${install_kb} KB** |`,
+              `| **Download size** (App Store, est.) | **~${download_kb} KB** |`,
+              `| Static archive \`.a\` (pre-link) | ${archive_kb} KB |`,
+              '',
+              '**Segment breakdown (Release)**',
+              '',
+              '| Segment | Size |',
+              '|---|---|',
+              `| \`__TEXT\` (code) | ${text_kb} KB |`,
+              `| \`__DATA\` | ${data_kb} KB |`,
+              `| \`__BSS\` | 0 KB |`,
+            ].join('\n');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
