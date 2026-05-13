@@ -5,7 +5,15 @@ final class DiagnosticsTests: XCTestCase {
     func testDiagnosticsAfterFillingQueueToMax() {
         let maxSize = 1000
         let queue = EventQueue(maxSize: maxSize)
-        let client = WildEdge(queue: queue, registry: ModelRegistry(), consumer: nil, debug: false)
+        let client = WildEdge(
+            queue: queue,
+            registry: ModelRegistry(),
+            consumer: nil,
+            attachmentQueue: nil,
+            attachmentConsumer: nil,
+            attachmentConfig: .init(enabled: false, maxPerInference: 0, maxSizeBytes: 0, storageStrategy: .file, filter: nil),
+            debug: false
+        )
 
         let handle = client.registerModel(
             modelId: "diag-model",
@@ -62,18 +70,19 @@ final class DiagnosticsTests: XCTestCase {
             )
         }
 
-        let diag = client.diagnostics()
+        let deadline = Date().addingTimeInterval(2.0)
+        var diag = client.diagnostics()
+        while diag.eventQueueCount < maxSize && Date() < deadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+            diag = client.diagnostics()
+        }
 
         let mb = { (bytes: Int64) in String(format: "%.3f MB", Double(bytes) / 1_048_576) }
         print("SDKDiagnostics:")
         print("  processMemoryBytes:         \(diag.processMemoryBytes) (\(mb(diag.processMemoryBytes)))")
         print("  systemAvailableMemoryBytes: \(diag.systemAvailableMemoryBytes.map { "\($0) (\(mb($0)))" } ?? "nil")")
         print("  eventQueueCount:            \(diag.eventQueueCount)")
-        print("  eventQueueBytes:            \(diag.eventQueueBytes) (\(mb(Int64(diag.eventQueueBytes))))")
-        print("  eventQueueSerialisedBytes:  \(diag.eventQueueSerialisedBytes) (\(mb(Int64(diag.eventQueueSerialisedBytes))))")
 
         XCTAssertEqual(diag.eventQueueCount, maxSize)
-        XCTAssertGreaterThan(diag.eventQueueBytes, 0)
-        XCTAssertGreaterThan(diag.eventQueueSerialisedBytes, 0)
     }
 }

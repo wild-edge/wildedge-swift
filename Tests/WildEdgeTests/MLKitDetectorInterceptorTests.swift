@@ -18,11 +18,18 @@ final class MLKitDetectorInterceptorTests: XCTestCase {
         // Register fake class BEFORE creating WildEdge so install() finds it and swizzles it.
         registerFakeFaceDetectorClass()
         queue = EventQueue(maxSize: 100)
-        client = WildEdge(queue: queue, registry: ModelRegistry(), consumer: nil, debug: false)
+        client = WildEdge(
+            queue: queue,
+            registry: ModelRegistry(),
+            consumer: nil,
+            attachmentQueue: nil,
+            attachmentConsumer: nil,
+            attachmentConfig: .init(enabled: false, maxPerInference: 0, maxSizeBytes: 0, storageStrategy: .file, filter: nil),
+            debug: false
+        )
     }
 
     override func tearDown() {
-        client.close()
         client = nil
         queue = nil
         super.tearDown()

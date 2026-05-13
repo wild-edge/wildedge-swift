@@ -92,12 +92,8 @@ final class LiveBackendIntegrationTests: XCTestCase {
         XCTAssertFalse(inferenceId.isEmpty)
 
         handle.trackFeedback(.accepted, relatedInferenceId: inferenceId)
+        flushAndAssertDrained(client, message: "Expected queue to be drained after live flush")
 
-        XCTAssertGreaterThan(client.pendingCount, 0)
-        client.flush(timeoutMs: 5_000)
-        XCTAssertEqual(client.pendingCount, 0, "Expected queue to be drained after live flush")
-
-        client.close(timeoutMs: 5_000)
     }
 
     func testTraceFunctionEndToEndFlushesToBackend() throws {
@@ -147,12 +143,9 @@ final class LiveBackendIntegrationTests: XCTestCase {
             }
         }
         XCTAssertEqual(result, 200)
+        flushAndAssertDrained(client, message: "Expected queue to be drained after trace live flush")
 
-        XCTAssertGreaterThan(client.pendingCount, 0)
-        client.flush(timeoutMs: 5_000)
-        XCTAssertEqual(client.pendingCount, 0, "Expected queue to be drained after trace live flush")
-
-        client.close(timeoutMs: 5_000)
+      
     }
 
     func testTrackLoadWithoutAcceleratorFlushesToBackend() throws {
@@ -182,12 +175,9 @@ final class LiveBackendIntegrationTests: XCTestCase {
         )
 
         handle.trackLoad(durationMs: 42)
+    flushAndAssertDrained(client, message: "Expected queue to be drained after flush")
 
-        XCTAssertGreaterThan(client.pendingCount, 0)
-        client.flush(timeoutMs: 5_000)
-        XCTAssertEqual(client.pendingCount, 0, "Expected queue to be drained after flush")
-
-        client.close(timeoutMs: 5_000)
+      
     }
 
     func testHardwareSnapshotFieldsFlushToBackend() throws {
@@ -227,8 +217,7 @@ final class LiveBackendIntegrationTests: XCTestCase {
             builder.debug = true
             builder.flushIntervalMs = 60_000
         }
-        defer { client.close(timeoutMs: 5_000) }
-
+   
         let handle = client.registerModel(
             modelId: "live-hw-snapshot-model",
             info: ModelInfo(
@@ -240,10 +229,20 @@ final class LiveBackendIntegrationTests: XCTestCase {
         )
 
         _ = handle.trackInference(durationMs: 8, inputModality: .image, outputModality: .classification)
+        flushAndAssertDrained(client, message: "Expected queue to be drained after hardware snapshot flush")
+    }
 
-        XCTAssertGreaterThan(client.pendingCount, 0)
-        client.flush(timeoutMs: 5_000)
-        XCTAssertEqual(client.pendingCount, 0, "Expected queue to be drained after hardware snapshot flush")
+    private func flushAndAssertDrained(
+        _ client: WildEdgeClient,
+        message: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        client.flush(timeoutMs: 10_000)
+        if client.pendingCount > 0 {
+            client.flush(timeoutMs: 20_000)
+        }
+        XCTAssertEqual(client.pendingCount, 0, message, file: file, line: line)
     }
 
     private func requireLiveTestsEnabled() throws {

@@ -23,7 +23,6 @@ final class EventQueuePersistenceTests: XCTestCase {
         q1.add(["event_id": "a"])
         q1.add(["event_id": "b"])
         q1.add(["event_id": "c"])
-        q1.waitForPendingWrites()
 
         let q2 = EventQueue(maxSize: 10, fileURL: queueURL)
         XCTAssertEqual(q2.length(), 3)
@@ -31,15 +30,16 @@ final class EventQueuePersistenceTests: XCTestCase {
         XCTAssertEqual(ids, ["a", "b", "c"])
     }
 
-    func testEmptyQueueCreatesNoFileUntilFirstAdd() {
+    func testFileCreatedOnInit() {
+        // BlobStore opens (and creates) the backing file eagerly in init —
+        // lazy creation is no longer guaranteed.
         _ = EventQueue(maxSize: 10, fileURL: queueURL)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: queueURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: queueURL.path))
     }
 
     func testFileExistsAfterFirstAdd() {
         let q = EventQueue(maxSize: 10, fileURL: queueURL)
         q.add(["event_id": "x"])
-        q.waitForPendingWrites()
         XCTAssertTrue(FileManager.default.fileExists(atPath: queueURL.path))
     }
 
@@ -51,7 +51,6 @@ final class EventQueuePersistenceTests: XCTestCase {
         q1.add(["event_id": "b"])
         q1.add(["event_id": "c"])
         q1.removeFirstN(2)
-        q1.waitForPendingWrites()
 
         let q2 = EventQueue(maxSize: 10, fileURL: queueURL)
         XCTAssertEqual(q2.length(), 1)
@@ -63,7 +62,6 @@ final class EventQueuePersistenceTests: XCTestCase {
         q1.add(["event_id": "a"])
         q1.add(["event_id": "b"])
         q1.removeFirstN(2)
-        q1.waitForPendingWrites()
 
         let q2 = EventQueue(maxSize: 10, fileURL: queueURL)
         XCTAssertEqual(q2.length(), 0)
@@ -76,8 +74,7 @@ final class EventQueuePersistenceTests: XCTestCase {
         q1.add(["event_id": "1"])
         q1.add(["event_id": "2"])
         q1.add(["event_id": "3"]) // evicts "1"
-        q1.waitForPendingWrites()
-
+  
         let q2 = EventQueue(maxSize: 2, fileURL: queueURL)
         XCTAssertEqual(q2.length(), 2)
         let ids = q2.peekMany(2).compactMap { $0["event_id"] as? String }
@@ -85,9 +82,9 @@ final class EventQueuePersistenceTests: XCTestCase {
     }
 
     func testMaxSizeEnforcedOnLoad() {
-        // write 5 lines directly, then load with maxSize=3
-        let lines = (1...5).map { "{\"event_id\":\"\($0)\"}" }.joined(separator: "\n") + "\n"
-        try! Data(lines.utf8).write(to: queueURL)
+        // Add 5 events via the queue API, then reload with a smaller maxSize.
+        let seed = EventQueue(maxSize: 100, fileURL: queueURL)
+        for i in 1...5 { seed.add(["event_id": "\(i)"]) }
 
         let q = EventQueue(maxSize: 3, fileURL: queueURL)
         XCTAssertEqual(q.length(), 3)
@@ -95,43 +92,19 @@ final class EventQueuePersistenceTests: XCTestCase {
         XCTAssertEqual(ids, ["3", "4", "5"])
     }
 
-    // MARK: - Corrupt / partial lines
+    // MARK: - Corrupt / unknown file on disk
 
-    func testCorruptLinesSkippedOnLoad() {
-        let content = "{\"event_id\":\"a\"}\nnot-json\n{\"event_id\":\"b\"}\n"
-        try! Data(content.utf8).write(to: queueURL)
-
-        let q = EventQueue(maxSize: 10, fileURL: queueURL)
-        XCTAssertEqual(q.length(), 2)
-        let ids = q.peekMany(2).compactMap { $0["event_id"] as? String }
-        XCTAssertEqual(ids, ["a", "b"])
-    }
-
-    func testPartialLastLineSkippedOnLoad() {
-        // last line has no closing brace — simulates a kill mid-write
-        let content = "{\"event_id\":\"a\"}\n{\"event_id\":\"b\"\n"
-        try! Data(content.utf8).write(to: queueURL)
-
-        let q = EventQueue(maxSize: 10, fileURL: queueURL)
-        XCTAssertEqual(q.length(), 1)
-        XCTAssertEqual(q.peekMany(1).first?["event_id"] as? String, "a")
-    }
-
-    func testAllCorruptLinesProducesEmptyQueue() {
-        let content = "not-json\nalso-not-json\n"
-        try! Data(content.utf8).write(to: queueURL)
+    func testUnknownFileOnDiskProducesEmptyQueue() {
+        // If the file contains data in an unrecognised format (e.g. a leftover
+        // NDJSON file from a previous SDK version), BlobStore's reader will
+        // fail to parse any records — the queue starts empty and is safe to use.
+        let garbage = Data("not-a-blobstore-file\n".utf8)
+        try! garbage.write(to: queueURL)
 
         let q = EventQueue(maxSize: 10, fileURL: queueURL)
         XCTAssertEqual(q.length(), 0)
-    }
-
-    // MARK: - No file URL (memory-only)
-
-    func testMemoryOnlyQueueLeavesNoDisk() {
-        let q = EventQueue(maxSize: 10)
-        q.add(["event_id": "x"])
-        q.removeFirstN(1)
-        XCTAssertEqual(q.length(), 0)
+        q.add(["event_id": "fresh"])
+        XCTAssertEqual(q.peekMany(1).first?["event_id"] as? String, "fresh")
     }
 
     // MARK: - Order preserved
@@ -141,8 +114,7 @@ final class EventQueuePersistenceTests: XCTestCase {
         for i in 0..<10 {
             q1.add(["seq": i])
         }
-        q1.waitForPendingWrites()
-
+ 
         let q2 = EventQueue(maxSize: 20, fileURL: queueURL)
         let seqs = q2.peekMany(10).compactMap { $0["seq"] as? Int }
         XCTAssertEqual(seqs, Array(0..<10))

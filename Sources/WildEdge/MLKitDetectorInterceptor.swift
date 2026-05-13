@@ -274,7 +274,8 @@ internal final class MLKitDetectorInterceptor {
                 modelName: config.modelName,
                 modelSource: "on-device",
                 modelFormat: "mlkit"
-            )
+            ),
+            publishSynchronously: true
         )
         handle.trackLoad(durationMs: durationMs)
 

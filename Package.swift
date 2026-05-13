@@ -11,6 +11,10 @@ let package = Package(
         .library(
             name: "WildEdge",
             targets: ["WildEdge"]
+        ),
+        .library(
+            name: "WildEdgeBenchmarks",
+            targets: ["WildEdgeBenchmarks"]
         )
     ],
     targets: [
@@ -23,9 +27,18 @@ let package = Package(
             name: "WildEdge",
             dependencies: ["WildEdgeLoader"]
         ),
+        .target(
+            name: "WildEdgeBenchmarks",
+            dependencies: ["WildEdge"],
+            sources: [
+                "WildEdgeBenchmarks.swift",
+                "BlobStoreScenarios.swift",
+                "BlobStoreBenchmarks.swift"
+            ]
+        ),
         .testTarget(
             name: "WildEdgeTests",
-            dependencies: ["WildEdge"]
+            dependencies: ["WildEdge", "WildEdgeBenchmarks"]
         )
     ]
 )

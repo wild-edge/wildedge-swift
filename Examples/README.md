@@ -1,6 +1,6 @@
 # WildEdge Swift Examples
 
-This directory contains two Swift SDK example tracks: a full iOS app sample (`iOSAppSample`) and Swift Package examples (`SPMExamples`).
+This directory contains iOS app samples and Swift Package examples demonstrating WildEdge SDK integration.
 
 ## DSN Configuration
 
@@ -10,6 +10,44 @@ To run the examples, you need to obtain a DSN (configuration parameter).
 2. Open the dashboard at `https://app.wildedge.dev/`.
 3. Create a project (or open an existing project).
 4. Copy the project DSN for later.
+
+## VoiceRecorderSample Instructions
+
+An iOS app that records audio, runs it through a local ONNX voice-conversion model (T-Pain effect), and tracks the inference with WildEdge — including uploading the raw recording as an attachment.
+
+**Requirements:** Xcode 15+, iOS 16+ device or simulator, `OnnxRuntimeBindings` package (resolved automatically via SPM).
+
+1. Open `VoiceRecorderSample/VoiceRecorderSample.xcodeproj` in Xcode.
+2. Set `WILDEDGE_DSN` in the scheme's environment variables (Edit Scheme → Run → Environment Variables) or in `VoiceRecorderSample/Sources/Info.plist`.
+3. To enable attachment uploads, set `builder.enableAttachments = true` in `RecorderViewModel.swift` and provide a valid DSN.
+4. Add `TPain.onnx` to the app bundle (drag into Xcode and tick "Add to target"). Without it the app runs in no-model mode and skips local inference.
+5. Select an iOS Simulator or device as the run destination.
+6. Run the `VoiceRecorderSample` scheme.
+
+**What gets tracked:**
+- `model_load` event when the ONNX session is initialised
+- `inference` event per recording, including duration, input modality (`audio`), and output modality (`generation`)
+- The `.wav` recording uploaded as an `InferenceAttachment` (requires `enableAttachments = true`)
+
+## BlobStoreBenchmark Instructions
+
+An iOS app that runs interactive performance benchmarks for the WildEdge SDK's internal BlobStore storage layer. Useful for comparing write throughput, compaction strategies, and dictionary encoding formats on real devices.
+
+**Requirements:** Xcode 15+, iOS 16+ device or simulator. No DSN needed — the app has no network calls.
+
+1. Open `BlobStoreBenchmark/BlobStoreBenchmark.xcodeproj` in Xcode.
+2. Select an iOS Simulator or device as the run destination.
+3. Run the `BlobStoreBenchmark` scheme and tap **Run Benchmarks**.
+
+**What it measures:**
+
+| Benchmark | Description |
+|---|---|
+| Append throughput | Write 100 MB across 6 payload sizes (100 B → 100 MB), comparing external-lock vs threadSafe BlobStore |
+| Compaction | Drop the first 50 MB from a 100 MB file, comparing `.inPlace` (memmove) vs `.rename` (atomic temp+swap) |
+| Dictionary encoding | Encode and decode 1 000 inference events in all four formats: `json`, `binary`, `plist`, `compressedJSON` |
+
+Results are displayed in a live table and printed to the console log.
 
 ## iOSAppSample Instructions
 

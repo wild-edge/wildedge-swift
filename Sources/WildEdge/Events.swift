@@ -15,6 +15,12 @@ internal func newEventId() -> String {
     UUID().uuidString
 }
 
+internal struct AttachmentEventRef {
+    let attachmentId: String
+    let role: String
+    let contentType: String
+}
+
 internal func buildInferenceEvent(
     modelId: String,
     durationMs: Int,
@@ -26,6 +32,7 @@ internal func buildInferenceEvent(
     outputMeta: [String: Any]? = nil,
     generationConfig: [String: Any]? = nil,
     hardware: HardwareContext? = nil,
+    attachmentRefs: [AttachmentEventRef] = [],
     traceId: String? = nil,
     spanId: String? = nil,
     parentSpanId: String? = nil,
@@ -86,6 +93,11 @@ internal func buildInferenceEvent(
     }
     if let agentId {
         event["agent_id"] = agentId
+    }
+    if !attachmentRefs.isEmpty {
+        event["attachments"] = attachmentRefs.map { ref in
+            ["attachment_id": ref.attachmentId, "role": ref.role, "content_type": ref.contentType]
+        }
     }
 
     return event

@@ -23,9 +23,7 @@ final class QueueConsumerTests: XCTestCase {
 
         let transmitter = MockTransmitter(result: .success(IngestResponse(status: "accepted", batchId: "b1", eventsAccepted: 2, eventsRejected: 0)))
 
-        let consumer = Consumer(
-            queue: queue,
-            transmitter: transmitter,
+        let config = ConsumerConfig(
             device: DeviceInfo(
                 deviceId: "test-device-id",
                 deviceType: "ios",
@@ -35,13 +33,19 @@ final class QueueConsumerTests: XCTestCase {
                 locale: "en-US",
                 timezone: "UTC"
             ),
-            registry: registry,
             sessionId: "s1",
             createdAt: isoNow(),
             batchSize: 10,
             flushIntervalMs: 60_000,
             maxEventAgeMs: 900_000,
-            lowConfidenceThreshold: 0.5,
+            lowConfidenceThreshold: 0.5
+        )
+
+        let consumer = Consumer(
+            queue: queue,
+            transmitter: transmitter,
+            registry: registry,
+            config: config,
             logger: { _ in }
         )
 
@@ -57,9 +61,7 @@ final class QueueConsumerTests: XCTestCase {
 
         let transmitter = MockTransmitter(result: .failure(TransmitError.transport("network")))
 
-        let consumer = Consumer(
-            queue: queue,
-            transmitter: transmitter,
+        let config = ConsumerConfig(
             device: DeviceInfo(
                 deviceId: "test-device-id",
                 deviceType: "ios",
@@ -69,13 +71,19 @@ final class QueueConsumerTests: XCTestCase {
                 locale: "en-US",
                 timezone: "UTC"
             ),
-            registry: ModelRegistry(),
             sessionId: "s1",
             createdAt: isoNow(),
             batchSize: 10,
             flushIntervalMs: 60_000,
             maxEventAgeMs: 900_000,
-            lowConfidenceThreshold: 0.5,
+            lowConfidenceThreshold: 0.5
+        )
+
+        let consumer = Consumer(
+            queue: queue,
+            transmitter: transmitter,
+            registry: ModelRegistry(),
+            config: config,
             logger: { _ in }
         )
 
@@ -91,9 +99,7 @@ final class QueueConsumerTests: XCTestCase {
 
         let transmitter = MockTransmitter(result: .success(IngestResponse(status: "accepted", batchId: "b1", eventsAccepted: 1, eventsRejected: 0)))
 
-        let consumer = Consumer(
-            queue: queue,
-            transmitter: transmitter,
+        let config = ConsumerConfig(
             device: DeviceInfo(
                 deviceId: "test-device-id",
                 deviceType: "ios",
@@ -103,13 +109,19 @@ final class QueueConsumerTests: XCTestCase {
                 locale: "en-US",
                 timezone: "UTC"
             ),
-            registry: ModelRegistry(),
             sessionId: "s1",
             createdAt: isoNow(),
             batchSize: 10,
             flushIntervalMs: 60_000,
             maxEventAgeMs: 1,
-            lowConfidenceThreshold: 0.5,
+            lowConfidenceThreshold: 0.5
+        )
+
+        let consumer = Consumer(
+            queue: queue,
+            transmitter: transmitter,
+            registry: ModelRegistry(),
+            config: config,
             logger: { _ in }
         )
 

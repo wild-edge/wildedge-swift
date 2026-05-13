@@ -1,0 +1,30 @@
+name: VoiceRecorderSample
+options:
+  bundleIdPrefix: dev.wildedge.sample
+  deploymentTarget:
+    iOS: "14.0"
+packages:
+  WildEdge:
+    path: ../..
+  onnxruntime-swift-package-manager:
+    url: https://github.com/microsoft/onnxruntime-swift-package-manager
+    exactVersion: 1.24.2
+targets:
+  VoiceRecorderSample:
+    type: application
+    platform: iOS
+    deploymentTarget: "14.0"
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.wildedge.sample.voice
+        SWIFT_VERSION: "5.9"
+        GENERATE_INFOPLIST_FILE: "NO"
+        INFOPLIST_FILE: Sources/Info.plist
+        TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - package: WildEdge
+        product: WildEdge
+      - package: onnxruntime-swift-package-manager
+        product: onnxruntime

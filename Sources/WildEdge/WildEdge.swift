@@ -1,5 +1,8 @@
 import Foundation
 
+@_silgen_name("wildedge_loader_force_link")
+private func wildedge_loader_force_link()
+
 public protocol WildEdgeClient: AnyObject {
     func registerModel(modelId: String, info: ModelInfo) -> ModelHandle
     func trackMemoryWarning(
@@ -16,7 +19,6 @@ public protocol WildEdgeClient: AnyObject {
         block: (SpanContext) throws -> T
     ) rethrows -> T
     func flush(timeoutMs: Int64)
-    func close(timeoutMs: Int64)
     var pendingCount: Int { get }
     func diagnostics() -> SDKDiagnostics
 }
@@ -47,11 +49,7 @@ public extension WildEdgeClient {
     }
 
     func flush() {
-        flush(timeoutMs: 5_000)
-    }
-
-    func close() {
-        close(timeoutMs: 5_000)
+        flush(timeoutMs: Config.defaultShutdownFlushTimeoutMs)
     }
 }
 
@@ -59,8 +57,13 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     private let queue: EventQueue
     private let registry: ModelRegistry
     private let consumer: Consumer?
+    private let attachmentQueue: AttachmentQueue?
+    private let attachmentConsumer: AttachmentConsumer?
+    private let attachmentConfig: AttachmentConfig
     private let debug: Bool
     private let hardwareSampler = HardwareSampler()
+    private let publishWorker = DispatchQueue(label: "dev.wildedge.publish", qos: .utility)
+    private let attachmentIOQueue = DispatchQueue(label: "dev.wildedge.attachments.io", qos: .utility)
 
     private let lock = NSLock()
     private var handles: [String: ModelHandle] = [:]
@@ -68,15 +71,29 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
 
     private static let activeSpanKey = "dev.wildedge.active_span"
 
+    internal struct AttachmentConfig {
+        let enabled: Bool
+        let maxPerInference: Int
+        let maxSizeBytes: Int
+        let storageStrategy: AttachmentStorageStrategy
+        let filter: (([InferenceAttachment]) -> [InferenceAttachment])?
+    }
+
     internal init(
         queue: EventQueue,
         registry: ModelRegistry,
         consumer: Consumer?,
+        attachmentQueue: AttachmentQueue?,
+        attachmentConsumer: AttachmentConsumer?,
+        attachmentConfig: AttachmentConfig,
         debug: Bool
     ) {
         self.queue = queue
         self.registry = registry
         self.consumer = consumer
+        self.attachmentQueue = attachmentQueue
+        self.attachmentConsumer = attachmentConsumer
+        self.attachmentConfig = attachmentConfig
         self.debug = debug
         hardwareSampler.start()
         ORTInterceptor.install(client: self)
@@ -85,24 +102,31 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     }
 
     public func registerModel(modelId: String, info: ModelInfo) -> ModelHandle {
-        lock.lock()
-        defer { lock.unlock() }
+        registerModel(modelId: modelId, info: info, publishSynchronously: false)
+    }
 
-        if closed {
-            return makeNoopHandle(modelId: modelId, info: info)
-        }
-
+    public func registerModel(
+        modelId: String,
+        info: ModelInfo,
+        publishSynchronously: Bool
+    ) -> ModelHandle {
         if let handle = handles[modelId] {
+            if publishSynchronously {
+                handle.setPublishSynchronously(true)
+            }
             return handle
         }
-
         registry.register(modelId: modelId, info: info)
         let handle = ModelHandle(
             modelId: modelId,
             info: info,
-            publish: { [weak self] event in self?.publish(event: event) },
+            publish: { [weak self] event, sync in self?.publish(event: event, synchronously: sync) },
             hardwareSnapshot: { [weak self] in self?.hardwareSampler.snapshot() },
-            activeSpanContext: { [weak self] in self?.activeSpan }
+            activeSpanContext: { [weak self] in self?.activeSpan },
+            publishSynchronously: publishSynchronously,
+            registerAttachments: { [weak self] attachments, inferenceId, inferenceTimestamp in
+                self?.enqueueAttachments(attachments, inferenceId: inferenceId, inferenceTimestamp: inferenceTimestamp)
+            }
         )
         handles[modelId] = handle
         return handle
@@ -141,13 +165,20 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         )
     }
 
-    internal func publish(event: [String: Any]) {
-        lock.lock()
-        let isClosed = closed
-        lock.unlock()
+    internal func publish(event: [String: Any], synchronously: Bool = false) {
+        if synchronously {
+            publishWorker.sync { [self] in
+                enqueue(event: event)
+            }
+            return
+        }
 
-        guard !isClosed else { return }
+        publishWorker.async { [weak self] in
+            self?.enqueue(event: event)
+        }
+    }
 
+    private func enqueue(event: [String: Any]) {
         var enriched = event
         enriched["__we_queued_at"] = Int64(Date().timeIntervalSince1970 * 1000)
         queue.add(enriched)
@@ -158,21 +189,126 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         }
     }
 
-    public func flush(timeoutMs: Int64) {
-        consumer?.flush(timeoutMs: timeoutMs)
+    internal func enqueueAttachments(
+        _ attachments: [InferenceAttachment],
+        inferenceId: String,
+        inferenceTimestamp: Date
+    ) {
+        guard let aq = attachmentQueue else { return }
+        attachmentIOQueue.async { [self] in
+            var filtered = attachmentConfig.filter?(attachments) ?? attachments
+            if filtered.count > attachmentConfig.maxPerInference {
+                filtered = Array(filtered.prefix(attachmentConfig.maxPerInference))
+                if debug { print("[wildedge] attachment count exceeds maxAttachmentsPerInference, excess dropped") }
+            }
+
+            for attachment in filtered {
+                let id = attachment.attachmentId
+                let sizedPayload: SizedPayload?
+                switch attachment.payload {
+                case .data(let data, let mime):
+                    guard data.count <= attachmentConfig.maxSizeBytes else {
+                        if debug { print("[wildedge] attachment '\(attachment.name)' exceeds maxAttachmentSizeBytes, dropped") }
+                        continue
+                    }
+                    if attachmentConfig.storageStrategy == .inline {
+                        sizedPayload = SizedPayload(.data(data, mimeType: mime), byteSize: data.count)
+                    } else {
+                        guard let written = Self.writeDataToManagedStore(data: data, attachmentId: id) else {
+                            if debug { print("[wildedge] attachment '\(attachment.name)' write failed, dropped") }
+                            continue
+                        }
+                        sizedPayload = SizedPayload(.file(written, mimeType: mime), byteSize: data.count)
+                    }
+
+                case .file(let sourceURL, let mime):
+                    guard let copiedURL = Self.copyToManagedStore(sourceURL: sourceURL, attachmentId: id) else {
+                        if debug { print("[wildedge] attachment '\(attachment.name)' file copy failed, dropped") }
+                        continue
+                    }
+                    let size = (try? FileManager.default.attributesOfItem(atPath: copiedURL.path)[.size] as? Int) ?? 0
+                    guard size <= attachmentConfig.maxSizeBytes else {
+                        try? FileManager.default.removeItem(at: copiedURL)
+                        if debug { print("[wildedge] attachment '\(attachment.name)' exceeds maxAttachmentSizeBytes, dropped") }
+                        continue
+                    }
+                    sizedPayload = SizedPayload(.file(copiedURL, mimeType: mime), byteSize: size)
+                }
+
+                guard let payload = sizedPayload else { continue }
+                let pending = PendingAttachment(
+                    attachmentId: id,
+                    inferenceId: inferenceId,
+                    name: attachment.name,
+                    role: attachment.role.rawValue,
+                    payload: payload,
+                    inferenceTimestamp: inferenceTimestamp,
+                    registeredAt: Date()
+                )
+                aq.append(pending)
+            }
+        }
+    }
+
+    private static func attachmentManagedDir() -> URL? {
+        let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("wildedge")
+            .appendingPathComponent("attachments")
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var rv = URLResourceValues()
+            rv.isExcludedFromBackup = true
+            var dirURL = dir
+            try? dirURL.setResourceValues(rv)
+            return dir
+        } catch {
+            return nil
+        }
+    }
+
+    private static func writeDataToManagedStore(data: Data, attachmentId: String) -> URL? {
+        guard let dir = attachmentManagedDir() else { return nil }
+        let dest = dir.appendingPathComponent("\(attachmentId).bin")
+        do {
+            try data.write(to: dest, options: .atomic)
+            return dest
+        } catch {
+            return nil
+        }
+    }
+
+    private static func copyToManagedStore(sourceURL: URL, attachmentId: String) -> URL? {
+        guard let dir = attachmentManagedDir() else { return nil }
+        let ext = sourceURL.pathExtension
+        let filename = ext.isEmpty ? attachmentId : "\(attachmentId).\(ext)"
+        let dest = dir.appendingPathComponent(filename)
+        do {
+            if FileManager.default.fileExists(atPath: dest.path) {
+                try FileManager.default.removeItem(at: dest)
+            }
+            try FileManager.default.copyItem(at: sourceURL, to: dest)
+            return dest
+        } catch {
+            return nil
+        }
     }
 
     public func close(timeoutMs: Int64) {
         lock.lock()
-        if closed {
-            lock.unlock()
-            return
-        }
+        let alreadyClosed = closed
         closed = true
         lock.unlock()
+        guard !alreadyClosed else { return }
 
         hardwareSampler.stop()
+        attachmentConsumer?.stop()
         consumer?.close(timeoutMs: timeoutMs)
+    }
+
+    public func flush(timeoutMs: Int64) {
+        // First drain pending async publishes into EventQueue, then flush transport.
+        publishWorker.sync { }
+        consumer?.flush(timeoutMs: timeoutMs)
     }
 
     public var pendingCount: Int {
@@ -180,14 +316,14 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     }
 
     public func diagnostics() -> SDKDiagnostics {
-        let (serialisedBytes, serialisationMs) = queue.serialisedSizeWithTiming()
         return SDKDiagnostics(
             processMemoryBytes: Self.processPhysicalFootprint(),
             systemAvailableMemoryBytes: hardwareSampler.snapshot().memoryAvailableBytes,
             eventQueueCount: queue.length(),
-            eventQueueBytes: queue.inMemoryBytes(),
-            eventQueueSerialisedBytes: serialisedBytes,
-            jsonSerialisationMs: serialisationMs
+            attachmentQueueCount: attachmentQueue?.length() ?? 0,
+            attachmentUploadedCount: attachmentConsumer?.uploadedCount ?? 0,
+            attachmentDropCount: attachmentConsumer?.dropCount ?? 0,
+            attachmentPermanentFailureCount: attachmentConsumer?.permanentFailureCount ?? 0
         )
     }
 
@@ -266,7 +402,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         ModelHandle(
             modelId: modelId,
             info: info,
-            publish: { _ in },
+            publish: { _, _ in },
             hardwareSnapshot: { nil },
             activeSpanContext: { nil }
         )
@@ -281,16 +417,22 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         public var flushIntervalMs: Int64 = Config.defaultFlushIntervalMs
         public var maxEventAgeMs: Int64 = Config.defaultMaxEventAgeMs
         public var lowConfidenceThreshold: Double = Config.defaultLowConfidenceThreshold
-        public var persistQueueToDisk: Bool = Config.defaultPersistQueueToDisk
         public var debug: Bool = ProcessInfo.processInfo.environment[Config.envDebug] == "true"
 
+        // Attachments
+        public var enableAttachments: Bool = Config.defaultEnableAttachments
+        public var maxAttachmentsPerInference: Int = Config.defaultMaxAttachmentsPerInference
+        public var maxAttachmentSizeBytes: Int = Config.defaultMaxAttachmentSizeBytes
+        public var maxAttachmentAgeMs: TimeInterval = Config.defaultMaxAttachmentAgeMs
+        public var attachmentFlushIntervalMs: Int64 = Config.defaultAttachmentFlushIntervalMs
+        public var attachmentTransmitTimeoutMs: TimeInterval = Config.attachmentHttpTimeoutMs
+        public var attachmentStorageStrategy: AttachmentStorageStrategy = Config.defaultAttachmentStorageStrategy
+        public var attachmentFilter: (([InferenceAttachment]) -> [InferenceAttachment])? = nil
+
         public init() {
+            wildedge_loader_force_link()
             dsn = ProcessInfo.processInfo.environment[Config.envDsn]
                 ?? Bundle.main.object(forInfoDictionaryKey: Config.envDsn) as? String
-            persistQueueToDisk = Self.resolvePersistQueueToDisk(
-                environmentValue: ProcessInfo.processInfo.environment[Config.envPersistQueueToDisk],
-                infoDictionaryValue: Bundle.main.object(forInfoDictionaryKey: Config.envPersistQueueToDisk)
-            )
         }
 
         public func build() -> WildEdgeClient {
@@ -300,37 +442,77 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
 
             do {
                 let parsed = try Self.parseDsn(dsn)
-                let queueFileURL = Self.eventQueueFileURL(persistQueueToDisk: persistQueueToDisk)
+                let queueFileURL = Self.eventQueueFileURL()
                 let queue = EventQueue(maxSize: maxQueueSize, fileURL: queueFileURL)
                 let registry = ModelRegistry()
-                let transmitter = Transmitter(host: parsed.host, apiKey: parsed.secret)
                 let detectedDevice = device ?? DeviceInfo.detect(appVersion: appVersion, projectSecret: parsed.secret)
                 let sessionId = UUID().uuidString
                 let createdAt = isoNow()
 
-                let consumer = Consumer(
-                    queue: queue,
-                    transmitter: transmitter,
+                let logger: (String) -> Void = { [debug = self.debug] message in
+                    if debug { print("[wildedge] \(message)") }
+                }
+
+                let transmitter = Transmitter(host: parsed.host, apiKey: parsed.secret, debug: debug, logger: logger)
+
+                var attachmentQueue: AttachmentQueue? = nil
+                var attachmentConsumer: AttachmentConsumer? = nil
+
+                if enableAttachments {
+                    let aq = AttachmentQueue(fileURL: Self.attachmentQueueFileURL(), strategy: attachmentStorageStrategy)
+                    let at = AttachmentTransmitter(
+                        host: parsed.host,
+                        apiKey: parsed.secret,
+                        timeoutMs: attachmentTransmitTimeoutMs,
+                        debug: debug,
+                        logger: logger
+                    )
+                    let ac = AttachmentConsumer(
+                        queue: aq,
+                        transmitter: at,
+                        flushIntervalMs: attachmentFlushIntervalMs,
+                        maxAttachmentAge: maxAttachmentAgeMs,
+                        logger: logger
+                    )
+                    ac.start()
+                    attachmentQueue = aq
+                    attachmentConsumer = ac
+                }
+
+                let consumerConfig = ConsumerConfig(
                     device: detectedDevice,
-                    registry: registry,
                     sessionId: sessionId,
                     createdAt: createdAt,
                     batchSize: batchSize,
                     flushIntervalMs: flushIntervalMs,
                     maxEventAgeMs: maxEventAgeMs,
-                    lowConfidenceThreshold: lowConfidenceThreshold,
-                    logger: { message in
-                        if self.debug {
-                            print("[wildedge] \(message)")
-                        }
-                    }
+                    lowConfidenceThreshold: lowConfidenceThreshold
+                )
+
+                let consumer = Consumer(
+                    queue: queue,
+                    transmitter: transmitter,
+                    registry: registry,
+                    config: consumerConfig,
+                    logger: logger
                 )
                 consumer.start()
+
+                let attachmentConfig = AttachmentConfig(
+                    enabled: enableAttachments,
+                    maxPerInference: maxAttachmentsPerInference,
+                    maxSizeBytes: maxAttachmentSizeBytes,
+                    storageStrategy: attachmentStorageStrategy,
+                    filter: attachmentFilter
+                )
 
                 return WildEdge(
                     queue: queue,
                     registry: registry,
                     consumer: consumer,
+                    attachmentQueue: attachmentQueue,
+                    attachmentConsumer: attachmentConsumer,
+                    attachmentConfig: attachmentConfig,
                     debug: debug
                 )
             } catch {
@@ -357,44 +539,29 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             return (secret, normalizedHost)
         }
 
-        internal static func eventQueueFileURL(persistQueueToDisk: Bool) -> URL? {
-            guard persistQueueToDisk else { return nil }
-            return FileManager.default
-                .urls(for: .cachesDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("dev.wildedge.eventqueue.ndjson")
+        internal static func eventQueueFileURL() -> URL {
+            let dir = FileManager.default
+                .urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var url = dir
+                .appendingPathComponent("wildedge")
+                .appendingPathComponent("eventqueue.bin")
+            var rv = URLResourceValues()
+            rv.isExcludedFromBackup = true
+            try? url.setResourceValues(rv)
+            return url
         }
 
-        internal static func resolvePersistQueueToDisk(
-            environmentValue: String?,
-            infoDictionaryValue: Any?
-        ) -> Bool {
-            if let environmentValue, let parsed = parseBool(environmentValue) {
-                return parsed
-            }
-            if let parsed = parseBool(infoDictionaryValue) {
-                return parsed
-            }
-            return Config.defaultPersistQueueToDisk
-        }
-
-        private static func parseBool(_ value: Any?) -> Bool? {
-            switch value {
-            case let value as Bool:
-                return value
-            case let value as NSNumber:
-                return value.boolValue
-            case let value as String:
-                switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-                case "1", "true", "yes", "y", "on":
-                    return true
-                case "0", "false", "no", "n", "off":
-                    return false
-                default:
-                    return nil
-                }
-            default:
-                return nil
-            }
+        internal static func attachmentQueueFileURL() -> URL {
+            let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("wildedge")
+                .appendingPathComponent("attachments")
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var url = dir.appendingPathComponent("queue.bin")
+            var rv = URLResourceValues()
+            rv.isExcludedFromBackup = true
+            try? url.setResourceValues(rv)
+            return url
         }
 
         internal enum ParseError: Error, Equatable {
@@ -467,82 +634,3 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     }
 }
 
-public final class NoopWildEdgeClient: WildEdgeClient {
-    public init() {}
-
-    public func registerModel(modelId: String, info: ModelInfo) -> ModelHandle {
-        ModelHandle(
-            modelId: modelId,
-            info: info,
-            publish: { _ in },
-            hardwareSnapshot: { nil },
-            activeSpanContext: { nil }
-        )
-    }
-
-    public func trackMemoryWarning(
-        level: MemoryWarningLevel,
-        memoryAvailableBytes: Int64,
-        activeModelIds: [String],
-        triggeredUnload: Bool,
-        unloadedModelId: String?
-    ) {
-    }
-
-    public func trace<T>(
-        _ name: String,
-        kind: SpanKind,
-        attributes: [String: Any]?,
-        block: (SpanContext) throws -> T
-    ) rethrows -> T {
-        let context = SpanContext(
-            traceId: UUID().uuidString,
-            spanId: UUID().uuidString,
-            parentSpanId: nil,
-            kind: kind,
-            status: .ok,
-            owner: NullSpanOwner()
-        )
-        return try block(context)
-    }
-
-    public func flush(timeoutMs: Int64) {
-    }
-
-    public func close(timeoutMs: Int64) {
-    }
-
-    public var pendingCount: Int { 0 }
-
-    public func diagnostics() -> SDKDiagnostics {
-        SDKDiagnostics(
-            processMemoryBytes: 0,
-            systemAvailableMemoryBytes: nil,
-            eventQueueCount: 0,
-            eventQueueBytes: 0,
-            eventQueueSerialisedBytes: 0,
-            jsonSerialisationMs: 0
-        )
-    }
-}
-
-private final class NullSpanOwner: SpanOwner {
-    func runSpan<T>(
-        name: String,
-        traceId: String,
-        parentSpanId: String?,
-        kind: SpanKind,
-        attributes: [String : Any]?,
-        block: (SpanContext) throws -> T
-    ) rethrows -> T {
-        let context = SpanContext(
-            traceId: traceId,
-            spanId: UUID().uuidString,
-            parentSpanId: parentSpanId,
-            kind: kind,
-            status: .ok,
-            owner: self
-        )
-        return try block(context)
-    }
-}

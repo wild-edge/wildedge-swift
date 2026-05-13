@@ -35,7 +35,6 @@ final class AutoInitTests: XCTestCase {
     // Explicit initialize() must update shared and return the same instance.
     func testExplicitInitializeUpdatesShared() {
         let client = WildEdge.initialize { $0.dsn = "https://test-secret@ingest.wildedge.dev" }
-        defer { client.close() }
 
         XCTAssertTrue(WildEdge.shared is WildEdge)
         XCTAssertTrue(WildEdge.shared === client)

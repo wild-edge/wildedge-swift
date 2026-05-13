@@ -269,12 +269,71 @@ public struct SDKDiagnostics {
     public let systemAvailableMemoryBytes: Int64?
     /// Number of events currently buffered in the queue.
     public let eventQueueCount: Int
-    /// In-memory data size of all buffered events, in bytes.
-    public let eventQueueBytes: Int
-    /// JSON-serialised size of all buffered events, in bytes.
-    public let eventQueueSerialisedBytes: Int
-    /// Time taken to JSON-serialise all buffered events, in milliseconds.
-    public let jsonSerialisationMs: Double
+    /// Number of attachments currently in the upload queue.
+    public let attachmentQueueCount: Int
+    /// Cumulative count of attachments successfully uploaded.
+    public let attachmentUploadedCount: Int
+    /// Cumulative count of attachments dropped (age eviction + permanent failures).
+    public let attachmentDropCount: Int
+    /// Cumulative count of attachments dropped due to a permanent transmit failure (401/400).
+    public let attachmentPermanentFailureCount: Int
+}
+
+// MARK: - Attachment public types
+
+public struct InferenceAttachment {
+    public enum Payload {
+        case data(Data, mimeType: String)
+        case file(URL, mimeType: String)
+    }
+    public enum Role: String {
+        case input
+        case output
+    }
+    public let attachmentId: String
+    public let name: String
+    public let role: Role
+    public let payload: Payload
+
+    public init(name: String, role: Role = .input, payload: Payload) {
+        self.attachmentId = UUID().uuidString
+        self.name = name
+        self.role = role
+        self.payload = payload
+    }
+}
+
+// MARK: - Attachment internal types
+
+internal struct SizedPayload {
+    let source: InferenceAttachment.Payload
+    let byteSize: Int
+
+    init(_ payload: InferenceAttachment.Payload, byteSize: Int) {
+        source = payload
+        self.byteSize = byteSize
+    }
+}
+
+internal struct PendingAttachment {
+    let attachmentId: String
+    let inferenceId: String
+    let name: String
+    let role: String
+    let payload: SizedPayload
+    let inferenceTimestamp: Date
+    let registeredAt: Date
+}
+
+internal enum AttachmentUploadResult {
+    case uploaded
+    case permanentFailure(AttachmentTransmitError)
+    case transientFailure
+}
+
+internal enum AttachmentTransmitError: Error {
+    case badPayload
+    case unauthorized
 }
 
 public struct HardwareContext {

@@ -4,11 +4,13 @@ public final class ModelHandle {
     public let modelId: String
     public let info: ModelInfo
 
-    private let publish: ([String: Any]) -> Void
+    private let publish: ([String: Any], Bool) -> Void
     private let hardwareSnapshot: () -> HardwareContext?
     private let activeSpanContext: () -> SpanContext?
+    private let registerAttachments: ([InferenceAttachment], String, Date) -> Void
     private let lock = NSLock()
     private var loadedAt: Int64 = 0
+    private var publishSynchronously: Bool
 
     public private(set) var lastInferenceId: String?
     public var acceleratorActual: Accelerator?
@@ -16,15 +18,32 @@ public final class ModelHandle {
     internal init(
         modelId: String,
         info: ModelInfo,
-        publish: @escaping ([String: Any]) -> Void,
+        publish: @escaping ([String: Any], Bool) -> Void,
         hardwareSnapshot: @escaping () -> HardwareContext?,
-        activeSpanContext: @escaping () -> SpanContext?
+        activeSpanContext: @escaping () -> SpanContext?,
+        publishSynchronously: Bool = false,
+        registerAttachments: @escaping ([InferenceAttachment], String, Date) -> Void = { _, _, _ in }
     ) {
         self.modelId = modelId
         self.info = info
         self.publish = publish
         self.hardwareSnapshot = hardwareSnapshot
         self.activeSpanContext = activeSpanContext
+        self.publishSynchronously = publishSynchronously
+        self.registerAttachments = registerAttachments
+    }
+
+    internal func setPublishSynchronously(_ enabled: Bool) {
+        lock.lock()
+        publishSynchronously = enabled || publishSynchronously
+        lock.unlock()
+    }
+
+    private func emit(_ event: [String: Any]) {
+        lock.lock()
+        let sync = publishSynchronously
+        lock.unlock()
+        publish(event, sync)
     }
 
     public func trackLoad(
@@ -40,7 +59,7 @@ public final class ModelHandle {
         loadedAt = nowMs()
         lock.unlock()
 
-        publish(buildModelLoadEvent(
+        emit(buildModelLoadEvent(
             modelId: modelId,
             durationMs: durationMs,
             memoryBytes: memoryBytes,
@@ -68,7 +87,7 @@ public final class ModelHandle {
             uptimeMs = nil
         }
 
-        publish(buildModelUnloadEvent(
+        emit(buildModelUnloadEvent(
             modelId: modelId,
             durationMs: durationMs,
             reason: reason,
@@ -89,7 +108,7 @@ public final class ModelHandle {
         success: Bool = true,
         errorCode: String? = nil
     ) {
-        publish(buildModelDownloadEvent(
+        emit(buildModelDownloadEvent(
             modelId: modelId,
             sourceUrl: sourceUrl,
             sourceType: sourceType,
@@ -115,18 +134,29 @@ public final class ModelHandle {
         outputMeta: [String: Any]? = nil,
         generationConfig: [String: Any]? = nil,
         hardware: HardwareContext? = nil,
+        attachments: [InferenceAttachment] = [],
         traceId: String? = nil,
         spanId: String? = nil,
         parentSpanId: String? = nil,
         runId: String? = nil,
         agentId: String? = nil
     ) -> String {
+        let inferenceTimestamp = Date()
         let activeCtx = activeSpanContext()
         var mergedHardware = hardware ?? hardwareSnapshot()
         if let acceleratorActual {
             var hw = mergedHardware ?? HardwareContext()
             hw.acceleratorActual = acceleratorActual
             mergedHardware = hw
+        }
+
+        let attachmentRefs = attachments.map {
+            let mimeType: String
+            switch $0.payload {
+            case .data(_, let m): mimeType = m
+            case .file(_, let m): mimeType = m
+            }
+            return AttachmentEventRef(attachmentId: $0.attachmentId, role: $0.role.rawValue, contentType: mimeType)
         }
 
         let event = buildInferenceEvent(
@@ -140,6 +170,7 @@ public final class ModelHandle {
             outputMeta: outputMeta,
             generationConfig: generationConfig,
             hardware: mergedHardware,
+            attachmentRefs: attachmentRefs,
             traceId: traceId ?? activeCtx?.traceId,
             spanId: spanId,
             parentSpanId: parentSpanId ?? activeCtx?.spanId,
@@ -152,7 +183,10 @@ public final class ModelHandle {
         lastInferenceId = inferenceId
         lock.unlock()
 
-        publish(event)
+        emit(event)
+        if !attachments.isEmpty {
+            registerAttachments(attachments, inferenceId, inferenceTimestamp)
+        }
         return inferenceId
     }
 
@@ -170,7 +204,7 @@ public final class ModelHandle {
             return
         }
 
-        publish(buildFeedbackEvent(
+        emit(buildFeedbackEvent(
             modelId: modelId,
             relatedInferenceId: inferenceId,
             feedbackType: feedbackType,
@@ -185,7 +219,7 @@ public final class ModelHandle {
         stackTraceHash: String? = nil,
         relatedEventId: String? = nil
     ) {
-        publish(buildErrorEvent(
+        emit(buildErrorEvent(
             modelId: modelId,
             errorCode: errorCode,
             errorMessage: errorMessage,

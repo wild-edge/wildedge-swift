@@ -1,16 +1,20 @@
 import Foundation
 
+internal struct ConsumerConfig {
+    let device: DeviceInfo
+    let sessionId: String
+    let createdAt: String
+    let batchSize: Int
+    let flushIntervalMs: Int64
+    let maxEventAgeMs: Int64
+    let lowConfidenceThreshold: Double
+}
+
 internal final class Consumer {
     private let queue: EventQueue
     private let transmitter: Transmitting
-    private let device: DeviceInfo
     private let registry: ModelRegistry
-    private let sessionId: String
-    private let createdAt: String
-    private let batchSize: Int
-    private let flushIntervalMs: Int64
-    private let maxEventAgeMs: Int64
-    private let lowConfidenceThreshold: Double
+    private let config: ConsumerConfig
     private let logger: (String) -> Void
 
     private let worker = DispatchQueue(label: "dev.wildedge.consumer")
@@ -20,26 +24,14 @@ internal final class Consumer {
     init(
         queue: EventQueue,
         transmitter: Transmitting,
-        device: DeviceInfo,
         registry: ModelRegistry,
-        sessionId: String,
-        createdAt: String,
-        batchSize: Int,
-        flushIntervalMs: Int64,
-        maxEventAgeMs: Int64,
-        lowConfidenceThreshold: Double,
+        config: ConsumerConfig,
         logger: @escaping (String) -> Void
     ) {
         self.queue = queue
         self.transmitter = transmitter
-        self.device = device
         self.registry = registry
-        self.sessionId = sessionId
-        self.createdAt = createdAt
-        self.batchSize = batchSize
-        self.flushIntervalMs = flushIntervalMs
-        self.maxEventAgeMs = maxEventAgeMs
-        self.lowConfidenceThreshold = lowConfidenceThreshold
+        self.config = config
         self.logger = logger
     }
 
@@ -47,7 +39,7 @@ internal final class Consumer {
         worker.async {
             guard self.timer == nil else { return }
             let timer = DispatchSource.makeTimerSource(queue: self.worker)
-            timer.schedule(deadline: .now(), repeating: .milliseconds(Int(self.flushIntervalMs)))
+            timer.schedule(deadline: .now(), repeating: .milliseconds(Int(self.config.flushIntervalMs)))
             timer.setEventHandler { [weak self] in
                 self?.tick()
             }
@@ -98,12 +90,12 @@ internal final class Consumer {
 
     private func drainOnce() -> Bool {
         let now = Int64(Date().timeIntervalSince1970 * 1000)
-        let events = queue.peekMany(batchSize)
+        let events = queue.peekMany(config.batchSize)
         guard !events.isEmpty else { return false }
 
         let stale = events.prefix { event in
             let queuedAt = event["__we_queued_at"] as? Int64 ?? now
-            return (now - queuedAt) > maxEventAgeMs
+            return (now - queuedAt) > config.maxEventAgeMs
         }
         if !stale.isEmpty {
             queue.removeFirstN(stale.count)
@@ -112,12 +104,12 @@ internal final class Consumer {
         }
 
         guard let payload = buildBatch(
-            device: device,
+            device: config.device,
             models: registry.snapshot(),
             events: events,
-            sessionId: sessionId,
-            createdAt: createdAt,
-            lowConfidenceThreshold: lowConfidenceThreshold
+            sessionId: config.sessionId,
+            createdAt: config.createdAt,
+            lowConfidenceThreshold: config.lowConfidenceThreshold
         ) else {
             queue.removeFirstN(events.count)
             logger("Dropped \(events.count) event(s) because payload serialization failed")

@@ -20,11 +20,21 @@ internal final class Transmitter: Transmitting {
     private let host: String
     private let apiKey: String
     private let timeout: TimeInterval
+    private let debug: Bool
+    private let logger: (String) -> Void
 
-    init(host: String, apiKey: String, timeoutMs: TimeInterval = Config.httpTimeoutMs) {
+    init(
+        host: String,
+        apiKey: String,
+        timeoutMs: TimeInterval = Config.httpTimeoutMs,
+        debug: Bool = false,
+        logger: @escaping (String) -> Void = { _ in }
+    ) {
         self.host = host
         self.apiKey = apiKey
         self.timeout = timeoutMs / 1000.0
+        self.debug = debug
+        self.logger = logger
     }
 
     func send(batchData: Data) throws -> IngestResponse {
@@ -32,9 +42,9 @@ internal final class Transmitter: Transmitting {
             throw TransmitError.invalidUrl
         }
 
-        if isLiveTestsEnabled {
-            let payload = prettyJSONString(from: batchData) ?? String(data: batchData, encoding: .utf8) ?? "<non-utf8-payload>"
-            print("[wildedge] Sending ingest payload:\n\(payload)")
+        if debug {
+            let payload = prettyJSONString(from: batchData) ?? String(data: batchData, encoding: .utf8) ?? "<non-utf8>"
+            logger("Ingest request payload:\n\(payload)")
         }
 
         var request = URLRequest(url: url, timeoutInterval: timeout)
@@ -64,6 +74,11 @@ internal final class Transmitter: Transmitting {
 
         guard let http = outResponse as? HTTPURLResponse else {
             throw TransmitError.transport("Missing HTTP response")
+        }
+
+        if debug {
+            let responseBody = outData.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            logger("Ingest response status=\(http.statusCode) body=\(responseBody)")
         }
 
         let statusCode = http.statusCode
@@ -104,11 +119,6 @@ internal final class Transmitter: Transmitting {
             return nil
         }
         return map
-    }
-
-    private var isLiveTestsEnabled: Bool {
-        let enabled = ProcessInfo.processInfo.environment["WILDEDGE_LIVE_TESTS"]?.lowercased()
-        return enabled == "1" || enabled == "true" || enabled == "yes"
     }
 
     private func prettyJSONString(from data: Data) -> String? {

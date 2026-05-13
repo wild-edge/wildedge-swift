@@ -12,6 +12,8 @@ drift, and hardware metrics without ever sending raw inputs.
 | Sample | What it shows |
 |---|---|
 | [Sources](https://github.com/wild-edge/wildedge-swift/tree/main/Sources) | SDK source code |
+| [VoiceRecorderSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/VoiceRecorderSample) | iOS app — records audio, runs a local ONNX voice-conversion model, tracks inference + uploads the recording as an attachment |
+| [BlobStoreBenchmark](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/BlobStoreBenchmark) | iOS app — interactive benchmark for BlobStore append throughput, compaction strategies, and dictionary encoding formats |
 | [iOSAppSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/iOSAppSample) | iOS app integration using SwiftUI |
 | [SPMExamples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
 | [OnnxExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/OnnxExample) | Zero-code ONNX Runtime tracking via auto-interceptor |
@@ -87,7 +89,6 @@ WILDEDGE_DSN=https://<secret>@ingest.wildedge.dev/<key>
 ```
 
 `WildEdge.shared` is then ready for use anywhere in your app. Set `WILDEDGE_DEBUG=true` (env var) to see verbose auto-init and event logs.
-Set `WILDEDGE_PERSIST_QUEUE_TO_DISK=false` to keep the event queue memory-only for testing or profiling. The same key also works in `Info.plist`.
 
 ### Manual init
 
@@ -98,8 +99,8 @@ import WildEdge
 
 let wildEdge: WildEdgeClient = WildEdge.initialize { builder in
     builder.dsn = "https://<secret>@ingest.wildedge.dev/<key>"
-    // builder.persistQueueToDisk = false
     // builder.debug = true
+    // builder.enableAttachments = true
 }
 ```
 
@@ -192,6 +193,41 @@ wildEdge.trace("user-query") { trace in
 - `span {}` creates child spans with parent linkage.
 - `trackInference()` inside trace/span inherits correlation context.
 
+## Attachments
+
+Attach binary payloads (images, audio, embeddings) to an inference event. Attachments are uploaded asynchronously to S3 via a presign endpoint — the inference event is never blocked.
+
+Enable the pipeline in the builder (`enableAttachments = true` is required) and pass attachments to `trackInference`:
+
+```swift
+WildEdge.initialize { builder in
+    builder.dsn = "https://<secret>@ingest.wildedge.dev/<key>"
+    builder.enableAttachments = true
+}
+
+// In-memory data
+_ = handle.trackInference(
+    durationMs: 42,
+    attachments: [
+        InferenceAttachment(name: "input.jpg", role: .input,
+                            payload: .data(jpegData, mimeType: "image/jpeg")),
+        InferenceAttachment(name: "mask.png", role: .output,
+                            payload: .data(maskData, mimeType: "image/png")),
+    ]
+)
+
+// File on disk (streamed directly without loading into RAM)
+_ = handle.trackInference(
+    durationMs: 150,
+    attachments: [
+        InferenceAttachment(name: "recording.wav", role: .input,
+                            payload: .file(wavURL, mimeType: "audio/wav")),
+    ]
+)
+```
+
+Attachment files are managed under `Application Support/wildedge/attachments/` (excluded from iCloud backup) and deleted automatically after a successful upload or after `maxAttachmentAgeMs`.
+
 ## Output metadata
 
 ```swift
@@ -209,13 +245,19 @@ Available metadata types: `DetectionOutputMeta`, `GenerationOutputMeta`, `Embedd
 |---|---|---|
 | `dsn` | `nil` | `https://<secret>@ingest.wildedge.dev/<key>` (or `WILDEDGE_DSN` env var / Info.plist key) |
 | `appVersion` | auto-detected | App version attached to every batch |
-| `batchSize` | `10` | Events per request |
-| `maxQueueSize` | `200` | Max in-memory events |
-| `persistQueueToDisk` | `true` | Mirror the queue to `Caches/dev.wildedge.eventqueue.ndjson`; set `false` for memory-only buffering (or `WILDEDGE_PERSIST_QUEUE_TO_DISK=false`) |
-| `flushIntervalMs` | `60_000` | Background flush interval |
-| `maxEventAgeMs` | `900_000` | Old events are dropped |
-| `lowConfidenceThreshold` | `0.5` | Sampling threshold |
-| `debug` | `false` | Verbose logs (or `WILDEDGE_DEBUG=true`) |
+| `batchSize` | `10` | Events per ingest request |
+| `maxQueueSize` | `200` | Maximum events buffered on disk before oldest are evicted |
+| `flushIntervalMs` | `60_000` | Background flush interval (ms) |
+| `maxEventAgeMs` | `900_000` | Events older than this are dropped before sending (ms) |
+| `lowConfidenceThreshold` | `0.5` | Predictions below this are flagged low-confidence |
+| `debug` | `false` | Verbose console logs (or `WILDEDGE_DEBUG=true`) |
+| `enableAttachments` | `false` | Opt in to the attachment upload pipeline |
+| `maxAttachmentsPerInference` | `10` | Attachment cap per `trackInference` call |
+| `maxAttachmentSizeBytes` | `10 MB` | Attachments larger than this are dropped |
+| `maxAttachmentAgeMs` | `300` s | Attachments not uploaded within this window are evicted |
+| `attachmentFlushIntervalMs` | `5_000` | How often the attachment consumer checks for pending uploads (ms) |
+| `attachmentTransmitTimeoutMs` | `10_000` | Network timeout for presign and S3 upload requests (ms) |
+| `attachmentFilter` | `nil` | Optional closure to filter or reorder attachments before they are queued |
 
 ## Diagnostics
 
@@ -223,22 +265,24 @@ Call `diagnostics()` on any `WildEdgeClient` to inspect the SDK's internal state
 
 ```swift
 let diag = wildEdge.diagnostics()
-print(diag.processMemoryBytes)        // physical memory footprint of the process (bytes)
+print(diag.processMemoryBytes)         // physical memory footprint of the process (bytes)
 print(diag.systemAvailableMemoryBytes) // system-wide free memory, nil if unavailable
-print(diag.eventQueueCount)           // number of events buffered in the queue
-print(diag.eventQueueBytes)           // in-memory data size of buffered events (bytes)
-print(diag.eventQueueSerialisedBytes) // JSON-serialised size of buffered events (bytes)
+print(diag.eventQueueCount)            // events buffered and waiting to flush
+print(diag.attachmentQueueCount)       // attachments queued for upload
+print(diag.attachmentUploadedCount)    // cumulative successful uploads
+print(diag.attachmentDropCount)        // cumulative drops (age eviction + permanent failures)
+print(diag.attachmentPermanentFailureCount) // drops due to 400/401 responses
 ```
 
 | Field | Description |
 |---|---|
 | `processMemoryBytes` | Physical memory footprint of the current process (`phys_footprint` via `task_vm_info`) |
 | `systemAvailableMemoryBytes` | System-wide available memory (free + inactive VM pages); `nil` if the kernel call fails |
-| `eventQueueCount` | Number of events currently buffered and waiting to be flushed |
-| `eventQueueBytes` | In-memory data size of all buffered events, measured via `MemoryLayout` |
-| `eventQueueSerialisedBytes` | JSON-serialised byte size of all buffered events |
-
-`eventQueueBytes` reflects the raw data payload (string UTF-8 lengths, numeric storage widths). `eventQueueSerialisedBytes` is always larger because JSON adds structural overhead (quotes, colons, brackets).
+| `eventQueueCount` | Number of events currently buffered on disk and waiting to be flushed |
+| `attachmentQueueCount` | Number of attachments currently in the upload queue |
+| `attachmentUploadedCount` | Cumulative count of attachments successfully uploaded |
+| `attachmentDropCount` | Cumulative count of attachments dropped (age eviction + permanent failures) |
+| `attachmentPermanentFailureCount` | Attachments dropped due to a permanent transmit failure (400/401) |
 
 ## AI-assisted integration
 
