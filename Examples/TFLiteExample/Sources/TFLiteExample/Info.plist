@@ -20,5 +20,9 @@
 	<string>1</string>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>WILDEDGE_DSN</key>
+	<string></string>
+	<key>WILDEDGE_DEBUG</key>
+	<true/>
 </dict>
 </plist>

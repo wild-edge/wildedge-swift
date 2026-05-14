@@ -575,15 +575,12 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     internal private(set) static var autoInitFired = false
 
     internal static func autoInit() {
-        let debug = ProcessInfo.processInfo.environment[Config.envDebug] == "true"
-        if debug { print("[wildedge] auto-init triggered via +load") }
+        print("[wildedge] auto-init triggered via +load")
         autoInitFired = true
         let client = Builder().build()
         shared = client
-        if debug {
-            let active = !(client is NoopWildEdgeClient)
-            print("[wildedge] auto-init complete: \(active ? "active" : "noop (no DSN)")")
-        }
+        let active = !(client is NoopWildEdgeClient)
+        print("[wildedge] auto-init complete: \(active ? "active" : "noop (no DSN)")")
     }
 
     @discardableResult

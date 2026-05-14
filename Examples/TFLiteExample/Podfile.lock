@@ -1,0 +1,40 @@
+PODS:
+  - TensorFlowLiteC (2.17.0):
+    - TensorFlowLiteC/Core (= 2.17.0)
+  - TensorFlowLiteC/Core (2.17.0)
+  - TensorFlowLiteC/Metal (2.17.0):
+    - TensorFlowLiteC/Core
+  - TensorFlowLiteSwift (2.17.0):
+    - TensorFlowLiteSwift/Core (= 2.17.0)
+  - TensorFlowLiteSwift/Core (2.17.0):
+    - TensorFlowLiteC (= 2.17.0)
+    - TensorFlowLiteSwift/Privacy (= 2.17.0)
+  - TensorFlowLiteSwift/Metal (2.17.0):
+    - TensorFlowLiteC/Metal (= 2.17.0)
+    - TensorFlowLiteSwift/Core (= 2.17.0)
+    - TensorFlowLiteSwift/Privacy (= 2.17.0)
+  - TensorFlowLiteSwift/Privacy (2.17.0)
+  - WildEdge (1.0.11)
+
+DEPENDENCIES:
+  - TensorFlowLiteSwift (~> 2.14)
+  - TensorFlowLiteSwift/Metal (~> 2.14)
+  - WildEdge (from `../..`)
+
+SPEC REPOS:
+  trunk:
+    - TensorFlowLiteC
+    - TensorFlowLiteSwift
+
+EXTERNAL SOURCES:
+  WildEdge:
+    :path: "../.."
+
+SPEC CHECKSUMS:
+  TensorFlowLiteC: eac6d689a8d391d1b202dc59e3d9165ba64aaf73
+  TensorFlowLiteSwift: 723fe42222815e72490c79feeff05305530de393
+  WildEdge: db1270d3adfb5be5c8ced7587f37290d4a264760
+
+PODFILE CHECKSUM: c37593003a12ed271db61d3895f60f351f82c5a9
+
+COCOAPODS: 1.16.2

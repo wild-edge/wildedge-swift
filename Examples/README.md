@@ -17,12 +17,13 @@ An iOS app that records audio, runs it through a local ONNX voice-conversion mod
 
 **Requirements:** Xcode 15+, iOS 16+ device or simulator, `OnnxRuntimeBindings` package (resolved automatically via SPM).
 
-1. Open `VoiceRecorderSample/VoiceRecorderSample.xcodeproj` in Xcode.
-2. Set `WILDEDGE_DSN` in the scheme's environment variables (Edit Scheme → Run → Environment Variables) or in `VoiceRecorderSample/Sources/Info.plist`.
-3. To enable attachment uploads, set `builder.enableAttachments = true` in `RecorderViewModel.swift` and provide a valid DSN.
-4. Add `TPain.onnx` to the app bundle (drag into Xcode and tick "Add to target"). Without it the app runs in no-model mode and skips local inference.
-5. Select an iOS Simulator or device as the run destination.
-6. Run the `VoiceRecorderSample` scheme.
+1. Open `VoiceRecorderSample/VoiceRecorderSample.xcodeproj` in Xcode (SPM dependencies resolve automatically).
+2. Set `WILDEDGE_DSN` in `VoiceRecorderSample/Sources/Info.plist` or via Edit Scheme → Run → Environment Variables.
+3. Add `TPain.onnx` to the app bundle (drag into Xcode, tick "Add to target"). Without it the app runs in no-model mode and skips local inference.
+4. Select an iOS Simulator or device as the run destination.
+5. Run the `VoiceRecorderSample` scheme.
+
+Attachment uploads (`enableAttachments = true`) are already enabled in `RecorderViewModel.swift` — they activate automatically once a valid DSN is set.
 
 **What gets tracked:**
 - `model_load` event when the ONNX session is initialised
@@ -48,6 +49,50 @@ An iOS app that runs interactive performance benchmarks for the WildEdge SDK's i
 | Dictionary encoding | Encode and decode 1 000 inference events in all four formats: `json`, `binary`, `plist`, `compressedJSON` |
 
 Results are displayed in a live table and printed to the console log.
+
+## TFLiteObjcExample Instructions
+
+An iOS app demonstrating zero-code TensorFlow Lite tracking via the `TFLInterpreter` auto-interceptor. No WildEdge calls are required — `trackLoad`, `trackInference`, and `trackUnload` fire automatically whenever `TFLInterpreter` is used.
+
+**Requirements:** Xcode 15+, CocoaPods, iOS 15.5+ simulator or device.
+
+1. Install CocoaPods dependencies:
+   ```bash
+   cd Examples/TFLiteObjcExample
+   pod install
+   ```
+2. Open **`TFLiteObjcExample.xcworkspace`** in Xcode (not the `.xcodeproj`).
+3. Set `WILDEDGE_DSN` in `Sources/TFLiteObjcExample/Info.plist` or via Edit Scheme → Run → Environment Variables.
+4. Run the `TFLiteObjcExample` scheme.
+
+The app downloads a sample EfficientNet-Lite0 model (~5 MB) automatically on first launch if no bundled `model.tflite` is present. To use your own model instead, drag a `.tflite` file into Xcode and tick "Add to target".
+
+**What gets tracked automatically:**
+- `model_load` when `TFLInterpreter` is initialised
+- `inference` on each `invokeWithError:` call, with duration and success/error
+- `model_unload` when the interpreter is deallocated
+
+## TFLiteExample Instructions
+
+An iOS app demonstrating manual TensorFlow Lite tracking using the pure-Swift `Interpreter` API. Because `Interpreter` has no ObjC runtime exposure, model lifecycle events are tracked explicitly via `ModelHandle`.
+
+**Requirements:** Xcode 15+, CocoaPods, iOS 15.5+ simulator or device.
+
+1. Install CocoaPods dependencies:
+   ```bash
+   cd Examples/TFLiteExample
+   pod install
+   ```
+2. Open **`TFLiteExample.xcworkspace`** in Xcode (not the `.xcodeproj`).
+3. Set `WILDEDGE_DSN` in `Sources/TFLiteExample/Info.plist` or via Edit Scheme → Run → Environment Variables.
+4. Run the `TFLiteExample` scheme.
+
+The app downloads a sample EfficientNet-Lite0 model (~5 MB) automatically on first launch if no bundled `model.tflite` is present.
+
+**What gets tracked:**
+- `model_load` after `interpreter.allocateTensors()` succeeds
+- `inference` after each `interpreter.invoke()`, with duration and output shape
+- `model_unload` is not tracked automatically (pure-Swift, no dealloc hook)
 
 ## iOSAppSample Instructions
 

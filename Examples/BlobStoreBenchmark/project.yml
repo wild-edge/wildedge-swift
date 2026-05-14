@@ -3,6 +3,19 @@ options:
   bundleIdPrefix: dev.wildedge.sample
   deploymentTarget:
     iOS: "16.0"
+schemes:
+  BlobStoreBenchmark:
+    build:
+      targets:
+        BlobStoreBenchmark: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
 packages:
   WildEdge:
     path: ../..

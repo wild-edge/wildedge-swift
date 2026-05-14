@@ -26,9 +26,10 @@
 	<string>Microphone access is required to record voice messages.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>WILDEDGE_DEBUG</key>
+	<true/>
 	<key>WILDEDGE_DSN</key>
 	<string></string>
-	<key>WILDEDGE_DEBUG</key>
-	<string>true</string>
+	
 </dict>
 </plist>

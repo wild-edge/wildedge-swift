@@ -1,11 +1,11 @@
-name: TFLiteExample
+name: TFLiteObjcExample
 options:
   bundleIdPrefix: dev.wildedge
 schemes:
-  TFLiteExample:
+  TFLiteObjcExample:
     build:
       targets:
-        TFLiteExample: all
+        TFLiteObjcExample: all
     run:
       config: Debug
     test:
@@ -17,17 +17,18 @@ schemes:
     archive:
       config: Release
 targets:
-  TFLiteExample:
+  TFLiteObjcExample:
     type: application
     platform: iOS
     deploymentTarget: "15.5"
     sources:
-      - path: Sources/TFLiteExample
+      - path: Sources/TFLiteObjcExample
     info:
-      path: Sources/TFLiteExample/Info.plist
+      path: Sources/TFLiteObjcExample/Info.plist
       properties:
-        CFBundleIdentifier: dev.wildedge.TFLiteExample
+        CFBundleIdentifier: dev.wildedge.TFLiteObjcExample
         UILaunchScreen: {}
     settings:
       base:
-        SWIFT_VERSION: "5.9"
+        CLANG_ENABLE_MODULES: YES
+        HEADER_SEARCH_PATHS: $(inherited) $(PODS_ROOT)/TensorFlowLiteObjC/tensorflow/lite/objc/apis

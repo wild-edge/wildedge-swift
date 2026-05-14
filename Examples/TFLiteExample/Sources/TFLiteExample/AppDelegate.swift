@@ -5,31 +5,77 @@ import WildEdge
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
+    private static let modelURL = URL(string: "https://storage.googleapis.com/download.tensorflow.org/models/tflite/task_library/image_classification/ios/lite-model_efficientnet_lite0_uint8_2.tflite")!
+    private static let modelFilename = "wildedge_sample_model.tflite"
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         // WildEdge auto-inits via +load using WILDEDGE_DSN from the environment or Info.plist.
         // TFLite has no ObjC runtime layer to hook, so model handles are registered manually.
-        runInference()
+        modelPath { path in
+            guard let path else { return }
+            DispatchQueue.main.async { self.runInference(modelPath: path) }
+        }
         return true
     }
 
-    private func runInference() {
-        guard let modelPath = Bundle.main.path(forResource: "model", ofType: "tflite") else {
-            print("[TFLiteExample] model.tflite not found in bundle")
-            return
+    // MARK: - Model resolution
+
+    private func modelPath(completion: @escaping (String?) -> Void) {
+        // 1. Bundled model takes priority.
+        if let bundled = Bundle.main.path(forResource: "model", ofType: "tflite") {
+            print("[TFLiteExample] Using bundled model")
+            completion(bundled); return
         }
 
-        let info = ModelInfo(
-            modelName: "MobileNet V3",
-            modelVersion: "3.0",
-            modelSource: "local",
-            modelFormat: "tflite",
-            quantization: "int8"
-        )
+        // 2. Previously downloaded model in Caches.
+        let cached = Self.cachedModelPath
+        if FileManager.default.fileExists(atPath: cached) {
+            print("[TFLiteExample] Using cached model at \(cached)")
+            completion(cached); return
+        }
 
-        let handle = WildEdge.shared.registerModel(modelId: "mobilenet_v3_int8_cpu", info: info)
+        // 3. Download sample model.
+        print("[TFLiteExample] Downloading sample model from \(Self.modelURL)")
+        URLSession.shared.downloadTask(with: Self.modelURL) { tmpURL, response, error in
+            if let error {
+                print("[TFLiteExample] Download failed: \(error.localizedDescription)")
+                completion(nil); return
+            }
+            guard let tmpURL,
+                  let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode) else {
+                print("[TFLiteExample] Download HTTP error")
+                completion(nil); return
+            }
+            do {
+                try FileManager.default.moveItem(atPath: tmpURL.path, toPath: cached)
+                print("[TFLiteExample] Model saved to \(cached)")
+                completion(cached)
+            } catch {
+                print("[TFLiteExample] Save failed: \(error.localizedDescription)")
+                completion(nil)
+            }
+        }.resume()
+    }
+
+    private static var cachedModelPath: String {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        return caches.appendingPathComponent(modelFilename).path
+    }
+
+    // MARK: - Inference
+
+    private func runInference(modelPath: String) {
+        let info = ModelInfo(
+            modelName: "EfficientNet-Lite0",
+            modelSource: "remote",
+            modelFormat: "tflite",
+            quantization: "uint8"
+        )
+        let handle = WildEdge.shared.registerModel(modelId: "efficientnet_lite0_uint8", info: info)
 
         do {
             var options = Interpreter.Options()

@@ -15,7 +15,9 @@ DerivedData/
 *.xcuserdatad/
 *.xcuserstate
 
-# CocoaPods (examples app)
+# CocoaPods (examples)
 Examples/Pods/
 Examples/SPMExamples/Pods/
 Examples/MLKitExample/Pods/
+Examples/TFLiteExample/Pods/
+Examples/TFLiteObjcExample/Pods/

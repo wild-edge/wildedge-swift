@@ -7,17 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		288C84AF261017B0C6B2A46F /* WildEdgeBenchmarks in Frameworks */ = {isa = PBXBuildFile; productRef = 460554E26357394875D9E5B1 /* WildEdgeBenchmarks */; };
 		A576A10C4775BEB643A4A4EF /* BenchmarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FED3CAB0DE7FF05D647F79E /* BenchmarkView.swift */; };
 		BE5F83A4EB1902C8DF9343F7 /* BlobStoreBenchmarkApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F279B967B0FF13ED5DC9AC /* BlobStoreBenchmarkApp.swift */; };
-		C8335ABF2FB52DAE004B12BF /* WildEdge in Frameworks */ = {isa = PBXBuildFile; productRef = C8335ABE2FB52DAE004B12BF /* WildEdge */; };
-		C8335AC12FB52DAE004B12BF /* WildEdgeBenchmarks in Frameworks */ = {isa = PBXBuildFile; productRef = C8335AC02FB52DAE004B12BF /* WildEdgeBenchmarks */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		30F279B967B0FF13ED5DC9AC /* BlobStoreBenchmarkApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlobStoreBenchmarkApp.swift; sourceTree = "<group>"; };
 		8FED3CAB0DE7FF05D647F79E /* BenchmarkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkView.swift; sourceTree = "<group>"; };
 		9075515EA0B0FD5D5836DF55 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		A8F37D0E408EE12ABA0A8A38 /* BlobStoreBenchmark.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BlobStoreBenchmark.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A8F37D0E408EE12ABA0A8A38 /* BlobStoreBenchmark.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BlobStoreBenchmark.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FFE32C5EE28483A78258964E /* wildedge-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wildedge-swift"; path = ../..; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -26,8 +25,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C8335ABF2FB52DAE004B12BF /* WildEdge in Frameworks */,
-				C8335AC12FB52DAE004B12BF /* WildEdgeBenchmarks in Frameworks */,
+				288C84AF261017B0C6B2A46F /* WildEdgeBenchmarks in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,8 +83,7 @@
 			);
 			name = BlobStoreBenchmark;
 			packageProductDependencies = (
-				C8335ABE2FB52DAE004B12BF /* WildEdge */,
-				C8335AC02FB52DAE004B12BF /* WildEdgeBenchmarks */,
+				460554E26357394875D9E5B1 /* WildEdgeBenchmarks */,
 			);
 			productName = BlobStoreBenchmark;
 			productReference = A8F37D0E408EE12ABA0A8A38 /* BlobStoreBenchmark.app */;
@@ -100,6 +97,8 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = 1E4B2850CF60072105DD81A9 /* Build configuration list for PBXProject "BlobStoreBenchmark" */;
 			developmentRegion = en;
@@ -111,7 +110,7 @@
 			mainGroup = 3B6E1BAA9FE53B371BACD67A;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				C8335ABD2FB52DAE004B12BF /* XCLocalSwiftPackageReference "../../../wildedge-swift" */,
+				048B6A289D31E6A2DBB8DE64 /* XCLocalSwiftPackageReference "../.." */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 089FF53D417D30E33DE6EAD2 /* Products */;
@@ -197,7 +196,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -217,7 +215,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -319,18 +316,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		C8335ABD2FB52DAE004B12BF /* XCLocalSwiftPackageReference "../../../wildedge-swift" */ = {
+		048B6A289D31E6A2DBB8DE64 /* XCLocalSwiftPackageReference "../.." */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = "../../../wildedge-swift";
+			relativePath = ../..;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		C8335ABE2FB52DAE004B12BF /* WildEdge */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = WildEdge;
-		};
-		C8335AC02FB52DAE004B12BF /* WildEdgeBenchmarks */ = {
+		460554E26357394875D9E5B1 /* WildEdgeBenchmarks */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = WildEdgeBenchmarks;
 		};

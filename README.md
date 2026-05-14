@@ -18,7 +18,8 @@ drift, and hardware metrics without ever sending raw inputs.
 | [SPMExamples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
 | [OnnxExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/OnnxExample) | Zero-code ONNX Runtime tracking via auto-interceptor |
 | [MLKitExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/MLKitExample) | Zero-code ML Kit tracking via auto-interceptor |
-| [TFLiteExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteExample) | TensorFlow Lite manual inference tracking |
+| [TFLiteObjcExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteObjcExample) | Zero-code TensorFlow Lite tracking via `TFLInterpreter` auto-interceptor (`TensorFlowLiteObjC`) |
+| [TFLiteExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteExample) | Manual TensorFlow Lite tracking using the pure-Swift `Interpreter` |
 | [TracingExample.swift](https://github.com/wild-edge/wildedge-swift/blob/main/Examples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
 
 
@@ -139,9 +140,28 @@ detector.process(VisionImage(image: image)) { faces, error in
 }
 ```
 
-### TFLite — manual integration
+### TFLite (`TensorFlowLiteObjC`) — zero-code integration
 
-TFLite does not have an ObjC-accessible runtime layer that WildEdge can hook, so use explicit model handles:
+When your app links `TensorFlowLiteObjC` (i.e. uses `TFLInterpreter`), WildEdge hooks it automatically — no imports or code changes needed:
+
+```objc
+// No WildEdge calls required.
+#import "TFLInterpreter.h"
+
+TFLInterpreter *interpreter = [[TFLInterpreter alloc] initWithModelPath:modelPath error:nil];
+[interpreter allocateTensorsWithError:nil];
+// ↑ trackLoad fires automatically
+
+[interpreter invokeWithError:nil];
+// ↑ trackInference fires automatically
+// dealloc → trackUnload fires automatically
+```
+
+> **Note:** The pure-Swift `TensorFlowLite` package (`Interpreter` class) cannot be intercepted — use explicit model handles for that path (see below).
+
+### TFLite (pure Swift) — manual integration
+
+The Swift `Interpreter` class has no ObjC runtime exposure, so use explicit model handles:
 
 ```swift
 import WildEdge
@@ -295,9 +315,9 @@ Integrate the WildEdge Swift SDK into this project.
    - Preferred: set WILDEDGE_DSN env var — the SDK auto-inits before main().
    - Alternative: call WildEdge.initialize { $0.dsn = "YOUR_DSN" } at app launch.
 
-2. ONNX Runtime and ML Kit are intercepted automatically — no code changes needed for those.
+2. ONNX Runtime, ML Kit, and TensorFlow Lite (`TFLInterpreter`) are intercepted automatically — no code changes needed for those.
 
-3. For all other ML inference code (TensorFlow Lite, Core ML, remote LLM APIs):
+3. For all other ML inference code (TensorFlow Lite pure-Swift `Interpreter`, Core ML, remote LLM APIs):
    - Register a stable model handle with wildEdge.registerModel(modelId:info:)
    - Add trackLoad()/trackUnload() for model lifecycle when applicable
    - Time inference and call trackInference(...)
