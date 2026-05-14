@@ -99,6 +99,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         ORTInterceptor.install(client: self)
         MLKitDetectorInterceptor.install(client: self)
         MLKitModelManagerInterceptor.install(client: self)
+        TFLInterceptor.install(client: self)
     }
 
     public func registerModel(modelId: String, info: ModelInfo) -> ModelHandle {
@@ -417,7 +418,11 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         public var flushIntervalMs: Int64 = Config.defaultFlushIntervalMs
         public var maxEventAgeMs: Int64 = Config.defaultMaxEventAgeMs
         public var lowConfidenceThreshold: Double = Config.defaultLowConfidenceThreshold
-        public var debug: Bool = ProcessInfo.processInfo.environment[Config.envDebug] == "true"
+        public var debug: Bool = {
+            if ProcessInfo.processInfo.environment[Config.envDebug] == "true" { return true }
+            let val = Bundle.main.object(forInfoDictionaryKey: Config.envDebug)
+            return (val as? Bool) == true || (val as? String)?.lowercased() == "true"
+        }()
 
         // Attachments
         public var enableAttachments: Bool = Config.defaultEnableAttachments
@@ -585,15 +590,6 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
 
     @discardableResult
     public static func `init`(_ block: (Builder) -> Void = { _ in }) -> WildEdgeClient {
-        let builder = Builder()
-        block(builder)
-        let client = builder.build()
-        shared = client
-        return client
-    }
-
-    @discardableResult
-    public static func initialize(_ block: (Builder) -> Void = { _ in }) -> WildEdgeClient {
         let builder = Builder()
         block(builder)
         let client = builder.build()
