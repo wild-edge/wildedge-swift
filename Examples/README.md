@@ -30,6 +30,29 @@ Attachment uploads (`enableAttachments = true`) are already enabled in `Recorder
 - `inference` event per recording, including duration, input modality (`audio`), and output modality (`generation`)
 - The `.wav` recording uploaded as an `InferenceAttachment` (requires `enableAttachments = true`)
 
+## CarScannerExample Instructions
+
+An iOS camera app that scans cars using OpenRouter and Gemini vision APIs and reports each inference to WildEdge — including uploading the input image as an attachment. Built with SwiftUI and XcodeGen.
+
+**Requirements:** Xcode 15+, iOS 16+ device (camera required for live capture; photo library works on simulator), XcodeGen.
+
+1. Generate the Xcode project:
+   ```bash
+   cd Examples/CarScannerExample
+   xcodegen generate
+   ```
+2. Open `CarScannerExample.xcodeproj` in Xcode.
+3. Fill in your credentials in `Sources/Info.plist`:
+   - `WILDEDGE_DSN` — your WildEdge project DSN
+   - `OPENROUTER_API_KEY` — your OpenRouter API key
+   - `GEMINI_API_KEY` — your Google Gemini API key
+4. Set your development team in Xcode's project settings (Signing & Capabilities).
+5. Run the `CarScannerExample` scheme on a device or simulator.
+
+**What gets tracked:**
+- `inference` event per API call via a per-provider `ModelHandle`, including duration, `inputModality: .multimodal`, `outputModality: .generation`, and HTTP success/failure
+- The resized JPEG input image uploaded as an `InferenceAttachment` (`role: .input`)
+
 ## BlobStoreBenchmark Instructions
 
 An iOS app that runs interactive performance benchmarks for the WildEdge SDK's internal BlobStore storage layer. Useful for comparing write throughput, compaction strategies, and dictionary encoding formats on real devices.

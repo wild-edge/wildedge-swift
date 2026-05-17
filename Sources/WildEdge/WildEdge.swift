@@ -597,6 +597,15 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         return client
     }
 
+    @discardableResult
+    public static func initialize(_ block: (Builder) -> Void = { _ in }) -> WildEdgeClient {
+        let builder = Builder()
+        block(builder)
+        let client = builder.build()
+        shared = client
+        return client
+    }
+
     public static func analyzeText(
         _ text: String,
         promptType: String? = nil,

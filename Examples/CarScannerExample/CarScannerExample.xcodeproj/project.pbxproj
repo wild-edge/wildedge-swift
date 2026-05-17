@@ -1,0 +1,391 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		266FF139D4AA30D17A44A90B /* WildEdge in Frameworks */ = {isa = PBXBuildFile; productRef = 70616483117A663E8B0EB6C2 /* WildEdge */; };
+		403C6486F5BC47AC091DBEA5 /* RecognitionHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DD7E291FB82275CD71220E /* RecognitionHelpers.swift */; };
+		500008392C922271401492B8 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FAB616B6F16D62276980DE /* CameraPreviewView.swift */; };
+		53CBF52199F526A6D5DC7879 /* GeminiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF5841ED8926579898D78F71 /* GeminiClient.swift */; };
+		5A4525D0DEE350A8DA2E02AE /* CameraViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B81A4AAFB4AAE0F99AF6A4B /* CameraViewModel.swift */; };
+		61C638888A9ED7D43100790C /* ScanButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FDE02FAF253090DE93A7CC /* ScanButton.swift */; };
+		6FDE1BEA42313ABAB49417DD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A342C548D42486C99AFC4A17 /* Assets.xcassets */; };
+		B0AA9821DCA4B35DF432EA11 /* ScanJobDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB25ECAD442486B42C1D20C2 /* ScanJobDetailView.swift */; };
+		BAEE43C75C70404EE994F645 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3529C13102FB506EA48D74C /* ContentView.swift */; };
+		BB0B59FBC21D794C8D919502 /* OpenRouterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5DD09CF54A0F81DC02AE3B1 /* OpenRouterClient.swift */; };
+		CF3044DF76303B6156BE44DF /* CarScannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4145A0D128AC5B28BD398C87 /* CarScannerApp.swift */; };
+		E0E5841DD0BFBE16A7E505C6 /* MarqueeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7FBEC0CC0C0BAF85152200 /* MarqueeText.swift */; };
+		E152C9C514E0F36F55A46321 /* ScanJobCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BEEAC05723C7F580B785E92 /* ScanJobCell.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		09779DA113D491B3917DD6F4 /* wildedge-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wildedge-swift"; path = ../..; sourceTree = SOURCE_ROOT; };
+		20FAB616B6F16D62276980DE /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
+		27D62242B7ABC2F87FF8A2D4 /* CarScannerExample.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CarScannerExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4145A0D128AC5B28BD398C87 /* CarScannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarScannerApp.swift; sourceTree = "<group>"; };
+		6B81A4AAFB4AAE0F99AF6A4B /* CameraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraViewModel.swift; sourceTree = "<group>"; };
+		84FDE02FAF253090DE93A7CC /* ScanButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanButton.swift; sourceTree = "<group>"; };
+		8BEEAC05723C7F580B785E92 /* ScanJobCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanJobCell.swift; sourceTree = "<group>"; };
+		A342C548D42486C99AFC4A17 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AF5841ED8926579898D78F71 /* GeminiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiClient.swift; sourceTree = "<group>"; };
+		B5DD09CF54A0F81DC02AE3B1 /* OpenRouterClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterClient.swift; sourceTree = "<group>"; };
+		DB25ECAD442486B42C1D20C2 /* ScanJobDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanJobDetailView.swift; sourceTree = "<group>"; };
+		DF7FBEC0CC0C0BAF85152200 /* MarqueeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarqueeText.swift; sourceTree = "<group>"; };
+		E27F9095CD5552A2A9DBC787 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		E2DD7E291FB82275CD71220E /* RecognitionHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecognitionHelpers.swift; sourceTree = "<group>"; };
+		F3529C13102FB506EA48D74C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A15A0C055D805F6F1807EC20 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				266FF139D4AA30D17A44A90B /* WildEdge in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		4D7DDC372E8614719B8ABD68 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				A342C548D42486C99AFC4A17 /* Assets.xcassets */,
+				20FAB616B6F16D62276980DE /* CameraPreviewView.swift */,
+				6B81A4AAFB4AAE0F99AF6A4B /* CameraViewModel.swift */,
+				4145A0D128AC5B28BD398C87 /* CarScannerApp.swift */,
+				F3529C13102FB506EA48D74C /* ContentView.swift */,
+				AF5841ED8926579898D78F71 /* GeminiClient.swift */,
+				E27F9095CD5552A2A9DBC787 /* Info.plist */,
+				DF7FBEC0CC0C0BAF85152200 /* MarqueeText.swift */,
+				B5DD09CF54A0F81DC02AE3B1 /* OpenRouterClient.swift */,
+				E2DD7E291FB82275CD71220E /* RecognitionHelpers.swift */,
+				84FDE02FAF253090DE93A7CC /* ScanButton.swift */,
+				8BEEAC05723C7F580B785E92 /* ScanJobCell.swift */,
+				DB25ECAD442486B42C1D20C2 /* ScanJobDetailView.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		5C04FE7076FDFE11E4A4AE46 = {
+			isa = PBXGroup;
+			children = (
+				E3AA53DAD056D08A46B2A25C /* Packages */,
+				4D7DDC372E8614719B8ABD68 /* Sources */,
+				A9A5EA783DF155BE0F5AB361 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A9A5EA783DF155BE0F5AB361 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				27D62242B7ABC2F87FF8A2D4 /* CarScannerExample.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E3AA53DAD056D08A46B2A25C /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				09779DA113D491B3917DD6F4 /* wildedge-swift */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		31A0070D233D0289705C55ED /* CarScannerExample */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A0F3A7494405D83FEC20D86A /* Build configuration list for PBXNativeTarget "CarScannerExample" */;
+			buildPhases = (
+				D6FA7D7121318D0E3BFA943A /* Sources */,
+				E2897FE055C9937546829BCB /* Resources */,
+				A15A0C055D805F6F1807EC20 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CarScannerExample;
+			packageProductDependencies = (
+				70616483117A663E8B0EB6C2 /* WildEdge */,
+			);
+			productName = CarScannerExample;
+			productReference = 27D62242B7ABC2F87FF8A2D4 /* CarScannerExample.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D2130AC36521DE2A426140E1 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					31A0070D233D0289705C55ED = {
+						DevelopmentTeam = "";
+					};
+				};
+			};
+			buildConfigurationList = A69D92B5B85B3EC29786FE55 /* Build configuration list for PBXProject "CarScannerExample" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 5C04FE7076FDFE11E4A4AE46;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				46AB9BD106D7D9950AAEFAA1 /* XCLocalSwiftPackageReference "../..//" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A9A5EA783DF155BE0F5AB361 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				31A0070D233D0289705C55ED /* CarScannerExample */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E2897FE055C9937546829BCB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6FDE1BEA42313ABAB49417DD /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		D6FA7D7121318D0E3BFA943A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				500008392C922271401492B8 /* CameraPreviewView.swift in Sources */,
+				5A4525D0DEE350A8DA2E02AE /* CameraViewModel.swift in Sources */,
+				CF3044DF76303B6156BE44DF /* CarScannerApp.swift in Sources */,
+				BAEE43C75C70404EE994F645 /* ContentView.swift in Sources */,
+				53CBF52199F526A6D5DC7879 /* GeminiClient.swift in Sources */,
+				E0E5841DD0BFBE16A7E505C6 /* MarqueeText.swift in Sources */,
+				BB0B59FBC21D794C8D919502 /* OpenRouterClient.swift in Sources */,
+				403C6486F5BC47AC091DBEA5 /* RecognitionHelpers.swift in Sources */,
+				61C638888A9ED7D43100790C /* ScanButton.swift in Sources */,
+				E152C9C514E0F36F55A46321 /* ScanJobCell.swift in Sources */,
+				B0AA9821DCA4B35DF432EA11 /* ScanJobDetailView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		3F54CF6FD08600B76E5316A2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "";
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.wildedge.example.carscanner;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		46BAB4491AC7D8F5A33D4FC5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "";
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.wildedge.example.carscanner;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		4AF2DE84E0659003A25875D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		91087FF75FC7AC9A1BB40733 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A0F3A7494405D83FEC20D86A /* Build configuration list for PBXNativeTarget "CarScannerExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				46BAB4491AC7D8F5A33D4FC5 /* Debug */,
+				3F54CF6FD08600B76E5316A2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		A69D92B5B85B3EC29786FE55 /* Build configuration list for PBXProject "CarScannerExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4AF2DE84E0659003A25875D8 /* Debug */,
+				91087FF75FC7AC9A1BB40733 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		46AB9BD106D7D9950AAEFAA1 /* XCLocalSwiftPackageReference "../..//" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "../..//";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		70616483117A663E8B0EB6C2 /* WildEdge */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = WildEdge;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = D2130AC36521DE2A426140E1 /* Project object */;
+}

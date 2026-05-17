@@ -20,6 +20,7 @@ drift, and hardware metrics without ever sending raw inputs.
 | [MLKitExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/MLKitExample) | Zero-code ML Kit tracking via auto-interceptor |
 | [TFLiteObjcExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteObjcExample) | Zero-code TensorFlow Lite tracking via `TFLInterpreter` auto-interceptor (`TensorFlowLiteObjC`) |
 | [TFLiteExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteExample) | Manual TensorFlow Lite tracking using the pure-Swift `Interpreter` |
+| [CarScannerExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/CarScannerExample) | iOS camera app — scans cars with OpenRouter and Gemini vision APIs, tracks each inference with `trackInference` and uploads the input image as an attachment |
 | [TracingExample.swift](https://github.com/wild-edge/wildedge-swift/blob/main/Examples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
 
 
