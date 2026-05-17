@@ -225,10 +225,10 @@ final class CameraViewModel: NSObject, ObservableObject {
     private func analyzeImage(_ uploadData: Data, meta: PhotoMetadata, provider: RecognitionProvider) async throws -> [ScanResult] {
         switch provider {
         case .openRouter:
-            let (info, raw, stats) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt)
+            let (info, raw, stats) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
             return [ScanResult(provider: "OpenRouter", info: info, photo: meta, rawJSON: raw, httpStats: stats)]
         case .gemini:
-            let (info, raw, stats) = try await GeminiClient().analyze(uploadData, prompt: carPrompt)
+            let (info, raw, stats) = try await GeminiClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
             return [ScanResult(provider: "Gemini", info: info, photo: meta, rawJSON: raw, httpStats: stats)]
         case .both:
             return try await analyzeWithBoth(uploadData, photo: meta)
@@ -250,8 +250,8 @@ final class CameraViewModel: NSObject, ObservableObject {
     }
 
     private func analyzeWithBoth(_ imageData: Data, photo: PhotoMetadata) async throws -> [ScanResult] {
-        async let orTask = OpenRouterClient().analyze(imageData, prompt: carPrompt)
-        async let gTask  = GeminiClient().analyze(imageData, prompt: carPrompt)
+        async let orTask = OpenRouterClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions)
+        async let gTask  = GeminiClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions)
 
         var out: [ScanResult] = []
         var firstError: Error?

@@ -1,4 +1,5 @@
 import Foundation
+import CoreGraphics
 import WildEdge
 
 struct GeminiClient {
@@ -17,7 +18,7 @@ struct GeminiClient {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
-    func analyze(_ imageData: Data, prompt: String) async throws -> (CarInfo, String, HTTPStats) {
+    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil) async throws -> (CarInfo, String, HTTPStats) {
         let key = apiKey
         guard !key.isEmpty, key != "YOUR_GEMINI_API_KEY" else {
             throw configError("Set GEMINI_API_KEY in Info.plist")
@@ -44,19 +45,6 @@ struct GeminiClient {
             responseSize: data.count
         )
 
-        let attachment = InferenceAttachment(
-            name: "input.jpg",
-            role: .input,
-            payload: .data(imageData, mimeType: "image/jpeg")
-        )
-        Self.handle.trackInference(
-            durationMs: stats.durationMs,
-            inputModality: .multimodal,
-            outputModality: .generation,
-            success: stats.statusCode == 200,
-            attachments: [attachment]
-        )
-
         try assertHTTP200(data: data, response: response)
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -65,6 +53,17 @@ struct GeminiClient {
             let parts = (candidates.first?["content"] as? [String: Any])?["parts"] as? [[String: Any]],
             let text = parts.first?["text"] as? String
         else { throw apiError("Unexpected Gemini response format") }
-        return (try decodeCarInfo(from: text), prettyPrinted(data), stats)
+        let info = try decodeCarInfo(from: text)
+
+        Self.handle.trackInference(
+            durationMs: stats.durationMs,
+            inputModality: .multimodal,
+            outputModality: .detection,
+            success: true,
+            outputMeta: detectionMeta(from: info, imageSize: imageSize),
+            attachments: [InferenceAttachment(name: "input.jpg", role: .input,
+                                              payload: .data(imageData, mimeType: "image/jpeg"))]
+        )
+        return (info, prettyPrinted(data), stats)
     }
 }

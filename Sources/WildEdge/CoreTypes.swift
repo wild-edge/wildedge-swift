@@ -115,10 +115,13 @@ public struct ModelInfo {
 public struct TopPrediction {
     public var label: String
     public var confidence: Double?
+    /// Bounding box [x, y, width, height] as integers (e.g. pixel coords or 0–1000 scaled).
+    public var bbox: [Int]?
 
-    public init(label: String, confidence: Double? = nil) {
+    public init(label: String, confidence: Double? = nil, bbox: [Int]? = nil) {
         self.label = label
         self.confidence = confidence
+        self.bbox = bbox
     }
 }
 
@@ -141,9 +144,8 @@ public struct DetectionOutputMeta {
         if let topK {
             map["top_k"] = topK.map { item in
                 var value: [String: Any] = ["label": item.label]
-                if let confidence = item.confidence {
-                    value["confidence"] = confidence
-                }
+                if let confidence = item.confidence { value["confidence"] = confidence }
+                if let bbox = item.bbox             { value["bbox"] = bbox }
                 return value
             }
         }

@@ -1,4 +1,5 @@
 import Foundation
+import WildEdge
 
 func decodeCarInfo(from text: String) throws -> CarInfo {
     let extracted = extractJSON(from: text)
@@ -25,6 +26,31 @@ func assertHTTP200(data: Data, response: URLResponse) throws {
     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
         throw apiError(String(data: data, encoding: .utf8) ?? "unknown error")
     }
+}
+
+func detectionMeta(from info: CarInfo, imageSize: CGSize? = nil) -> [String: Any] {
+    guard info.found, let candidates = info.candidates, !candidates.isEmpty else {
+        return DetectionOutputMeta(numPredictions: 0).toMap()
+    }
+    let w = imageSize?.width ?? 1
+    let h = imageSize?.height ?? 1
+    let topK: [TopPrediction] = candidates.compactMap { c in
+        let parts = [c.brand, c.model].compactMap { $0 }
+        guard !parts.isEmpty else { return nil }
+        let conf = c.confidence.map { Double($0) / 100.0 }
+        let bbox = c.bbox.map { b in
+            [Int((b.x * w).rounded()), Int((b.y * h).rounded()),
+             Int((b.width * w).rounded()), Int((b.height * h).rounded())]
+        }
+        return TopPrediction(label: parts.joined(separator: " "), confidence: conf, bbox: bbox)
+    }
+    let confidences = topK.compactMap { $0.confidence }
+    let avg = confidences.isEmpty ? nil : confidences.reduce(0, +) / Double(confidences.count)
+    return DetectionOutputMeta(
+        numPredictions: topK.count,
+        topK: topK,
+        avgConfidence: avg
+    ).toMap()
 }
 
 func configError(_ msg: String) -> NSError {

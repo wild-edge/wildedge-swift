@@ -41,7 +41,7 @@ An iOS camera app that scans cars using OpenRouter and Gemini vision APIs and re
    cd Examples/CarScannerExample
    xcodegen generate
    ```
-2. Open `CarScannerExample.xcodeproj` in Xcode.
+2. Open **`CarScanner.xcworkspace`** in Xcode (not the `.xcodeproj`). The workspace includes the WildEdge package alongside the app project so Xcode can resolve the local dependency.
 3. Fill in your credentials in `Sources/Info.plist`:
    - `WILDEDGE_DSN` — your WildEdge project DSN
    - `OPENROUTER_API_KEY` — your OpenRouter API key
