@@ -250,8 +250,9 @@ final class CameraViewModel: NSObject, ObservableObject {
     }
 
     private func analyzeWithBoth(_ imageData: Data, photo: PhotoMetadata) async throws -> [ScanResult] {
-        async let orTask = OpenRouterClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions)
-        async let gTask  = GeminiClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions)
+        let sharedRunId = "both-\(UUID().uuidString)"
+        async let orTask = OpenRouterClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions, runId: sharedRunId)
+        async let gTask  = GeminiClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions, runId: sharedRunId)
 
         var out: [ScanResult] = []
         var firstError: Error?

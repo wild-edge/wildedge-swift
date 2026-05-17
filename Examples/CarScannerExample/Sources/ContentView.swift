@@ -129,7 +129,7 @@ struct ContentView: View {
                             MarqueeText(text: triviaText, speed: 50)
                                 .id(triviaText)
                         } else {
-                            Text("Car Spotter Dataset")
+                            Text("WE Scan")
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }

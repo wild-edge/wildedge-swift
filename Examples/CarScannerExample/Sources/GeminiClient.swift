@@ -18,7 +18,7 @@ struct GeminiClient {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
-    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil) async throws -> (CarInfo, String, HTTPStats) {
+    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil, runId: String? = nil) async throws -> (CarInfo, String, HTTPStats) {
         let key = apiKey
         guard !key.isEmpty, key != "YOUR_GEMINI_API_KEY" else {
             throw configError("Set GEMINI_API_KEY in Info.plist")
@@ -61,6 +61,7 @@ struct GeminiClient {
             outputModality: .detection,
             success: true,
             outputMeta: detectionMeta(from: info, imageSize: imageSize),
+            runId: runId,
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
                                               payload: .data(imageData, mimeType: "image/jpeg"))]
         )
