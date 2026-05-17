@@ -63,9 +63,8 @@ struct OpenRouterClient {
             outputModality: .detection,
             success: true,
             outputMeta: detectionMeta(from: info, imageSize: imageSize),
-            runId: runId,
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
-                                              payload: .data(imageData, mimeType: "image/jpeg"))]
+                                              payload: .data(imageData, mimeType: "image/jpeg"))], runId: runId
         )
         return (info, prettyPrinted(data), stats)
     }
