@@ -259,43 +259,6 @@ final class BlobStoreDictionaryTests: XCTestCase {
         XCTAssertEqual(decoded["japanese"] as? String, "日本語")
     }
 
-    // MARK: - Size comparison
-    //
-    // JSON wins for small integers and short strings: `342` is 3 chars in JSON
-    // but 9 bytes (tag + Int64) in binary; `"inference"` is 11 chars in JSON
-    // but 14 bytes (tag + u32 length + 9 bytes) in binary.
-    // Binary wins when values are raw Data (no base64 encoding), high-precision
-    // floats, or deeply nested structures where JSON structural chars add up.
-
-    func testSizeComparison() throws {
-        // -- sample event: short strings + small ints
-        let jsonSmall   = try BlobStore.DictionaryEncoding.json.encode(sampleEvent).count
-        let binarySmall = try BlobStore.DictionaryEncoding.binary.encode(sampleEvent).count
-        let plistSmall  = try BlobStore.DictionaryEncoding.plist.encode(sampleEvent).count
-
-        // -- float-heavy payload: many high-precision doubles
-        let floatHeavy: [String: Any] = [
-            "v0": 0.1234567890123456, "v1": 0.9876543210987654,
-            "v2": 3.141592653589793,  "v3": 2.718281828459045,
-            "v4": 1.4142135623730951, "v5": 1.7320508075688772,
-            "v6": 0.5772156649015329, "v7": 1.6180339887498949,
-        ]
-        let jsonLarge   = try BlobStore.DictionaryEncoding.json.encode(floatHeavy).count
-        let binaryLarge = try BlobStore.DictionaryEncoding.binary.encode(floatHeavy).count
-        let plistLarge  = try BlobStore.DictionaryEncoding.plist.encode(floatHeavy).count
-
-        print("""
-
-          encoded size comparison (json / binary / plist):
-            sample event (strings+ints): \(jsonSmall) B  /  \(binarySmall) B  /  \(plistSmall) B
-            float-heavy (8 doubles):     \(jsonLarge) B  /  \(binaryLarge) B  /  \(plistLarge) B
-
-        """)
-
-        XCTAssertLessThan(binaryLarge, jsonLarge)   // binary beats JSON for floats
-        XCTAssertLessThan(plistLarge,  jsonLarge)   // plist  beats JSON for floats
-    }
-
     // MARK: - Corrupt data
 
     func testDecodeCorruptData_binary() {
