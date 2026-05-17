@@ -318,9 +318,6 @@ internal func jsonData(_ object: Any) -> Data? {
     return try? JSONSerialization.data(withJSONObject: sanitized)
 }
 
-// JSONSerialization serialises Swift Doubles using their full binary representation
-// (e.g. 0.9 → "0.90000000000000002"). Converting to NSDecimalNumber via Swift's
-// shortest-decimal String representation (Grisu/Dragon4) produces clean output.
 private func sanitizeFloats(_ value: Any) -> Any {
     switch value {
     case let dict as [String: Any]:
@@ -328,9 +325,9 @@ private func sanitizeFloats(_ value: Any) -> Any {
     case let array as [Any]:
         return array.map { sanitizeFloats($0) }
     case let v as Double:
-        return NSDecimalNumber(string: String(v))
+        return (v * 1000).rounded() / 1000
     case let v as Float:
-        return NSDecimalNumber(string: String(v))
+        return (Double(v) * 1000).rounded() / 1000
     default:
         return value
     }
