@@ -147,8 +147,11 @@ final class ORTInterceptorTests: XCTestCase {
         )
         _ = sideClient
 
-        // The swizzle routes to activeClient (setUp's client), not sideClient.
+        // Re-assert immediately before makeSession so no concurrent test can sneak in.
+        activateClient()
         _ = makeSession(modelPath: "/models/side.onnx")
+        client.flush(timeoutMs: 100)
+
         XCTAssertTrue(sideQueue.peekMany(100).isEmpty,
                       "Side client's queue must not receive events")
         // Primary queue should have the event.
