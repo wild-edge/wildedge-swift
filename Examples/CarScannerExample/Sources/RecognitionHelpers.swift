@@ -53,6 +53,30 @@ func detectionMeta(from info: CarInfo, imageSize: CGSize? = nil) -> [String: Any
     ).toMap()
 }
 
+func geminiGenerationMeta(from json: [String: Any]?) -> [String: Any] {
+    var meta = GenerationOutputMeta()
+    if let usage = json?["usageMetadata"] as? [String: Any] {
+        meta.tokensIn  = usage["promptTokenCount"]    as? Int
+        meta.tokensOut = usage["candidatesTokenCount"] as? Int
+    }
+    if let candidates = json?["candidates"] as? [[String: Any]],
+       let reason = candidates.first?["finishReason"] as? String {
+        meta.stopReason = reason.lowercased()
+    }
+    return meta.toMap()
+}
+
+/// Merges generation metadata fields into the detection meta map.
+/// Generation fields (tokens, stop_reason) are added alongside detection
+/// fields; the "task" key from detection is preserved.
+func mergedOutputMeta(detection: [String: Any], generation: [String: Any]) -> [String: Any] {
+    var merged = detection
+    for (key, value) in generation where key != "task" {
+        merged[key] = value
+    }
+    return merged
+}
+
 func configError(_ msg: String) -> NSError {
     NSError(domain: "Config", code: -1, userInfo: [NSLocalizedDescriptionKey: msg])
 }

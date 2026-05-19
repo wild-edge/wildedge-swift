@@ -47,15 +47,38 @@ struct OpenRouterClient {
             responseSize: data.count
         )
 
-        try assertHTTP200(data: data, response: response)
+        if stats.statusCode != 200 {
+            let body = String(data: data, encoding: .utf8) ?? "unknown"
+            Self.handle.trackError(
+                errorCode: "HTTP_\(stats.statusCode)",
+                errorMessage: String(body.prefix(256))
+            )
+            try assertHTTP200(data: data, response: response)
+        }
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard
             let choices = json?["choices"] as? [[String: Any]],
             let message = choices.first?["message"] as? [String: Any],
             let text = message["content"] as? String
-        else { throw apiError("Unexpected OpenRouter response format") }
-        let info = try decodeCarInfo(from: text)
+        else {
+            Self.handle.trackError(
+                errorCode: "PARSE_ERROR",
+                errorMessage: "Unexpected OpenRouter response format"
+            )
+            throw apiError("Unexpected OpenRouter response format")
+        }
+
+        let info: CarInfo
+        do {
+            info = try decodeCarInfo(from: text)
+        } catch {
+            Self.handle.trackError(
+                errorCode: "PARSE_ERROR",
+                errorMessage: error.localizedDescription
+            )
+            throw error
+        }
 
         Self.handle.trackInference(
             durationMs: stats.durationMs,

@@ -45,25 +45,52 @@ struct GeminiClient {
             responseSize: data.count
         )
 
-        try assertHTTP200(data: data, response: response)
+        print("[GeminiClient] raw response:\n\(prettyPrinted(data))")
+
+        if stats.statusCode != 200 {
+            let body = String(data: data, encoding: .utf8) ?? "unknown"
+            Self.handle.trackError(
+                errorCode: "HTTP_\(stats.statusCode)",
+                errorMessage: String(body.prefix(256))
+            )
+            try assertHTTP200(data: data, response: response)
+        }
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         guard
             let candidates = json?["candidates"] as? [[String: Any]],
             let parts = (candidates.first?["content"] as? [String: Any])?["parts"] as? [[String: Any]],
             let text = parts.first?["text"] as? String
-        else { throw apiError("Unexpected Gemini response format") }
-        let info = try decodeCarInfo(from: text)
+        else {
+            Self.handle.trackError(
+                errorCode: "PARSE_ERROR",
+                errorMessage: "Unexpected Gemini response format"
+            )
+            throw apiError("Unexpected Gemini response format")
+        }
 
-        Self.handle.trackInference(
+        let info: CarInfo
+        do {
+            info = try decodeCarInfo(from: text)
+        } catch {
+            Self.handle.trackError(
+                errorCode: "PARSE_ERROR",
+                errorMessage: error.localizedDescription
+            )
+            throw error
+        }
+
+        let inferenceId = Self.handle.trackInference(
             durationMs: stats.durationMs,
             inputModality: .multimodal,
             outputModality: .detection,
             success: true,
-            outputMeta: detectionMeta(from: info, imageSize: imageSize),
+            outputMeta: mergedOutputMeta(detection: detectionMeta(from: info, imageSize: imageSize),
+                                         generation: geminiGenerationMeta(from: json)),
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
                                               payload: .data(imageData, mimeType: "image/jpeg"))], runId: runId
         )
+        _ = inferenceId
         return (info, prettyPrinted(data), stats)
     }
 }
