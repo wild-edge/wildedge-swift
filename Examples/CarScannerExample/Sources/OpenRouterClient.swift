@@ -47,6 +47,8 @@ struct OpenRouterClient {
             responseSize: data.count
         )
 
+        print("[OpenRouterClient] raw response:\n\(prettyPrinted(data))")
+
         if stats.statusCode != 200 {
             let body = String(data: data, encoding: .utf8) ?? "unknown"
             Self.handle.trackError(
@@ -85,7 +87,9 @@ struct OpenRouterClient {
             inputModality: .multimodal,
             outputModality: .detection,
             success: true,
-            outputMeta: detectionMeta(from: info, imageSize: imageSize),
+            outputMeta: mergedOutputMeta(detection: detectionMeta(from: info, imageSize: imageSize),
+                                         generation: openRouterGenerationMeta(from: json)),
+            apiMeta: openRouterApiMeta(from: json),
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
                                               payload: .data(imageData, mimeType: "image/jpeg"))], runId: runId
         )

@@ -77,6 +77,34 @@ func mergedOutputMeta(detection: [String: Any], generation: [String: Any]) -> [S
     return merged
 }
 
+func geminiApiMeta(from json: [String: Any]?) -> ApiMeta {
+    ApiMeta(resolvedModelId: json?["modelVersion"] as? String)
+}
+
+func openRouterGenerationMeta(from json: [String: Any]?) -> [String: Any] {
+    var meta = GenerationOutputMeta()
+    if let usage = json?["usage"] as? [String: Any] {
+        meta.tokensIn  = usage["prompt_tokens"]     as? Int
+        meta.tokensOut = usage["completion_tokens"]  as? Int
+        if let promptDetails = usage["prompt_tokens_details"] as? [String: Any] {
+            meta.cachedInputTokens = promptDetails["cached_tokens"] as? Int
+        }
+    }
+    if let choices = json?["choices"] as? [[String: Any]],
+       let reason = choices.first?["finish_reason"] as? String {
+        meta.stopReason = reason.lowercased()
+    }
+    return meta.toMap()
+}
+
+func openRouterApiMeta(from json: [String: Any]?) -> ApiMeta {
+    ApiMeta(
+        resolvedModelId: json?["model"] as? String,
+        systemFingerprint: json?["system_fingerprint"] as? String,
+        serviceTier: json?["service_tier"] as? String
+    )
+}
+
 func configError(_ msg: String) -> NSError {
     NSError(domain: "Config", code: -1, userInfo: [NSLocalizedDescriptionKey: msg])
 }

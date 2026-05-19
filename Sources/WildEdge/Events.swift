@@ -32,6 +32,7 @@ internal func buildInferenceEvent(
     outputMeta: [String: Any]? = nil,
     generationConfig: [String: Any]? = nil,
     hardware: HardwareContext? = nil,
+    apiMeta: ApiMeta? = nil,
     attachmentRefs: [AttachmentEventRef] = [],
     traceId: String? = nil,
     spanId: String? = nil,
@@ -68,6 +69,13 @@ internal func buildInferenceEvent(
     let hw = hardware?.toMap() ?? [:]
     if !hw.isEmpty {
         inference["hardware"] = hw
+    }
+
+    if let apiMeta {
+        let am = apiMeta.toMap()
+        if !am.isEmpty {
+            inference["api_meta"] = am
+        }
     }
 
     var event: [String: Any] = [

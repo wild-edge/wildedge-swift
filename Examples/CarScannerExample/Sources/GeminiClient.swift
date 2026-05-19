@@ -87,6 +87,7 @@ struct GeminiClient {
             success: true,
             outputMeta: mergedOutputMeta(detection: detectionMeta(from: info, imageSize: imageSize),
                                          generation: geminiGenerationMeta(from: json)),
+            apiMeta: geminiApiMeta(from: json),
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
                                               payload: .data(imageData, mimeType: "image/jpeg"))], runId: runId
         )

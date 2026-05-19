@@ -359,6 +359,33 @@ internal enum AttachmentTransmitError: Error {
     case unauthorized
 }
 
+public struct ApiMeta {
+    /// The model name returned in the response. Omit when identical to the registered model_id.
+    public var resolvedModelId: String?
+    /// Opaque backend version string from the provider. Changes on silent backend updates.
+    public var systemFingerprint: String?
+    /// Request tier as reported by the provider (e.g. "default", "scale", "flex").
+    public var serviceTier: String?
+
+    public init(
+        resolvedModelId: String? = nil,
+        systemFingerprint: String? = nil,
+        serviceTier: String? = nil
+    ) {
+        self.resolvedModelId = resolvedModelId
+        self.systemFingerprint = systemFingerprint
+        self.serviceTier = serviceTier
+    }
+
+    internal func toMap() -> [String: Any] {
+        var map: [String: Any] = [:]
+        if let resolvedModelId { map["resolved_model_id"] = resolvedModelId }
+        if let systemFingerprint { map["system_fingerprint"] = systemFingerprint }
+        if let serviceTier { map["service_tier"] = serviceTier }
+        return map
+    }
+}
+
 public struct HardwareContext {
     public var thermalState: String?
     public var thermalStateRaw: String?
