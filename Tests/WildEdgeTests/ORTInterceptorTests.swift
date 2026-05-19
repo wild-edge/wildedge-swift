@@ -39,6 +39,14 @@ final class ORTInterceptorTests: XCTestCase {
         ORTInterceptor.install(client: client)
     }
 
+    // Re-asserts this test's client as activeClient immediately before use.
+    // On CI, concurrent tests can overwrite the static activeClient between
+    // setUp and the actual test body, causing the swizzle to emit to the
+    // wrong (or nil) client.
+    private func activateClient() {
+        ORTInterceptor.install(client: client)
+    }
+
     override func tearDown() {
         client = nil
         queue = nil
@@ -48,8 +56,10 @@ final class ORTInterceptorTests: XCTestCase {
     // MARK: - Init swizzle → model_load
 
     func testInitEmitsModelLoadEvent() {
+        activateClient()
         let session = makeSession(modelPath: "/models/yolo.onnx")
         XCTAssertNotNil(session, "Fake init must return an object")
+        client.flush(timeoutMs: 100)
 
         let events = queue.peekMany(200)
         let types = events.compactMap { $0["event_type"] as? String }
@@ -57,7 +67,9 @@ final class ORTInterceptorTests: XCTestCase {
     }
 
     func testInitExtractsModelNameFromPath() {
+        activateClient()
         _ = makeSession(modelPath: "/path/to/mobilenet_v2.onnx")
+        client.flush(timeoutMs: 100)
 
         let event = queue.peekMany(200).first { $0["event_type"] as? String == "model_load" }
         XCTAssertNotNil(event, "Expected model_load event")
@@ -66,6 +78,7 @@ final class ORTInterceptorTests: XCTestCase {
     }
 
     func testInitWithNoExtensionFallsBackToFullPath() {
+        activateClient()
         _ = makeSession(modelPath: "/models/mymodel")
         client.flush(timeoutMs: 100)
 
@@ -77,6 +90,7 @@ final class ORTInterceptorTests: XCTestCase {
     // MARK: - Run swizzle → inference
 
     func testRunEmitsInferenceEvent() {
+        activateClient()
         let session = makeSession(modelPath: "/models/bert.onnx")!
         XCTAssertNotNil(ORTInterceptor.sessions[ObjectIdentifier(session)],
                         "Session must be registered in sessions after init")
@@ -88,6 +102,7 @@ final class ORTInterceptorTests: XCTestCase {
     }
 
     func testRunInferenceHasTensorModalities() {
+        activateClient()
         let session = makeSession(modelPath: "/models/bert.onnx")!
         callRun(on: session)
         client.flush(timeoutMs: 100)
@@ -101,6 +116,7 @@ final class ORTInterceptorTests: XCTestCase {
     // MARK: - Dealloc observer → model_unload
 
     func testDeallocEmitsModelUnloadEvent() {
+        activateClient()
         autoreleasepool {
             var session: AnyObject? = makeSession(modelPath: "/models/resnet.onnx")
             XCTAssertNotNil(session)
@@ -115,6 +131,7 @@ final class ORTInterceptorTests: XCTestCase {
     // MARK: - Non-active client receives no events
 
     func testNonActiveClientReceivesNoEvents() {
+        activateClient()  // ensure setUp's client is active before we create the side client
         // Create a second queue that is NOT the activeClient.
         let sideQueue = EventQueue(maxSize: 100)
         let sideClient = WildEdge(
