@@ -86,7 +86,8 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         attachmentQueue: AttachmentQueue?,
         attachmentConsumer: AttachmentConsumer?,
         attachmentConfig: AttachmentConfig,
-        debug: Bool
+        debug: Bool,
+        enabledInterceptors: Interceptors = .all
     ) {
         self.queue = queue
         self.registry = registry
@@ -96,10 +97,10 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         self.attachmentConfig = attachmentConfig
         self.debug = debug
         hardwareSampler.start()
-        ORTInterceptor.install(client: self)
-        MLKitDetectorInterceptor.install(client: self)
-        MLKitModelManagerInterceptor.install(client: self)
-        TFLInterceptor.install(client: self)
+        if enabledInterceptors.contains(.ort)               { ORTInterceptor.install(client: self) }
+        if enabledInterceptors.contains(.mlKitDetector)     { MLKitDetectorInterceptor.install(client: self) }
+        if enabledInterceptors.contains(.mlKitModelManager) { MLKitModelManagerInterceptor.install(client: self) }
+        if enabledInterceptors.contains(.tfl)               { TFLInterceptor.install(client: self) }
     }
 
     public func registerModel(modelId: String, info: ModelInfo) -> ModelHandle {
@@ -424,6 +425,10 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             return (val as? Bool) == true || (val as? String)?.lowercased() == "true"
         }()
 
+        /// Zero-code interceptors to install. Defaults to `.all`.
+        /// Example: `builder.enabledInterceptors = [.ort, .mlKit]`
+        public var enabledInterceptors: Interceptors = .all
+
         // Attachments
         public var enableAttachments: Bool = Config.defaultEnableAttachments
         public var maxAttachmentsPerInference: Int = Config.defaultMaxAttachmentsPerInference
@@ -518,7 +523,8 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
                     attachmentQueue: attachmentQueue,
                     attachmentConsumer: attachmentConsumer,
                     attachmentConfig: attachmentConfig,
-                    debug: debug
+                    debug: debug,
+                    enabledInterceptors: enabledInterceptors
                 )
             } catch {
                 if debug {

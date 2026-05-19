@@ -14,10 +14,31 @@ internal final class ORTInterceptor {
     private static var originalRunIMP: IMP?
     private static weak var activeClient: WildEdge?
 
-    private static var sessions: [ObjectIdentifier: ModelHandle] = [:]
+    internal static var sessions: [ObjectIdentifier: ModelHandle] = [:]
     private static var sessionObserverKey: UInt8 = 0
 
     // MARK: - Lifecycle
+
+    /// Resets swizzle state so tests can call `install` again cleanly.
+    /// Restores original IMPs first to avoid double-swizzle on re-install.
+    internal static func _resetForTesting() {
+        lock.lock()
+        if installed, let cls = NSClassFromString("ORTSession") {
+            let initSel = NSSelectorFromString("initWithEnv:modelPath:sessionOptions:error:")
+            let runSel  = NSSelectorFromString("runWithInputs:outputNames:runOptions:error:")
+            if let imp = originalInitIMP, let m = class_getInstanceMethod(cls, initSel) {
+                method_setImplementation(m, imp)
+            }
+            if let imp = originalRunIMP, let m = class_getInstanceMethod(cls, runSel) {
+                method_setImplementation(m, imp)
+            }
+        }
+        installed = false
+        originalInitIMP = nil
+        originalRunIMP = nil
+        sessions.removeAll()
+        lock.unlock()
+    }
 
     static func install(client: WildEdge) {
         lock.lock()

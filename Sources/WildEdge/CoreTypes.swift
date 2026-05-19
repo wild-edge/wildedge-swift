@@ -1,5 +1,26 @@
 import Foundation
 
+/// Controls which zero-code interceptors WildEdge installs at startup.
+/// Use as a set literal: `[.ort, .mlKit]`, `.all`, or `.none`.
+public struct Interceptors: OptionSet, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+
+    /// ONNX Runtime (`ORTSession` init / run / dealloc).
+    public static let ort               = Interceptors(rawValue: 1 << 0)
+    /// ML Kit detector classes (FaceDetector, ObjectDetector, etc.).
+    public static let mlKitDetector     = Interceptors(rawValue: 1 << 1)
+    /// ML Kit `ModelManager` remote model downloads.
+    public static let mlKitModelManager = Interceptors(rawValue: 1 << 2)
+    /// TensorFlow Lite `TFLInterpreter`.
+    public static let tfl               = Interceptors(rawValue: 1 << 3)
+
+    /// Convenience: both ML Kit interceptors together.
+    public static let mlKit: Interceptors = [.mlKitDetector, .mlKitModelManager]
+    /// All interceptors enabled (default).
+    public static let all: Interceptors   = [.ort, .mlKit, .tfl]
+}
+
 public enum Accelerator: String {
     case cpu
     case gpu

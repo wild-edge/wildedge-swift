@@ -103,6 +103,7 @@ let wildEdge: WildEdgeClient = WildEdge.initialize { builder in
     builder.dsn = "https://<secret>@ingest.wildedge.dev/<key>"
     // builder.debug = true
     // builder.enableAttachments = true
+    // builder.enabledInterceptors = [.ort, .mlKit]  // opt out of specific interceptors
 }
 ```
 
@@ -189,6 +190,34 @@ _ = handle.trackInference(
 )
 ```
 
+## Selectively disabling zero-code interceptors
+
+All auto-interceptors are enabled by default. Use `enabledInterceptors` to opt out of individual ones:
+
+```swift
+WildEdge.initialize { builder in
+    builder.dsn = "..."
+
+    // Disable all zero-code interceptors
+    builder.enabledInterceptors = []
+
+    // Enable only specific ones
+    builder.enabledInterceptors = [.ort, .mlKit]   // ONNX + both ML Kit interceptors
+    builder.enabledInterceptors = [.ort, .tfl]     // ONNX + TFLite only
+}
+```
+
+Available members of `Interceptors`:
+
+| Member | Description |
+|---|---|
+| `.ort` | ONNX Runtime (`ORTSession` init / run / dealloc) |
+| `.mlKitDetector` | ML Kit detector classes (FaceDetector, ObjectDetector, etc.) |
+| `.mlKitModelManager` | ML Kit `ModelManager` remote model downloads |
+| `.tfl` | TensorFlow Lite `TFLInterpreter` |
+| `.mlKit` | Convenience: `.mlKitDetector` + `.mlKitModelManager` combined |
+| `.all` | All interceptors enabled (default) |
+
 ## Tracing
 
 You can group inferences into a named trace using `wildEdge.trace`:
@@ -272,6 +301,7 @@ Available metadata types: `DetectionOutputMeta`, `GenerationOutputMeta`, `Embedd
 | `maxEventAgeMs` | `900_000` | Events older than this are dropped before sending (ms) |
 | `lowConfidenceThreshold` | `0.5` | Predictions below this are flagged low-confidence |
 | `debug` | `false` | Verbose console logs (or `WILDEDGE_DEBUG=true`) |
+| `enabledInterceptors` | `.all` | Zero-code interceptors to install — use an `Interceptors` set literal such as `[.ort, .mlKit]` to enable only specific ones, or `[]` to disable all |
 | `enableAttachments` | `false` | Opt in to the attachment upload pipeline |
 | `maxAttachmentsPerInference` | `10` | Attachment cap per `trackInference` call |
 | `maxAttachmentSizeBytes` | `10 MB` | Attachments larger than this are dropped |
