@@ -64,6 +64,30 @@ public let blobStoreCompactionScenarios: [BlobCompactionScenario] = [
     BlobCompactionScenario(name: "single ", payloadSize: 104_857_600, recordCount:       1, dropCount:       1, measured: 3),
 ]
 
+// MARK: - Gzip Benchmark Scenarios
+
+public struct GzipScenario {
+    public let name: String
+    /// Number of inference events in the batch (determines uncompressed size).
+    public let eventCount: Int
+    public let measured: Int
+
+    public init(name: String, eventCount: Int, measured: Int = 5) {
+        self.name = name
+        self.eventCount = eventCount
+        self.measured = measured
+    }
+}
+
+/// Realistic JSON batch payloads — 1 to 1 000 events.
+public let gzipBatchScenarios: [GzipScenario] = [
+    GzipScenario(name: "1 event   ", eventCount:    1, measured: 5),
+    GzipScenario(name: "10 events ", eventCount:   10, measured: 5),
+    GzipScenario(name: "50 events ", eventCount:   50, measured: 3),
+    GzipScenario(name: "200 events", eventCount:  200, measured: 3),
+    GzipScenario(name: "1000events", eventCount: 1000, measured: 3),
+]
+
 // MARK: - Encoding Benchmark Scenario
 
 public struct BlobEncodingScenario {

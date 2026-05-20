@@ -1,4 +1,5 @@
 import Foundation
+import zlib
 
 // Scenario definitions are now in BlobStoreScenarios.swift (shared with tests)
 
@@ -169,3 +170,88 @@ private func _decodingMs(_ enc: BlobStore.DictionaryEncoding,
 }
 
 // Canonical event & key map are now in BlobStoreScenarios.swift (shared with tests)
+
+// MARK: - Gzip benchmark
+
+public struct GzipResult {
+    public let scenario:     GzipScenario
+    public let inputBytes:   Int
+    public let outputBytes:  Int
+    public let compressMs:   Double   // mean ms for one compression
+
+    public var ratio: Double        { Double(outputBytes) / Double(max(inputBytes, 1)) }
+    public var throughputMBs: Double { Double(inputBytes) / (1_024 * 1_024) / (compressMs / 1_000) }
+}
+
+/// Runs gzip compression benchmarks over realistic JSON batch payloads.
+/// Blocking — call from a background thread or `Task.detached`.
+public func gzipBatchBenchmark(
+    scenarios: [GzipScenario] = gzipBatchScenarios,
+    progress: @escaping (String) -> Void = { _ in }
+) -> [GzipResult] {
+    scenarios.compactMap { s in
+        progress("\(s.name.trimmingCharacters(in: .whitespaces))…")
+        guard let batch = _makeBatch(eventCount: s.eventCount) else { return nil }
+        let outputBytes = _gzip(batch)?.count ?? batch.count
+        var total = 0.0
+        for i in 0 ..< (1 + s.measured) {
+            let t0 = _monoSec()
+            _ = _gzip(batch)
+            if i > 0 { total += (_monoSec() - t0) * 1_000 }
+        }
+        return GzipResult(
+            scenario: s,
+            inputBytes: batch.count,
+            outputBytes: outputBytes,
+            compressMs: total / Double(s.measured)
+        )
+    }
+}
+
+private func _makeBatch(eventCount: Int) -> Data? {
+    let event = blobStoreRichInferenceEvent
+    guard let singleData = try? JSONSerialization.data(withJSONObject: event) else { return nil }
+    let events = Array(repeating: event, count: eventCount)
+    let batch: [String: Any] = [
+        "protocol_version": "1.0",
+        "session_id": "bench-session",
+        "batch_id": "bench-batch",
+        "created_at": "2026-05-19T00:00:00.000Z",
+        "sent_at": "2026-05-19T00:00:01.000Z",
+        "device": ["device_id": "bench-device", "device_type": "ios"],
+        "models": ["gpt2-medium-q4": ["model_name": "gpt2", "model_source": "local", "model_format": "gguf"]],
+        "events": events,
+    ]
+    _ = singleData
+    return try? JSONSerialization.data(withJSONObject: batch)
+}
+
+// windowBits = 31 (15 + 16) → gzip format.
+private func _gzip(_ input: Data) -> Data? {
+    guard !input.isEmpty else { return input }
+    var stream = z_stream()
+    guard deflateInit2_(&stream, Z_DEFAULT_COMPRESSION, Z_DEFLATED, 31, 8, Z_DEFAULT_STRATEGY,
+                        ZLIB_VERSION, Int32(MemoryLayout<z_stream>.size)) == Z_OK else { return nil }
+    defer { deflateEnd(&stream) }
+
+    let chunkSize = 64 * 1024
+    var chunk = [UInt8](repeating: 0, count: chunkSize)
+    var output = Data()
+    output.reserveCapacity(input.count / 2)
+
+    input.withUnsafeBytes { (src: UnsafeRawBufferPointer) in
+        stream.next_in = UnsafeMutablePointer(mutating: src.bindMemory(to: Bytef.self).baseAddress!)
+        stream.avail_in = uInt(input.count)
+        repeat {
+            var written = 0
+            chunk.withUnsafeMutableBytes { dst in
+                stream.next_out = dst.bindMemory(to: Bytef.self).baseAddress
+                stream.avail_out = uInt(chunkSize)
+                deflate(&stream, Z_FINISH)
+                written = chunkSize - Int(stream.avail_out)
+            }
+            output.append(contentsOf: chunk[..<written])
+        } while stream.avail_out == 0
+    }
+    return output
+}

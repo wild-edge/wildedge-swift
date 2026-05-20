@@ -8,6 +8,7 @@ final class BenchmarkViewModel: ObservableObject {
     @Published var appendResults:     [BlobAppendResult]     = []
     @Published var compactionResults: [BlobCompactionResult] = []
     @Published var encodingResults:   [BlobEncodingResult]   = []
+    @Published var gzipResults:       [GzipResult]           = []
     @Published var log: [String] = []
     @Published var isRunning     = false
     @Published var elapsedSec: Double = 0
@@ -18,10 +19,11 @@ final class BenchmarkViewModel: ObservableObject {
     func run() {
         guard !isRunning else { return }
         isRunning        = true
-        appendResults    = []
+        appendResults     = []
         compactionResults = []
-        encodingResults  = []
-        log              = []
+        encodingResults   = []
+        gzipResults       = []
+        log               = []
         elapsedSec       = 0
         startTime        = ProcessInfo.processInfo.systemUptime
 
@@ -51,6 +53,10 @@ final class BenchmarkViewModel: ObservableObject {
                 emit("▶ encoding benchmark (1 000 events × 5 iterations, +1 warmup)…")
                 let enc = try blobEncodingBenchmark(progress: { emit("  · \($0)") })
                 await MainActor.run { self.encodingResults = enc }
+
+                emit("▶ gzip benchmark (1–200 events, +1 warmup)…")
+                let gz = gzipBatchBenchmark(progress: { emit("  · \($0)") })
+                await MainActor.run { self.gzipResults = gz }
 
                 let total = ProcessInfo.processInfo.systemUptime - (await self.startTime)
                 emit(String(format: "✓ done in %.1f s", total))
@@ -110,6 +116,9 @@ struct BenchmarkView: View {
 
                     // Encoding results
                     if !vm.encodingResults.isEmpty { EncodingTable(results: vm.encodingResults) }
+
+                    // Gzip results
+                    if !vm.gzipResults.isEmpty { GzipTable(results: vm.gzipResults) }
                 }
                 .padding()
             }
@@ -246,6 +255,44 @@ private struct EncodingTable: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Gzip table
+
+private struct GzipTable: View {
+    let results: [GzipResult]
+    var body: some View {
+        SectionCard(label: "Gzip compression — JSON batch payloads", icon: "arrow.up.and.down.text.horizontal") {
+            Grid(alignment: .leadingFirstTextBaseline,
+                 horizontalSpacing: 10, verticalSpacing: 4) {
+                GridRow {
+                    header("Events")
+                    header("raw",      trailing: true)
+                    header("gzipped",  trailing: true)
+                    header("saved",    trailing: true)
+                    header("µs/call",  trailing: true)
+                    header("n",        trailing: true)
+                }
+                Divider().gridCellUnsizedAxes(.horizontal)
+                ForEach(results, id: \.scenario.name) { r in
+                    GridRow {
+                        Text(r.scenario.name.trimmingCharacters(in: .whitespaces))
+                            .gridCellAnchor(.leading)
+                        mono(fmtBytes(r.inputBytes))
+                        mono(fmtBytes(r.outputBytes))
+                        mono(String(format: "%.0f%%", (1 - r.ratio) * 100))
+                            .foregroundStyle(r.ratio < 0.2 ? .green : .primary)
+                        mono(String(format: "%.0f", r.compressMs * 1_000))
+                        mono("\(r.scenario.measured)")
+                    }
+                }
+            }
+        }
+    }
+
+    private func fmtBytes(_ n: Int) -> String {
+        n < 1_024 ? "\(n) B" : String(format: "%.1f KB", Double(n) / 1_024)
     }
 }
 

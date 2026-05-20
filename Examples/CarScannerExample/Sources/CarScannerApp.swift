@@ -6,6 +6,7 @@ struct CarScannerApp: App {
     init() {
         WildEdge.initialize() { builder in
             builder.enableAttachments = true
+            builder.enableCompression = true
         }
     }
 

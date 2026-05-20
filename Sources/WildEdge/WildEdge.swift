@@ -425,6 +425,9 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             return (val as? Bool) == true || (val as? String)?.lowercased() == "true"
         }()
 
+        /// Compress batch payloads with gzip before sending. Defaults to `true`.
+        public var enableCompression: Bool = Config.defaultEnableCompression
+
         /// Zero-code interceptors to install. Defaults to `.all`.
         /// Example: `builder.enabledInterceptors = [.ort, .mlKit]`
         public var enabledInterceptors: Interceptors = .all
@@ -463,7 +466,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
                     if debug { print("[wildedge] \(message)") }
                 }
 
-                let transmitter = Transmitter(host: parsed.host, apiKey: parsed.secret, debug: debug, logger: logger)
+                let transmitter = Transmitter(host: parsed.host, apiKey: parsed.secret, enableCompression: enableCompression, debug: debug, logger: logger)
 
                 var attachmentQueue: AttachmentQueue? = nil
                 var attachmentConsumer: AttachmentConsumer? = nil

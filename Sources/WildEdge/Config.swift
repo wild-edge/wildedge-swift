@@ -17,6 +17,7 @@ internal enum Config {
     static let backoffMaxMs: UInt64 = 60_000
     static let backoffMultiplier = 2.0
 
+    static let defaultEnableCompression = true
     static let httpTimeoutMs: TimeInterval = 15_000
     static let errorMsgMaxLen = 200
 
