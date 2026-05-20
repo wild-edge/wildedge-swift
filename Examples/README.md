@@ -34,34 +34,29 @@ Attachment uploads (`enableAttachments = true`) are already enabled in `Recorder
 
 An iOS camera app that scans cars using OpenRouter and Gemini vision APIs and reports each inference to WildEdge — including uploading the input image as an attachment. Built with SwiftUI and XcodeGen.
 
-**Requirements:** Xcode 15+, iOS 16+ device (camera required for live capture; photo library works on simulator), XcodeGen.
+**Requirements:** Xcode 15+, iOS 16+ device (camera required for live capture; photo library works on simulator).
 
-1. Generate the Xcode project:
-   ```bash
-   cd Examples/CarScannerExample
-   xcodegen generate
-   ```
-2. Open **`CarScanner.xcworkspace`** in Xcode (not the `.xcodeproj`). The workspace includes the WildEdge package alongside the app project so Xcode can resolve the local dependency.
-3. Fill in your credentials in `Sources/Info.plist`:
+1. Open **`CarScannerExample/CarScannerExample.xcodeproj`** in Xcode.
+2. Fill in your credentials in `Sources/Info.plist`:
    - `WILDEDGE_DSN` — your WildEdge project DSN
    - `OPENROUTER_API_KEY` — your OpenRouter API key
    - `GEMINI_API_KEY` — your Google Gemini API key
-4. Set your development team in Xcode's project settings (Signing & Capabilities).
-5. Run the `CarScannerExample` scheme on a device or simulator.
+3. Set your development team in Xcode's project settings (Signing & Capabilities).
+4. Run the `CarScannerExample` scheme on a device or simulator.
 
 **What gets tracked:**
 - `inference` event per API call via a per-provider `ModelHandle`, including duration, `inputModality: .multimodal`, `outputModality: .generation`, and HTTP success/failure
 - The resized JPEG input image uploaded as an `InferenceAttachment` (`role: .input`)
 
-## BlobStoreBenchmark Instructions
+## Benchmarks Instructions
 
-An iOS app that runs interactive performance benchmarks for the WildEdge SDK's internal BlobStore storage layer. Useful for comparing write throughput, compaction strategies, and dictionary encoding formats on real devices.
+An iOS app that runs interactive performance benchmarks for the WildEdge SDK's internal storage and transport layers. Useful for comparing write throughput, compaction strategies, encoding formats, and gzip compression on real devices.
 
 **Requirements:** Xcode 15+, iOS 16+ device or simulator. No DSN needed — the app has no network calls.
 
-1. Open `BlobStoreBenchmark/BlobStoreBenchmark.xcodeproj` in Xcode.
+1. Open `Benchmarks/Benchmarks.xcodeproj` in Xcode.
 2. Select an iOS Simulator or device as the run destination.
-3. Run the `BlobStoreBenchmark` scheme and tap **Run Benchmarks**.
+3. Run the `Benchmarks` scheme and tap **Run Benchmarks**.
 
 **What it measures:**
 
@@ -70,6 +65,7 @@ An iOS app that runs interactive performance benchmarks for the WildEdge SDK's i
 | Append throughput | Write 100 MB across 6 payload sizes (100 B → 100 MB), comparing external-lock vs threadSafe BlobStore |
 | Compaction | Drop the first 50 MB from a 100 MB file, comparing `.inPlace` (memmove) vs `.rename` (atomic temp+swap) |
 | Dictionary encoding | Encode and decode 1 000 inference events in all four formats: `json`, `binary`, `plist`, `compressedJSON` |
+| Gzip compression | Compress realistic JSON batch payloads (1–1 000 events), reporting raw size, compressed size, % saved, and µs/call |
 
 Results are displayed in a live table and printed to the console log.
 

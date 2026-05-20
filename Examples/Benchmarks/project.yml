@@ -1,13 +1,13 @@
-name: BlobStoreBenchmark
+name: Benchmarks
 options:
   bundleIdPrefix: dev.wildedge.sample
   deploymentTarget:
     iOS: "16.0"
 schemes:
-  BlobStoreBenchmark:
+  Benchmarks:
     build:
       targets:
-        BlobStoreBenchmark: all
+        Benchmarks: all
     run:
       config: Debug
     profile:
@@ -20,7 +20,7 @@ packages:
   WildEdge:
     path: ../..
 targets:
-  BlobStoreBenchmark:
+  Benchmarks:
     type: application
     platform: iOS
     deploymentTarget: "16.0"
@@ -28,7 +28,7 @@ targets:
       - Sources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: dev.wildedge.sample.blobstorebenchmark
+        PRODUCT_BUNDLE_IDENTIFIER: dev.wildedge.sample.benchmarks
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: "NO"
         INFOPLIST_FILE: Sources/Info.plist

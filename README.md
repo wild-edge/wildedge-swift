@@ -13,7 +13,7 @@ drift, and hardware metrics without ever sending raw inputs.
 |---|---|
 | [Sources](https://github.com/wild-edge/wildedge-swift/tree/main/Sources) | SDK source code |
 | [VoiceRecorderSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/VoiceRecorderSample) | iOS app — records audio, runs a local ONNX voice-conversion model, tracks inference + uploads the recording as an attachment |
-| [BlobStoreBenchmark](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/BlobStoreBenchmark) | iOS app — interactive benchmark for BlobStore append throughput, compaction strategies, and dictionary encoding formats |
+| [Benchmarks](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/Benchmarks) | iOS app — interactive benchmarks for BlobStore append throughput, compaction strategies, dictionary encoding formats, and gzip batch compression |
 | [iOSAppSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/iOSAppSample) | iOS app integration using SwiftUI |
 | [SPMExamples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
 | [OnnxExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/OnnxExample) | Zero-code ONNX Runtime tracking via auto-interceptor |
@@ -289,6 +289,20 @@ _ = handle.trackInference(
 
 Available metadata types: `DetectionOutputMeta`, `GenerationOutputMeta`, `EmbeddingOutputMeta`, `TextInputMeta`.
 
+For API-hosted models, pass `ApiMeta` to surface which model checkpoint was actually used and detect silent backend updates:
+
+```swift
+_ = handle.trackInference(
+    durationMs: elapsed,
+    outputMeta: GenerationOutputMeta(tokensIn: 128, tokensOut: 256).toMap(),
+    apiMeta: ApiMeta(
+        resolvedModelId: response.model,         // e.g. "gpt-4o-2024-11-20"
+        systemFingerprint: response.fingerprint, // opaque backend version string
+        serviceTier: "default"
+    )
+)
+```
+
 ## Configuration
 
 | Parameter | Default | Description |
@@ -309,6 +323,7 @@ Available metadata types: `DetectionOutputMeta`, `GenerationOutputMeta`, `Embedd
 | `attachmentFlushIntervalMs` | `5_000` | How often the attachment consumer checks for pending uploads (ms) |
 | `attachmentTransmitTimeoutMs` | `10_000` | Network timeout for presign and S3 upload requests (ms) |
 | `attachmentFilter` | `nil` | Optional closure to filter or reorder attachments before they are queued |
+| `enableCompression` | `true` | Compress batch payloads with gzip before sending (`Content-Encoding: gzip`) |
 
 ## Diagnostics
 

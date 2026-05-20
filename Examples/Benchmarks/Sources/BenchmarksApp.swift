@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct BlobStoreBenchmarkApp: App {
+struct BenchmarksApp: App {
     var body: some Scene {
         WindowGroup {
             BenchmarkView()

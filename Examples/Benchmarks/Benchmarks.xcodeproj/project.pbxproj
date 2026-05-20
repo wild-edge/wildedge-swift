@@ -9,14 +9,14 @@
 /* Begin PBXBuildFile section */
 		288C84AF261017B0C6B2A46F /* WildEdgeBenchmarks in Frameworks */ = {isa = PBXBuildFile; productRef = 460554E26357394875D9E5B1 /* WildEdgeBenchmarks */; };
 		A576A10C4775BEB643A4A4EF /* BenchmarkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FED3CAB0DE7FF05D647F79E /* BenchmarkView.swift */; };
-		BE5F83A4EB1902C8DF9343F7 /* BlobStoreBenchmarkApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F279B967B0FF13ED5DC9AC /* BlobStoreBenchmarkApp.swift */; };
+		BE5F83A4EB1902C8DF9343F7 /* BenchmarksApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F279B967B0FF13ED5DC9AC /* BenchmarksApp.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		30F279B967B0FF13ED5DC9AC /* BlobStoreBenchmarkApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlobStoreBenchmarkApp.swift; sourceTree = "<group>"; };
+		30F279B967B0FF13ED5DC9AC /* BenchmarksApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarksApp.swift; sourceTree = "<group>"; };
 		8FED3CAB0DE7FF05D647F79E /* BenchmarkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkView.swift; sourceTree = "<group>"; };
 		9075515EA0B0FD5D5836DF55 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		A8F37D0E408EE12ABA0A8A38 /* BlobStoreBenchmark.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = BlobStoreBenchmark.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A8F37D0E408EE12ABA0A8A38 /* Benchmarks.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Benchmarks.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FFE32C5EE28483A78258964E /* wildedge-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wildedge-swift"; path = ../..; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -35,7 +35,7 @@
 		089FF53D417D30E33DE6EAD2 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A8F37D0E408EE12ABA0A8A38 /* BlobStoreBenchmark.app */,
+				A8F37D0E408EE12ABA0A8A38 /* Benchmarks.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -52,7 +52,7 @@
 			isa = PBXGroup;
 			children = (
 				8FED3CAB0DE7FF05D647F79E /* BenchmarkView.swift */,
-				30F279B967B0FF13ED5DC9AC /* BlobStoreBenchmarkApp.swift */,
+				30F279B967B0FF13ED5DC9AC /* BenchmarksApp.swift */,
 				9075515EA0B0FD5D5836DF55 /* Info.plist */,
 			);
 			path = Sources;
@@ -70,9 +70,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		92EB6C12B62189D93A688A66 /* BlobStoreBenchmark */ = {
+		92EB6C12B62189D93A688A66 /* Benchmarks */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0B1ED8EF7B574B876693D38E /* Build configuration list for PBXNativeTarget "BlobStoreBenchmark" */;
+			buildConfigurationList = 0B1ED8EF7B574B876693D38E /* Build configuration list for PBXNativeTarget "Benchmarks" */;
 			buildPhases = (
 				5892221F93157E1C4B5B1EE2 /* Sources */,
 				2E266237383B9109856A981F /* Frameworks */,
@@ -81,12 +81,12 @@
 			);
 			dependencies = (
 			);
-			name = BlobStoreBenchmark;
+			name = Benchmarks;
 			packageProductDependencies = (
 				460554E26357394875D9E5B1 /* WildEdgeBenchmarks */,
 			);
-			productName = BlobStoreBenchmark;
-			productReference = A8F37D0E408EE12ABA0A8A38 /* BlobStoreBenchmark.app */;
+			productName = Benchmarks;
+			productReference = A8F37D0E408EE12ABA0A8A38 /* Benchmarks.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -97,10 +97,8 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-				};
 			};
-			buildConfigurationList = 1E4B2850CF60072105DD81A9 /* Build configuration list for PBXProject "BlobStoreBenchmark" */;
+			buildConfigurationList = 1E4B2850CF60072105DD81A9 /* Build configuration list for PBXProject "Benchmarks" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -117,7 +115,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				92EB6C12B62189D93A688A66 /* BlobStoreBenchmark */,
+				92EB6C12B62189D93A688A66 /* Benchmarks */,
 			);
 		};
 /* End PBXProject section */
@@ -128,7 +126,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A576A10C4775BEB643A4A4EF /* BenchmarkView.swift in Sources */,
-				BE5F83A4EB1902C8DF9343F7 /* BlobStoreBenchmarkApp.swift in Sources */,
+				BE5F83A4EB1902C8DF9343F7 /* BenchmarksApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -196,6 +194,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -215,6 +214,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -295,7 +295,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		0B1ED8EF7B574B876693D38E /* Build configuration list for PBXNativeTarget "BlobStoreBenchmark" */ = {
+		0B1ED8EF7B574B876693D38E /* Build configuration list for PBXNativeTarget "Benchmarks" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				ED2719D7B3DF6C6A3FF516C4 /* Debug */,
@@ -304,7 +304,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		1E4B2850CF60072105DD81A9 /* Build configuration list for PBXProject "BlobStoreBenchmark" */ = {
+		1E4B2850CF60072105DD81A9 /* Build configuration list for PBXProject "Benchmarks" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				EE25EAC365D7BCCF82381D83 /* Debug */,
