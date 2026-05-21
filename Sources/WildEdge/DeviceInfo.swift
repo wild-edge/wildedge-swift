@@ -53,12 +53,15 @@ public struct DeviceInfo {
         let rawId = UUID().uuidString
         let deviceId = projectSecret.isEmpty ? rawId : hmac(key: projectSecret, message: rawId)
 
+        let resolvedAppVersion = appVersion
+            ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+
         return DeviceInfo(
             deviceId: deviceId,
             deviceType: "ios",
             deviceModel: HardwareDetection.deviceModel(),
             osVersion: "\(osVersion.majorVersion).\(osVersion.minorVersion).\(osVersion.patchVersion)",
-            appVersion: appVersion,
+            appVersion: resolvedAppVersion,
             sdkVersion: Config.sdkVersion,
             locale: Locale.current.languageCode.map { "\($0)-\(Locale.current.regionCode ?? "")" } ?? Locale.current.identifier,
             timezone: TimeZone.current.identifier,
