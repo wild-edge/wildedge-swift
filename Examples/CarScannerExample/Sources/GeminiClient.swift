@@ -3,7 +3,7 @@ import CoreGraphics
 import WildEdge
 
 struct GeminiClient {
-    private static let handle: ModelHandle = WildEdge.shared.registerModel(
+    static let handle: ModelHandle = WildEdge.shared.registerModel(
         modelId: "google/gemini-2.5-flash",
         info: ModelInfo(
             modelName: "gemini-2.5-flash",
@@ -18,7 +18,7 @@ struct GeminiClient {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
-    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil, runId: String? = nil) async throws -> (CarInfo, String, HTTPStats) {
+    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil, runId: String? = nil) async throws -> (CarInfo, String, HTTPStats, String, Date) {
         let key = apiKey
         guard !key.isEmpty, key != "YOUR_GEMINI_API_KEY" else {
             throw configError("Set GEMINI_API_KEY in Info.plist")
@@ -80,6 +80,7 @@ struct GeminiClient {
             throw error
         }
 
+        let inferenceDate = Date()
         let inferenceId = Self.handle.trackInference(
             durationMs: stats.durationMs,
             inputModality: .multimodal,
@@ -91,7 +92,6 @@ struct GeminiClient {
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
                                               payload: .data(imageData, mimeType: "image/jpeg"))], runId: runId
         )
-        _ = inferenceId
-        return (info, prettyPrinted(data), stats)
+        return (info, prettyPrinted(data), stats, inferenceId, inferenceDate)
     }
 }

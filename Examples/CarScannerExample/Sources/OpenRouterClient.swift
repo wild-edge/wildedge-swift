@@ -3,7 +3,7 @@ import CoreGraphics
 import WildEdge
 
 struct OpenRouterClient {
-    private static let handle: ModelHandle = WildEdge.shared.registerModel(
+    static let handle: ModelHandle = WildEdge.shared.registerModel(
         modelId: "openrouter/gemini-2.0-flash-001",
         info: ModelInfo(
             modelName: "gemini-2.0-flash-001",
@@ -18,7 +18,7 @@ struct OpenRouterClient {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
-    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil, runId: String? = nil) async throws -> (CarInfo, String, HTTPStats) {
+    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil, runId: String? = nil) async throws -> (CarInfo, String, HTTPStats, String, Date) {
         let key = apiKey
         guard !key.isEmpty, key != "YOUR_OPENROUTER_API_KEY" else {
             throw configError("Set OPENROUTER_API_KEY in Info.plist")
@@ -82,7 +82,8 @@ struct OpenRouterClient {
             throw error
         }
 
-        Self.handle.trackInference(
+        let inferenceDate = Date()
+        let inferenceId = Self.handle.trackInference(
             durationMs: stats.durationMs,
             inputModality: .multimodal,
             outputModality: .detection,
@@ -93,6 +94,6 @@ struct OpenRouterClient {
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
                                               payload: .data(imageData, mimeType: "image/jpeg"))], runId: runId
         )
-        return (info, prettyPrinted(data), stats)
+        return (info, prettyPrinted(data), stats, inferenceId, inferenceDate)
     }
 }

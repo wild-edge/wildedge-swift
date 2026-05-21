@@ -1,4 +1,5 @@
 import AVFoundation
+import WildEdge
 import Combine
 import UIKit
 
@@ -53,6 +54,9 @@ struct ScanResult: Identifiable {
     let photo: PhotoMetadata
     let rawJSON: String
     let httpStats: HTTPStats
+    let inferenceId: String
+    let inferenceDate: Date
+    let sendFeedback: (FeedbackType) -> Void
 }
 
 enum ScanJobStatus {
@@ -225,13 +229,24 @@ final class CameraViewModel: NSObject, ObservableObject {
     private func analyzeImage(_ uploadData: Data, meta: PhotoMetadata, provider: RecognitionProvider) async throws -> [ScanResult] {
         switch provider {
         case .openRouter:
-            let (info, raw, stats) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
-            return [ScanResult(provider: "OpenRouter", info: info, photo: meta, rawJSON: raw, httpStats: stats)]
+            let (info, raw, stats, inferenceId, inferenceDate) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
+            return [ScanResult(provider: "OpenRouter", info: info, photo: meta, rawJSON: raw, httpStats: stats,
+                               inferenceId: inferenceId, inferenceDate: inferenceDate,
+                               sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
         case .gemini:
-            let (info, raw, stats) = try await GeminiClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
-            return [ScanResult(provider: "Gemini", info: info, photo: meta, rawJSON: raw, httpStats: stats)]
+            let (info, raw, stats, inferenceId, inferenceDate) = try await GeminiClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
+            return [ScanResult(provider: "Gemini", info: info, photo: meta, rawJSON: raw, httpStats: stats,
+                               inferenceId: inferenceId, inferenceDate: inferenceDate,
+                               sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
         case .both:
             return try await analyzeWithBoth(uploadData, photo: meta)
+        }
+    }
+
+    private func makeFeedback(_ handle: ModelHandle, inferenceId: String, inferenceDate: Date) -> (FeedbackType) -> Void {
+        { feedbackType in
+            let delayMs = Int(Date().timeIntervalSince(inferenceDate) * 1000)
+            handle.trackFeedback(feedbackType, relatedInferenceId: inferenceId, delayMs: delayMs)
         }
     }
 
@@ -257,11 +272,19 @@ final class CameraViewModel: NSObject, ObservableObject {
         var out: [ScanResult] = []
         var firstError: Error?
 
-        do    { let (info, raw, stats) = try await orTask; out.append(ScanResult(provider: "OpenRouter", info: info, photo: photo, rawJSON: raw, httpStats: stats)) }
-        catch { firstError = error }
+        do {
+            let (info, raw, stats, inferenceId, inferenceDate) = try await orTask
+            out.append(ScanResult(provider: "OpenRouter", info: info, photo: photo, rawJSON: raw, httpStats: stats,
+                                  inferenceId: inferenceId, inferenceDate: inferenceDate,
+                                  sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate)))
+        } catch { firstError = error }
 
-        do    { let (info, raw, stats) = try await gTask;  out.append(ScanResult(provider: "Gemini",     info: info, photo: photo, rawJSON: raw, httpStats: stats)) }
-        catch { if firstError == nil { firstError = error } }
+        do {
+            let (info, raw, stats, inferenceId, inferenceDate) = try await gTask
+            out.append(ScanResult(provider: "Gemini", info: info, photo: photo, rawJSON: raw, httpStats: stats,
+                                  inferenceId: inferenceId, inferenceDate: inferenceDate,
+                                  sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate)))
+        } catch { if firstError == nil { firstError = error } }
 
         if out.isEmpty, let err = firstError { throw err }
         return out

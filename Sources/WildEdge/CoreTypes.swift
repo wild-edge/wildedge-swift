@@ -70,7 +70,7 @@ public enum SpanStatus: String {
     case error
 }
 
-public enum FeedbackType {
+public enum FeedbackType: Equatable {
     case thumbsUp
     case thumbsDown
     case accepted

@@ -1,4 +1,5 @@
 import Foundation
+import WildEdge
 import SwiftUI
 
 extension Array {
@@ -13,6 +14,7 @@ struct ScanJobDetailView: View {
 
     @State private var dragOffset: CGFloat = 0
     @State private var backgroundOpacity: Double = 1.0
+    @State private var feedback: [UUID: FeedbackType] = [:]
 
     var body: some View {
         ZStack {
@@ -180,12 +182,19 @@ struct ScanJobDetailView: View {
     @ViewBuilder
     private func resultSection(_ result: ScanResult) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            if result.info.found, let candidates = result.info.candidates, !candidates.isEmpty {
-                if results(for: result).count > 1 {
+            if results(for: result).count > 1 {
+                HStack {
                     Text(result.provider)
                         .font(.caption.weight(.semibold))
                         .foregroundColor(.white)
+                    Spacer()
+                    feedbackButtons(for: result)
                 }
+            } else {
+                feedbackRow(for: result)
+            }
+
+            if result.info.found, let candidates = result.info.candidates, !candidates.isEmpty {
                 ForEach(Array(candidates.enumerated()), id: \.offset) { idx, candidate in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 6) {
@@ -207,11 +216,6 @@ struct ScanJobDetailView: View {
                     if idx < candidates.count - 1 { Divider() }
                 }
             } else {
-                if results(for: result).count > 1 {
-                    Text(result.provider)
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(.white)
-                }
                 Label("No car detected", systemImage: "car.slash")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -230,6 +234,48 @@ struct ScanJobDetailView: View {
                 DetailRow(icon: "clock",            label: "Duration", value: "\(result.httpStats.durationMs) ms")
                 DetailRow(icon: "arrow.down.circle",label: "Response", value: result.httpStats.responseSizeFormatted)
             }
+
+        }
+    }
+
+    @ViewBuilder
+    private func feedbackRow(for result: ScanResult) -> some View {
+        HStack(spacing: 12) {
+            Text("Helpful?")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Spacer()
+            feedbackButtons(for: result)
+        }
+    }
+
+    @ViewBuilder
+    private func feedbackButtons(for result: ScanResult) -> some View {
+        let given = feedback[result.id]
+        HStack(spacing: 12) {
+            Button {
+                guard given == nil else { return }
+                feedback[result.id] = .thumbsUp
+                result.sendFeedback(.thumbsUp)
+            } label: {
+                Image(systemName: given == .thumbsUp ? "hand.thumbsup.fill" : "hand.thumbsup")
+                    .font(.system(size: 18))
+                    .foregroundStyle(given == .thumbsUp ? Color.green : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(given != nil)
+
+            Button {
+                guard given == nil else { return }
+                feedback[result.id] = .thumbsDown
+                result.sendFeedback(.thumbsDown)
+            } label: {
+                Image(systemName: given == .thumbsDown ? "hand.thumbsdown.fill" : "hand.thumbsdown")
+                    .font(.system(size: 18))
+                    .foregroundStyle(given == .thumbsDown ? Color.red : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(given != nil)
         }
     }
 
