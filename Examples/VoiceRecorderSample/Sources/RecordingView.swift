@@ -27,8 +27,12 @@ struct RecordingView: View {
                                 sleepCountdown: viewModel.benchmarkSleepCountdown,
                                 transcript: viewModel.benchmarkTranscript,
                                 expectedTranscript: viewModel.benchmarkExpectedTranscript,
+                                stepsText: viewModel.benchmarkStepsText,
+                                expectedToolCall: viewModel.benchmarkExpectedToolCall,
+                                actualToolCall: viewModel.benchmarkActualToolCall,
                                 latencyText: viewModel.benchmarkLatencyText,
-                                matchText: viewModel.benchmarkMatchText
+                                transcriptMatchText: viewModel.benchmarkTranscriptMatchText,
+                                toolCallMatchText: viewModel.benchmarkToolCallMatchText
                             )
                             .transition(.move(edge: .top).combined(with: .opacity))
                         }
@@ -180,8 +184,12 @@ private struct BenchmarkStatusCard: View {
     let sleepCountdown: String
     let transcript: String
     let expectedTranscript: String
+    let stepsText: String
+    let expectedToolCall: String
+    let actualToolCall: String
     let latencyText: String
-    let matchText: String
+    let transcriptMatchText: String
+    let toolCallMatchText: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -205,59 +213,109 @@ private struct BenchmarkStatusCard: View {
 
                 Spacer()
 
-                if !latencyText.isEmpty {
-                    Text(latencyText)
-                        .font(.caption.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(.primary)
-                }
+                Text(displayValue(latencyText, processingWhenEmpty: isRunning))
+                    .font(.caption.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(latencyText.isEmpty ? .secondary : .primary)
             }
 
             Divider()
 
-            if !inputName.isEmpty {
-                LabeledContent("Benchmark input file", value: inputName)
-                    .font(.caption)
-            }
-
-            if !preprocessingName.isEmpty {
-                LabeledContent("Preprocessing file", value: preprocessingName)
-                    .font(.caption)
-            }
-
-            if !runProgress.isEmpty {
-                LabeledContent("Measuring inference time", value: runProgress)
-                    .font(.caption)
-            }
-
-            if !sleepCountdown.isEmpty {
-                LabeledContent("Sleep countdown", value: sleepCountdown)
-                    .font(.caption)
-            }
-
-            if !expectedTranscript.isEmpty {
-                LabeledContent("Expected", value: expectedTranscript)
-                    .font(.caption)
-            }
-
-            if !transcript.isEmpty {
-                LabeledContent("Output", value: transcript)
-                    .font(.caption)
-            }
-
-            if !matchText.isEmpty {
-                HStack {
-                    Text("Result")
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text(matchText)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(matchText == "match" ? .green : .orange)
-                }
-                .font(.caption)
-            }
+            stableRow("Benchmark input file", value: inputName)
+            stableRow("Preprocessing file", value: preprocessingName)
+            stableRow("Measuring inference time", value: runProgress)
+            stableRow("Benchmark steps", value: stepsText)
+            stableRow("Sleep countdown", value: sleepCountdown)
+            stableRow("Expected transcript", value: expectedTranscript)
+            stableRow(
+                "Actual transcript",
+                value: transcript,
+                processingWhenEmpty: isRunning && includesTranscriptStep
+            )
+            stableBlock("Expected tool call", value: expectedToolCall)
+            stableBlock(
+                "Actual tool call",
+                value: actualToolCall,
+                processingWhenEmpty: isRunning && includesToolStep
+            )
+            resultRow(label: "Transcript result", value: transcriptMatchText)
+            resultRow(label: "Tool-call result", value: toolCallMatchText)
         }
         .padding(14)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func stableRow(
+        _ label: String,
+        value: String,
+        processingWhenEmpty: Bool = false
+    ) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 150, alignment: .leading)
+            Spacer(minLength: 4)
+            Text(displayValue(value, processingWhenEmpty: processingWhenEmpty))
+                .foregroundStyle(value.isEmpty ? .secondary : .primary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2, reservesSpace: true)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .textSelection(.enabled)
+        }
+        .font(.caption)
+    }
+
+    private func stableBlock(
+        _ label: String,
+        value: String,
+        processingWhenEmpty: Bool = false
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(displayValue(value, processingWhenEmpty: processingWhenEmpty))
+                .font(.caption.monospaced())
+                .foregroundStyle(value.isEmpty ? .secondary : .primary)
+                .textSelection(.enabled)
+                .lineLimit(6, reservesSpace: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func resultRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(displayValue(value))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(resultColor(for: value))
+        }
+        .font(.caption)
+    }
+
+    private func displayValue(_ value: String, processingWhenEmpty: Bool = false) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return value
+        }
+        return processingWhenEmpty ? "(processing)" : "null / empty"
+    }
+
+    private func resultColor(for value: String) -> Color {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return .secondary
+        }
+        return trimmed == "match" ? .green : .orange
+    }
+
+    private var includesTranscriptStep: Bool {
+        stepsText.contains("speech_to_text")
+    }
+
+    private var includesToolStep: Bool {
+        stepsText.contains("text_to_tool") || stepsText.contains("speech_to_tool")
     }
 }
 #endif

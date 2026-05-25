@@ -2,9 +2,9 @@
 
 ## Overview
 
-Benchmark mode is available only in `BENCHMARK_BUILD`. When `benchmark_enabled` is true, the app runs bundled benchmark WAV, MP3, or M4A files in a loop, waits 10 seconds between inference runs, and reports one WildEdge inference event per measured inference.
+Benchmark mode is available only in `BENCHMARK_BUILD`. When `benchmark_enabled` is true, the app runs bundled benchmark WAV, MP3, or M4A files in a loop, waits 10 seconds between benchmark runs, and reports WildEdge inference events for each measured model step.
 
-The benchmark input set is controlled by the SDK config payload. The app uses the currently effective STT model/settings from the same payload or local settings.
+The benchmark input set and step sequence are controlled by the SDK config payload. The app uses the currently effective STT model/settings from the same payload or local settings when a run includes `speech_to_text`.
 
 ## Dataset Layout
 
@@ -63,17 +63,111 @@ benchmark_data/
 
 ## Dataset Assumptions
 
-| Category | Line ID | Variant ID | Phrase | Recording IDs | Expected Transcript | Expected Tool Call |
-| --- | --- | --- | --- | --- | --- | --- |
-| climate | 001 | 001 | set temperature to 21 degrees | 001-001-A/B/C.wav/.mp3/.m4a | 001-001.txt | 001.json |
-| climate | 001 | 002 | set temperature to 21 degrees, please | 001-002-A/B/C.wav/.mp3/.m4a | 001-002.txt | 001.json |
-| climate | 001 | 003 | temperature 21 degrees | 001-003-A/B/C.wav/.mp3/.m4a | 001-003.txt | 001.json |
-| radio | 002 | 001 | volume down | 002-001-A/B/C.wav/.mp3/.m4a | 002-001.txt | 002.json |
-| radio | 002 | 002 | hey, volume down | 002-002-A/B/C.wav/.mp3/.m4a | 002-002.txt | 002.json |
-| radio | 002 | 003 | its too loud, volume down | 002-003-A/B/C.wav/.mp3/.m4a | 002-003.txt | 002.json |
-| nav | 003 | 001 | navigate home, please | 003-001-A/B/C.wav/.mp3/.m4a | 003-001.txt | 003.json |
-| nav | 003 | 002 | navigate home, now | 003-002-A/B/C.wav/.mp3/.m4a | 003-002.txt | 003.json |
-| nav | 003 | 003 | let's go home | 003-003-A/B/C.wav/.mp3/.m4a | 003-003.txt | 003.json |
+Plain Markdown tables cannot merge cells. This table uses raw HTML so the line-level expected tool call can be shown once with `rowspan`.
+
+<table>
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Line ID</th>
+      <th>Variant ID</th>
+      <th>Phrase</th>
+      <th>Expected Tool Call</th>
+      <th>Recording IDs</th>
+      <th>Expected Transcript</th>
+      <th>Expected Tool Call File</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td rowspan="3">climate</td>
+      <td rowspan="3"><code>001</code></td>
+      <td><code>001</code></td>
+      <td>set temperature to 21 degrees</td>
+      <td rowspan="3">
+        <pre><code>{
+  "tool_name": "set_temperature",
+  "arguments": {
+    "temperature": 21
+  }
+}</code></pre>
+      </td>
+      <td><code>001-001-A/B/C.wav/.mp3/.m4a</code></td>
+      <td><code>001-001.txt</code></td>
+      <td rowspan="3"><code>001.json</code></td>
+    </tr>
+    <tr>
+      <td><code>002</code></td>
+      <td>set temperature to 21 degrees, please</td>
+      <td><code>001-002-A/B/C.wav/.mp3/.m4a</code></td>
+      <td><code>001-002.txt</code></td>
+    </tr>
+    <tr>
+      <td><code>003</code></td>
+      <td>temperature 21 degrees</td>
+      <td><code>001-003-A/B/C.wav/.mp3/.m4a</code></td>
+      <td><code>001-003.txt</code></td>
+    </tr>
+    <tr>
+      <td rowspan="3">radio</td>
+      <td rowspan="3"><code>002</code></td>
+      <td><code>001</code></td>
+      <td>volume down</td>
+      <td rowspan="3">
+        <pre><code>{
+  "tool_name": "change_volume",
+  "arguments": {
+    "direction": "down"
+  }
+}</code></pre>
+      </td>
+      <td><code>002-001-A/B/C.wav/.mp3/.m4a</code></td>
+      <td><code>002-001.txt</code></td>
+      <td rowspan="3"><code>002.json</code></td>
+    </tr>
+    <tr>
+      <td><code>002</code></td>
+      <td>hey, volume down</td>
+      <td><code>002-002-A/B/C.wav/.mp3/.m4a</code></td>
+      <td><code>002-002.txt</code></td>
+    </tr>
+    <tr>
+      <td><code>003</code></td>
+      <td>its too loud, volume down</td>
+      <td><code>002-003-A/B/C.wav/.mp3/.m4a</code></td>
+      <td><code>002-003.txt</code></td>
+    </tr>
+    <tr>
+      <td rowspan="3">nav</td>
+      <td rowspan="3"><code>003</code></td>
+      <td><code>001</code></td>
+      <td>navigate home, please</td>
+      <td rowspan="3">
+        <pre><code>{
+  "tool_name": "navigate",
+  "arguments": {
+    "destination": "home"
+  }
+}</code></pre>
+      </td>
+      <td><code>003-001-A/B/C.wav/.mp3/.m4a</code></td>
+      <td><code>003-001.txt</code></td>
+      <td rowspan="3"><code>003.json</code></td>
+    </tr>
+    <tr>
+      <td><code>002</code></td>
+      <td>navigate home, now</td>
+      <td><code>003-002-A/B/C.wav/.mp3/.m4a</code></td>
+      <td><code>003-002.txt</code></td>
+    </tr>
+    <tr>
+      <td><code>003</code></td>
+      <td>let's go home</td>
+      <td><code>003-003-A/B/C.wav/.mp3/.m4a</code></td>
+      <td><code>003-003.txt</code></td>
+    </tr>
+  </tbody>
+</table>
 
 ## SDK Config Selection
 
@@ -87,12 +181,57 @@ Recommended structured payload:
     "benchmark_mode": true
   },
   "benchmark_params": {
+    "benchmark_steps": ["speech_to_text"],
     "delay_seconds": 10,
     "number_of_inferences": 10,
     "recordings_match": "*"
   },
   "model_settings": {
     "model_name": "whisper-tiny"
+  },
+  "sdk_settings": {
+    "config_fetch": "30s"
+  }
+}
+```
+
+Two-step speech-to-tool payload:
+
+```json
+{
+  "app_settings": {
+    "benchmark_mode": true
+  },
+  "benchmark_params": {
+    "benchmark_steps": ["speech_to_text", "text_to_tool"],
+    "delay_seconds": 10,
+    "number_of_inferences": 10,
+    "recordings_match": "*"
+  },
+  "model_settings": {
+    "model_name": "leap-lfm2.5-audio-1.5b"
+  },
+  "sdk_settings": {
+    "config_fetch": "30s"
+  }
+}
+```
+
+Direct speech-to-tool payload:
+
+```json
+{
+  "app_settings": {
+    "benchmark_mode": true
+  },
+  "benchmark_params": {
+    "benchmark_steps": ["speech_to_tool"],
+    "delay_seconds": 10,
+    "number_of_inferences": 10,
+    "recordings_match": "*"
+  },
+  "model_settings": {
+    "model_name": "leap-lfm2.5-audio-1.5b"
   },
   "sdk_settings": {
     "config_fetch": "30s"
@@ -108,6 +247,7 @@ To focus on particular input audio files, set `recordings_match` to recording ID
     "benchmark_mode": true
   },
   "benchmark_params": {
+    "benchmark_steps": ["speech_to_text"],
     "delay_seconds": 10,
     "number_of_inferences": 10,
     "recordings_match": [
@@ -137,12 +277,17 @@ Selection rules:
 
 - `app_settings.benchmark_mode: true` starts the benchmark loop.
 - `app_settings.benchmark_mode: false` stops the loop after the current file finishes.
+- `benchmark_params.benchmark_steps` selects benchmark behavior. Missing steps default to `["speech_to_text"]`.
+- Supported step sequences are `["speech_to_text"]`, `["speech_to_text", "text_to_tool"]`, and `["speech_to_tool"]`.
+- Unsupported step sequences are shown in the benchmark status panel and no benchmark work runs until the SDK config changes.
+- Legacy `audio_to_tool_architecture` is only used when `benchmark_steps` is absent: `2step` maps to `["speech_to_text", "text_to_tool"]`; `1step` maps to `["speech_to_tool"]`.
 - `benchmark_params.recordings_match: "*"` runs all available WAV, MP3, and M4A files.
 - `benchmark_params.recordings_match` filters by recording ID, filename, or bundle path.
 - `recordings_match` supports wildcard patterns such as `001*`; explicit regular expressions such as `^003-003-[AC]$` are also supported.
 - `benchmark_params.delay_seconds` controls the wait between runs and defaults to 10.
-- `benchmark_params.number_of_inferences` controls how many measured speech-to-text inferences run for each selected audio file before advancing to the next file. It defaults to 1.
-- `model_settings.model_name` selects the STT model; examples are `apple-speech`, `whisper-tiny`, `whisper-base`, and `leap-lfm2.5-audio-1.5b`.
+- `benchmark_params.number_of_inferences` controls how many measured benchmark runs execute for each selected audio file before advancing to the next file. It defaults to 1.
+- `model_settings.model_name` selects the STT model for STT-including runs; examples are `apple-speech`, `whisper-tiny`, `whisper-base`, and `leap-lfm2.5-audio-1.5b`.
+- Tool-call steps currently use Leap LFM2.5 Audio; the two tool-call modes differ by prompt and input modality.
 - `sdk_settings.config_fetch` controls how often the app refreshes the SDK payload; values can be seconds as a number or strings like `30s`.
 - Missing audio files are skipped.
 
@@ -152,17 +297,25 @@ For each selected WAV, MP3, or M4A file, the app:
 
 1. Injects the bundled audio file URL into the current speech-to-text processing flow.
 2. Prepares the processing audio file before measurement, converting M4A to a temporary WAV when possible.
-3. Runs `benchmark_params.number_of_inferences` measured inferences for that processing file.
+3. Runs `benchmark_params.number_of_inferences` measured benchmark runs for that processing file.
 4. Records the benchmark file ID and run index in WildEdge metadata.
 5. Loads the expected transcript from `<line_id>-<variant_id>.txt`.
-6. Records the expected tool-call file reference from `<line_id>.json` when present.
-7. Emits transcript comparison metadata, including normalized exact match and WER.
-8. Waits `benchmark_params.delay_seconds`, defaulting to 10 seconds, between measured inferences.
-9. Continues with the next selected file until benchmark mode is disabled.
+6. Loads the expected tool-call JSON from `<line_id>.json`.
+7. Executes the selected `benchmark_steps`.
+8. Emits transcript comparison metadata for STT-including runs, including normalized exact match and WER.
+9. Emits tool-call comparison metadata for tool-call runs, using canonical JSON equality so whitespace and key order do not matter.
+10. Waits `benchmark_params.delay_seconds`, defaulting to 10 seconds, between measured benchmark runs.
+11. Continues with the next selected file until benchmark mode is disabled.
 
-Benchmark runs do not upload benchmark WAV/MP3/M4A files or transcript `.txt` files as attachments. The event metadata refers to the bundled dataset files by name instead.
+`["speech_to_text"]` runs the existing STT-only benchmark and compares the produced transcript with the expected transcript fixture.
 
-The benchmark status panel shows the current input file, preprocessing file, inference run index, latest latency/result, and a live countdown during the configured sleep before the next benchmark run.
+`["speech_to_text", "text_to_tool"]` first runs the selected STT model, then sends the actual transcript to Leap LFM2.5 Audio with a strict text-to-tool prompt. It compares the resulting JSON object with the expected `<line_id>.json` fixture.
+
+`["speech_to_tool"]` sends the audio directly to Leap LFM2.5 Audio with a speech-to-tool prompt. It compares the resulting JSON object with the expected `<line_id>.json` fixture and does not show transcript fields unless a transcript is produced separately for debugging.
+
+Benchmark runs do not upload benchmark WAV/MP3/M4A files, transcript `.txt` files, or tool-call `.json` files as attachments. The event metadata refers to the bundled dataset files by name instead.
+
+The benchmark status panel shows the selected steps, current input file, preprocessing file, run index, latest latency/result, expected and actual transcript for STT-including runs, expected and actual tool-call JSON for tool-call runs, transcript match, tool-call match, and a live countdown during the configured sleep before the next benchmark run.
 
 M4A benchmark files are converted to temporary WAV files before the benchmark loop starts. That conversion is a preparation step, so conversion time is not included in the speech-to-text inference duration.
 
@@ -173,6 +326,7 @@ Each benchmark inference should include enough metadata to identify the run with
 Input metadata should include:
 
 - `benchmark_enabled`
+- `benchmark_steps`
 - `source`
 - `benchmark_file`
 - `benchmark_recording_id`
@@ -189,7 +343,9 @@ Input metadata should include:
 - `benchmark_recordings_match`
 - `benchmark_audio_extension`
 - `expected_transcript_file`
+- `expected_tool_call`
 - `expected_tool_call_file`
+- `expected_tool_call_json`
 - `benchmark_iteration`
 - `benchmark_inference_index`
 - `benchmark_inference_count`
@@ -203,12 +359,36 @@ Output metadata should include:
 - `normalized_expected_transcript`
 - `normalized_exact_match`
 - `wer`
-- duration fields already reported by the processing flow
+- `expected_tool_call`
+- `expected_tool_call_json`
+- `actual_tool_call`
+- `actual_tool_call_json`
+- `actual_tool_call_parse_error`
+- `tool_call_exact_match`
+- `tool_call_step`
+- `tool_call_duration_ms`
+- `benchmark_total_duration_ms`
+- duration fields reported by the processing flow
 
-Each benchmark speech-to-text inference is tracked inside a WildEdge span named after the input audio file, for example `001-001-A.wav`.
+Each benchmark run is tracked inside a WildEdge span named after the input audio file, for example `001-001-A.wav`. Two-step runs record separate logical model handles for the STT step and the text-to-tool step; direct runs record the speech-to-tool logical model handle.
 
-## Current Scope
+## Supported Tool Calls
 
-The first benchmark version measures speech-to-text only.
+Tool-call benchmarks expect one strict JSON object:
 
-`<line_id>.json` is included as the future expected tool-call reference for speech-to-tools and text-to-tools benchmarking, but v1 does not evaluate tool-call accuracy.
+```json
+{
+  "tool_name": "set_temperature",
+  "arguments": {
+    "temperature": 21
+  }
+}
+```
+
+The v1 supported tools are:
+
+- `set_temperature` with numeric `temperature`
+- `change_volume` with string `direction`
+- `navigate` with string `destination`
+
+Expected and actual tool calls are compared by parsed canonical JSON equality. Model output may contain surrounding text or code fences; the benchmark extracts the first JSON object before parsing.

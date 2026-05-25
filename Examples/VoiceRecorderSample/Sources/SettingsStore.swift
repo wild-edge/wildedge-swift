@@ -62,6 +62,45 @@ enum AudioToToolArchitecture: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
+#if BENCHMARK_BUILD
+enum BenchmarkStep: String, CaseIterable, Identifiable, Sendable {
+    case speechToText = "speech_to_text"
+    case textToTool = "text_to_tool"
+    case speechToTool = "speech_to_tool"
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .speechToText:
+            return "speech to text"
+        case .textToTool:
+            return "text to tool"
+        case .speechToTool:
+            return "speech to tool"
+        }
+    }
+
+    init?(remoteValue: String) {
+        let normalized = remoteValue
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: "-", with: "_")
+            .replacingOccurrences(of: " ", with: "_")
+        switch normalized {
+        case "speech_to_text", "stt", "asr", "transcribe":
+            self = .speechToText
+        case "text_to_tool", "text_to_tools", "tool_from_text":
+            self = .textToTool
+        case "speech_to_tool", "speech_to_tools", "audio_to_tool", "direct_audio_to_tool":
+            self = .speechToTool
+        default:
+            return nil
+        }
+    }
+}
+#endif
+
 struct VoiceRecorderEffectiveSettings: Sendable {
     let voiceToTextMode: VoiceToTextMode
     let whisperModelSize: WhisperModelSize
@@ -73,6 +112,8 @@ struct VoiceRecorderEffectiveSettings: Sendable {
     let benchmarkDelaySeconds: TimeInterval
     let benchmarkRecordingsMatch: [String]
     let benchmarkNumberOfInferences: Int
+    let benchmarkSteps: [BenchmarkStep]
+    let benchmarkStepsError: String?
     #endif
     let isUsingSDKPayload: Bool
 }
@@ -139,6 +180,7 @@ final class SettingsStore: ObservableObject {
     #if BENCHMARK_BUILD
     private static let benchmarkEnabledKey = "VoiceRecorderSample.benchmarkEnabled"
     private static let defaultBenchmarkDelaySeconds: TimeInterval = 10
+    private static let defaultBenchmarkSteps: [BenchmarkStep] = [.speechToText]
     #endif
     private static let sdkConfigRefreshInterval: TimeInterval = 30
 
@@ -269,6 +311,8 @@ final class SettingsStore: ObservableObject {
                 benchmarkDelaySeconds: Self.defaultBenchmarkDelaySeconds,
                 benchmarkRecordingsMatch: ["*"],
                 benchmarkNumberOfInferences: 1,
+                benchmarkSteps: Self.defaultBenchmarkSteps,
+                benchmarkStepsError: nil,
                 isUsingSDKPayload: false
             )
         }
@@ -288,10 +332,14 @@ final class SettingsStore: ObservableObject {
 
         #if BENCHMARK_BUILD
         let benchmarkEnabled = useSDKPayloadSettings ? sdkBenchmarkEnabled : true
+        let sdkAudioToToolArchitecture = Self.audioToToolArchitecture(from: sdkPayload)
+        let benchmarkStepConfiguration = Self.benchmarkSteps(from: sdkPayload)
+            ?? sdkAudioToToolArchitecture.map { (Self.benchmarkSteps(for: $0), nil) }
+            ?? (Self.defaultBenchmarkSteps, nil)
         return VoiceRecorderEffectiveSettings(
             voiceToTextMode: Self.voiceToTextMode(from: sdkPayload) ?? .apple,
             whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? .tiny,
-            audioToToolArchitecture: Self.audioToToolArchitecture(from: sdkPayload) ?? .twoStep,
+            audioToToolArchitecture: sdkAudioToToolArchitecture ?? .twoStep,
             includeSpectrogramAttachment: benchmarkEnabled ? false : Self.boolValue(
                 from: sdkPayload,
                 preferredKeys: [
@@ -328,6 +376,8 @@ final class SettingsStore: ObservableObject {
                 ]
             ) ?? ["*"],
             benchmarkNumberOfInferences: Self.benchmarkNumberOfInferences(from: sdkPayload) ?? 1,
+            benchmarkSteps: benchmarkStepConfiguration.0,
+            benchmarkStepsError: benchmarkStepConfiguration.1,
             isUsingSDKPayload: true
         )
         #else
@@ -373,6 +423,8 @@ final class SettingsStore: ObservableObject {
             String(settings.benchmarkDelaySeconds),
             settings.benchmarkRecordingsMatch.joined(separator: ","),
             String(settings.benchmarkNumberOfInferences),
+            settings.benchmarkSteps.map(\.rawValue).joined(separator: ","),
+            settings.benchmarkStepsError ?? "",
             settings.isUsingSDKPayload ? "sdk" : "local"
         ].joined(separator: "|")
     }
@@ -388,8 +440,9 @@ final class SettingsStore: ObservableObject {
             ? ", Whisper \(settings.whisperModelSize.displayName)"
             : ""
         #if BENCHMARK_BUILD
+        let steps = settings.benchmarkSteps.map(\.rawValue).joined(separator: "+")
         let benchmark = settings.benchmarkEnabled
-            ? ", benchmark on, delay \(Int(settings.benchmarkDelaySeconds))s, \(settings.benchmarkNumberOfInferences)x"
+            ? ", benchmark on, steps \(steps), delay \(Int(settings.benchmarkDelaySeconds))s, \(settings.benchmarkNumberOfInferences)x"
             : ", benchmark off"
         #else
         let benchmark = ""
@@ -703,6 +756,91 @@ final class SettingsStore: ObservableObject {
             return nil
         }
         return max(1, count)
+    }
+
+    private static func benchmarkSteps(from config: RemoteSDKConfig) -> ([BenchmarkStep], String?)? {
+        guard let value = jsonValue(
+            from: config,
+            preferredKeys: [
+                "benchmark_steps",
+                "benchmarkSteps"
+            ]
+        ) else {
+            return nil
+        }
+
+        let stepStrings = benchmarkStepStrings(from: value)
+        guard stepStrings.error == nil else {
+            return ([], stepStrings.error)
+        }
+        guard let rawSteps = stepStrings.steps else {
+            return ([], "benchmark_steps must be a string or array of strings.")
+        }
+        let parsedSteps = rawSteps.compactMap(BenchmarkStep.init(remoteValue:))
+        guard parsedSteps.count == rawSteps.count else {
+            let unsupported = rawSteps.filter { BenchmarkStep(remoteValue: $0) == nil }
+            return (parsedSteps, "Unsupported benchmark steps: \(unsupported.joined(separator: ", ")).")
+        }
+        guard isSupportedBenchmarkStepSequence(parsedSteps) else {
+            return (parsedSteps, "Unsupported benchmark step sequence: \(rawSteps.joined(separator: ", ")).")
+        }
+        return (parsedSteps, nil)
+    }
+
+    private static func benchmarkStepStrings(from value: JSONValue) -> (steps: [String]?, error: String?) {
+        switch value {
+        case .array(let values):
+            var steps: [String] = []
+            for (index, value) in values.enumerated() {
+                guard case .string(let rawStep) = value else {
+                    return (nil, "benchmark_steps[\(index)] must be a string.")
+                }
+                let step = rawStep.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard step.isEmpty == false else {
+                    return (nil, "benchmark_steps[\(index)] must not be empty.")
+                }
+                steps.append(step)
+            }
+            return (steps, nil)
+        case .string(let string):
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.isEmpty == false else { return ([], nil) }
+            if trimmed.contains(",") {
+                let steps = trimmed
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { $0.isEmpty == false }
+                return (steps, nil)
+            }
+            return ([trimmed], nil)
+        case .object(let object):
+            for key in ["values", "value", "items", "benchmark_steps", "benchmarkSteps"] {
+                if let nested = object[key] {
+                    return benchmarkStepStrings(from: nested)
+                }
+            }
+            return (nil, "benchmark_steps must be a string or array of strings.")
+        default:
+            return (nil, "benchmark_steps must be a string or array of strings.")
+        }
+    }
+
+    private static func benchmarkSteps(for architecture: AudioToToolArchitecture) -> [BenchmarkStep] {
+        switch architecture {
+        case .twoStep:
+            return [.speechToText, .textToTool]
+        case .oneStep:
+            return [.speechToTool]
+        }
+    }
+
+    private static func isSupportedBenchmarkStepSequence(_ steps: [BenchmarkStep]) -> Bool {
+        switch steps {
+        case [.speechToText], [.speechToText, .textToTool], [.speechToTool]:
+            return true
+        default:
+            return false
+        }
     }
 
     private static func stringArrayValue(from config: RemoteSDKConfig, preferredKeys: [String]) -> [String]? {

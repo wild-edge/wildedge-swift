@@ -1,0 +1,6 @@
+{
+  "tool_name": "change_volume",
+  "arguments": {
+    "direction": "down"
+  }
+}
