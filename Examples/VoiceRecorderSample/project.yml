@@ -35,6 +35,7 @@ targets:
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: "NO"
         INFOPLIST_FILE: Sources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
       configs:
         Benchmark:
@@ -48,6 +49,11 @@ targets:
         product: WhisperKit
       - package: leap-sdk
         product: LeapSDK
+    postBuildScripts:
+      - name: Prepare Leap runtime for distribution
+        basedOnDependencyAnalysis: false
+        script: |
+          "${SRCROOT}/Scripts/prepare_leap_for_distribution.sh"
 schemes:
   VoiceRecorderSample:
     build:

@@ -132,17 +132,12 @@ actor LeapSpeechTranscriber {
         }
 
         let conversation = runner.createConversation(
-            systemPrompt: Self.toolCallSystemPrompt
+            systemPrompt: ToolCallPromptBuilder.systemPrompt
         )
         let message = ChatMessage(
             role: .user,
             content: [
-                ChatMessageContent.text("""
-                Convert this transcript into one tool-call JSON object.
-
-                Transcript:
-                \(trimmedTranscript)
-                """)
+                ChatMessageContent.text(ToolCallPromptBuilder.textToToolUserPrompt(transcript: trimmedTranscript))
             ],
             reasoningContent: nil,
             functionCalls: nil
@@ -171,12 +166,12 @@ actor LeapSpeechTranscriber {
         }
         let audioFormat = Self.audioFormat(for: url)
         let conversation = runner.createConversation(
-            systemPrompt: Self.toolCallSystemPrompt
+            systemPrompt: ToolCallPromptBuilder.speechToToolSystemPrompt
         )
         let message = ChatMessage(
             role: .user,
             content: [
-                ChatMessageContent.text("Listen to this command and return only the matching tool-call JSON object."),
+                ChatMessageContent.text(ToolCallPromptBuilder.speechToToolUserPrompt()),
                 ChatMessageContent.audio(data: audioData, format: audioFormat)
             ],
             reasoningContent: nil,
@@ -185,7 +180,7 @@ actor LeapSpeechTranscriber {
         return try await generateTextResponse(
             conversation: conversation,
             message: message,
-            maxTokens: 192,
+            maxTokens: 256,
             logPrefix: "Leap speech-to-tool"
         )
     }
@@ -202,10 +197,12 @@ actor LeapSpeechTranscriber {
 
         var generatedText = ""
         var reasoningFallback = ""
+        var responseEvents: [String] = []
         for try await response in conversation.generateResponse(message: message, generationOptions: options) {
             switch onEnum(of: response) {
             case .chunk(let chunk):
                 generatedText += chunk.text
+                responseEvents.append("chunk(\(chunk.text.count))")
                 print("\(logPrefix) chunk: \(chunk.text)")
             case .complete(let completion):
                 let finalText = completion.fullMessage.content.compactMap { part -> String? in
@@ -219,18 +216,24 @@ actor LeapSpeechTranscriber {
                 } else {
                     print("\(logPrefix) complete: no generation stats")
                 }
+                responseEvents.append("complete(text:\(finalText.count))")
                 if generatedText.isEmpty {
                     generatedText = finalText
                 }
             case .reasoningChunk(let text):
                 reasoningFallback += text.reasoning
+                responseEvents.append("reasoning(\(text.reasoning.count))")
                 print("\(logPrefix) reasoning chunk: \(text.reasoning)")
             case .audioSample:
-                break
+                responseEvents.append("audio_sample")
             case .functionCalls(let calls):
                 let names = calls.functionCalls.map { $0.name }.joined(separator: ", ")
                 print("\(logPrefix) returned unexpected function calls: \(names)")
-                break
+                responseEvents.append("function_calls(\(names))")
+                if generatedText.isEmpty,
+                   let firstFunctionCallJSON = Self.toolCallJSON(from: calls.functionCalls.first) {
+                    generatedText = firstFunctionCallJSON
+                }
             }
         }
 
@@ -242,7 +245,53 @@ actor LeapSpeechTranscriber {
         if fallback.isEmpty == false {
             return fallback
         }
-        throw SpeechTranscriptionError.transcriptionFailed("Leap returned an empty tool call.")
+        let events = responseEvents.isEmpty
+            ? "no response events"
+            : responseEvents.joined(separator: ", ")
+        throw SpeechTranscriptionError.transcriptionFailed("Leap returned no text tool call. Response events: \(events).")
+    }
+
+    private nonisolated static func toolCallJSON(from functionCall: LeapFunctionCall?) -> String? {
+        guard let functionCall else { return nil }
+        let object: [String: Any] = [
+            "tool_name": functionCall.name,
+            "arguments": jsonSafeObject(functionCall.arguments)
+        ]
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(
+                withJSONObject: object,
+                options: [.sortedKeys]
+              )
+        else {
+            return nil
+        }
+        return String(data: data, encoding: .utf8)
+    }
+
+    private nonisolated static func jsonSafeObject(_ value: Any) -> Any {
+        switch value {
+        case let dictionary as [String: Any]:
+            return dictionary.mapValues(jsonSafeObject)
+        case let array as [Any]:
+            return array.map(jsonSafeObject)
+        case let string as String:
+            if string == "true" { return true }
+            if string == "false" { return false }
+            if let int = Int(string) { return int }
+            if let double = Double(string), double.isFinite { return double }
+            return string
+        case let number as NSNumber:
+            return number
+        case _ as NSNull:
+            return NSNull()
+        default:
+            let description = String(describing: value)
+            if description == "true" { return true }
+            if description == "false" { return false }
+            if let int = Int(description) { return int }
+            if let double = Double(description), double.isFinite { return double }
+            return description
+        }
     }
 
     private static func audioFormat(for url: URL) -> String {
@@ -260,21 +309,6 @@ actor LeapSpeechTranscriber {
         let normalized = progress > 1 ? progress / 100 : progress
         return min(max(normalized, 0), 1)
     }
-
-    private static let toolCallSystemPrompt = """
-    You convert short vehicle, climate, media, and navigation commands into strict JSON tool calls.
-    Return exactly one JSON object and no Markdown, code fences, prose, or extra keys.
-
-    Supported schema:
-    {"tool_name":"set_temperature","arguments":{"temperature":21}}
-    {"tool_name":"change_volume","arguments":{"direction":"down"}}
-    {"tool_name":"navigate","arguments":{"destination":"home"}}
-
-    Rules:
-    - Use set_temperature when the user asks to set climate temperature. The temperature argument must be a number.
-    - Use change_volume when the user asks for volume up or down. The direction argument must be "up" or "down".
-    - Use navigate when the user asks to navigate somewhere. The destination argument must be a lowercase string.
-    """
 }
 
 private actor LeapSpeechTranscriberStore {

@@ -410,6 +410,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 whisperTinySpeechModelHandle: whisperTinySpeechModelHandle,
                 whisperBaseSpeechModelHandle: whisperBaseSpeechModelHandle,
                 leapSpeechModelHandle: leapSpeechModelHandle,
+                recordingDurationSeconds: finalDuration,
                 attachments: inputAttachmentBundle.attachments
             )
             if speechInferenceId != nil {
@@ -432,6 +433,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                         inputMeta: [
                             "source": "VoiceRecorderSample",
                             "model_id": "TPain.onnx",
+                            "recording_duration_seconds": finalDuration,
+                            "input_audio_duration_seconds": finalDuration,
                             "voice_to_text_mode": voiceToTextMode.rawValue,
                             "audio_to_tool_architecture": audioToToolArchitecture.rawValue,
                             "speech_to_text_model": transcription?.modelId ?? "",
@@ -481,6 +484,14 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     inputModality: .audio,
                     outputModality: .generation,
                     success: true,
+                    inputMeta: [
+                        "source": "VoiceRecorderSample",
+                        "model_id": "TPain.onnx",
+                        "recording_duration_seconds": finalDuration,
+                        "input_audio_duration_seconds": finalDuration,
+                        "voice_to_text_mode": voiceToTextMode.rawValue,
+                        "audio_to_tool_architecture": audioToToolArchitecture.rawValue
+                    ],
                     outputMeta: [
                         "provider": "onnxruntime",
                         "model_id": "TPain.onnx",
@@ -541,6 +552,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     inputMeta: [
                         "source": "VoiceRecorderSample",
                         "model_id": "TPain.onnx",
+                        "recording_duration_seconds": finalDuration,
+                        "input_audio_duration_seconds": finalDuration,
                         "voice_to_text_mode": voiceToTextMode.rawValue,
                         "audio_to_tool_architecture": audioToToolArchitecture.rawValue,
                         "speech_to_text_inference_id": speechInferenceId ?? "",
@@ -733,130 +746,32 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     }
 
     #if BENCHMARK_BUILD
-    private enum BenchmarkJSONValue: Equatable {
-        case object([String: BenchmarkJSONValue])
-        case array([BenchmarkJSONValue])
-        case string(String)
-        case number(String)
-        case bool(Bool)
-        case null
-
-        init(any value: Any) throws {
-            switch value {
-            case let object as [String: Any]:
-                var parsed: [String: BenchmarkJSONValue] = [:]
-                for (key, value) in object {
-                    parsed[key] = try BenchmarkJSONValue(any: value)
-                }
-                self = .object(parsed)
-            case let array as [Any]:
-                self = .array(try array.map(BenchmarkJSONValue.init(any:)))
-            case let string as String:
-                self = .string(string)
-            case let number as NSNumber:
-                if CFGetTypeID(number) == CFBooleanGetTypeID() {
-                    self = .bool(number.boolValue)
-                } else {
-                    self = .number(Self.normalizedNumber(number))
-                }
-            case _ as NSNull:
-                self = .null
-            default:
-                throw NSError(
-                    domain: "BenchmarkJSONValue",
-                    code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: "Unsupported JSON value \(type(of: value))."]
-                )
-            }
-        }
-
-        var canonicalString: String {
-            switch self {
-            case .object(let object):
-                let fields = object.keys.sorted().map { key in
-                    "\(Self.quoted(key)):\(object[key]?.canonicalString ?? "null")"
-                }
-                return "{\(fields.joined(separator: ","))}"
-            case .array(let array):
-                return "[\(array.map(\.canonicalString).joined(separator: ","))]"
-            case .string(let string):
-                return Self.quoted(string)
-            case .number(let number):
-                return number
-            case .bool(let bool):
-                return bool ? "true" : "false"
-            case .null:
-                return "null"
-            }
-        }
-
-        var foundationObject: Any {
-            switch self {
-            case .object(let object):
-                var result: [String: Any] = [:]
-                for (key, value) in object {
-                    result[key] = value.foundationObject
-                }
-                return result
-            case .array(let array):
-                return array.map(\.foundationObject)
-            case .string(let string):
-                return string
-            case .number(let number):
-                if let int = Int(number) {
-                    return int
-                }
-                return Double(number) ?? number
-            case .bool(let bool):
-                return bool
-            case .null:
-                return NSNull()
-            }
-        }
-
-        private static func normalizedNumber(_ number: NSNumber) -> String {
-            let double = number.doubleValue
-            guard double.isFinite else { return "\(double)" }
-            if double.rounded() == double,
-               double >= Double(Int64.min),
-               double <= Double(Int64.max) {
-                return String(Int64(double))
-            }
-            return String(format: "%.15g", double)
-        }
-
-        private static func quoted(_ string: String) -> String {
-            guard let data = try? JSONSerialization.data(withJSONObject: [string]),
-                  let encoded = String(data: data, encoding: .utf8),
-                  encoded.count >= 2
-            else {
-                return "\"\(string)\""
-            }
-            return String(encoded.dropFirst().dropLast())
-        }
-    }
-
     private struct BenchmarkToolCallResult {
         let step: BenchmarkStep
         let rawOutput: String
         let durationMs: Int
-        let parsedJSON: BenchmarkJSONValue?
+        let parsedJSON: ToolCallJSONValue?
         let canonicalJSON: String?
         let errorDescription: String?
+        let provider: String
+        let modelId: String
+        let modelName: String
 
         var parsedSuccessfully: Bool {
-            parsedJSON != nil
+            parsedJSON != nil && errorDescription == nil
         }
     }
 
     private struct BenchmarkDatasetItem {
         let audioURL: URL
         let processingAudioURL: URL
+        let audioDurationSeconds: Double?
+        let processingAudioDurationSeconds: Double?
         let expectedTranscriptURL: URL?
         let expectedToolCallURL: URL?
         let expectedTranscript: String?
         let expectedToolCall: String?
-        let expectedToolCallJSON: BenchmarkJSONValue?
+        let expectedToolCallJSON: ToolCallJSONValue?
         let expectedToolCallCanonicalJSON: String?
         let expectedToolCallParseError: String?
 
@@ -904,6 +819,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             BenchmarkDatasetItem(
                 audioURL: audioURL,
                 processingAudioURL: url,
+                audioDurationSeconds: audioDurationSeconds,
+                processingAudioDurationSeconds: RecorderViewModel.benchmarkAudioDurationSeconds(for: url),
                 expectedTranscriptURL: expectedTranscriptURL,
                 expectedToolCallURL: expectedToolCallURL,
                 expectedTranscript: expectedTranscript,
@@ -1371,19 +1288,34 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     subdirectory: "benchmark_data"
                 )
                 let expectedToolCall = readExpectedText(from: toolCallURL)
-                let parsedExpectedToolCall = parseBenchmarkJSON(from: expectedToolCall ?? "")
+                let parsedExpectedToolCall = ToolCallJSON.parseAndValidate(from: expectedToolCall ?? "")
                 return BenchmarkDatasetItem(
                     audioURL: audioURL,
                     processingAudioURL: audioURL,
+                    audioDurationSeconds: benchmarkAudioDurationSeconds(for: audioURL),
+                    processingAudioDurationSeconds: benchmarkAudioDurationSeconds(for: audioURL),
                     expectedTranscriptURL: transcriptURL,
                     expectedToolCallURL: toolCallURL,
                     expectedTranscript: readExpectedTranscript(from: transcriptURL),
                     expectedToolCall: expectedToolCall,
                     expectedToolCallJSON: parsedExpectedToolCall.value,
-                    expectedToolCallCanonicalJSON: parsedExpectedToolCall.value?.canonicalString,
+                    expectedToolCallCanonicalJSON: parsedExpectedToolCall.canonicalJSON,
                     expectedToolCallParseError: expectedToolCall == nil ? nil : parsedExpectedToolCall.error
                 )
             }
+    }
+
+    private nonisolated static func benchmarkAudioDurationSeconds(for url: URL) -> Double? {
+        if let audioFile = try? AVAudioFile(forReading: url) {
+            let sampleRate = audioFile.processingFormat.sampleRate
+            if sampleRate > 0 {
+                return roundedDurationSeconds(Double(audioFile.length) / sampleRate)
+            }
+        }
+
+        let asset = AVURLAsset(url: url)
+        let seconds = CMTimeGetSeconds(asset.duration)
+        return roundedDurationSeconds(seconds)
     }
 
     private nonisolated static func prepareBenchmarkDataset(
@@ -1662,165 +1594,47 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         viewModel: RecorderViewModel?
     ) async -> BenchmarkToolCallResult {
         let trimmedTranscript = transcript?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        guard trimmedTranscript.isEmpty == false else {
-            return BenchmarkToolCallResult(
-                step: .textToTool,
-                rawOutput: "",
-                durationMs: 0,
-                parsedJSON: nil,
-                canonicalJSON: nil,
-                errorDescription: "Text-to-tool requires a transcript."
-            )
+        await MainActor.run {
+            viewModel?.benchmarkStatus = "Generating tool call from transcript..."
         }
-
-        let start = Date()
-        do {
-            await MainActor.run {
-                viewModel?.benchmarkStatus = "Generating tool call from transcript..."
-            }
-            let transcriber = await LeapSpeechTranscriber.shared()
-            let rawToolCall = try await transcriber.toolCall(fromTranscript: trimmedTranscript)
-            return benchmarkToolCallResult(
-                step: .textToTool,
-                rawOutput: rawToolCall,
-                durationMs: Int(Date().timeIntervalSince(start) * 1000),
-                generationError: nil
-            )
-        } catch {
-            return benchmarkToolCallResult(
-                step: .textToTool,
-                rawOutput: "",
-                durationMs: Int(Date().timeIntervalSince(start) * 1000),
-                generationError: error.localizedDescription
-            )
-        }
+        let result = await LeapBenchmarkToolCallModel.shared.generate(input: .text(trimmedTranscript))
+        return benchmarkToolCallResult(step: .textToTool, generation: result)
     }
 
     private nonisolated static func generateSpeechToolCall(
         url: URL,
         viewModel: RecorderViewModel?
     ) async -> BenchmarkToolCallResult {
-        let start = Date()
-        do {
-            await MainActor.run {
-                viewModel?.benchmarkStatus = "Generating tool call from audio..."
-            }
-            let transcriber = await LeapSpeechTranscriber.shared()
-            let rawToolCall = try await transcriber.toolCall(
-                fromAudio: url,
-                progressHandler: { progress, speed in
-                    Task { @MainActor [weak viewModel] in
-                        guard viewModel?.benchmarkRequested == true else { return }
-                        viewModel?.benchmarkStatus = leapDownloadMessage(progress: progress, speed: speed)
-                    }
-                }
-            )
-            return benchmarkToolCallResult(
-                step: .speechToTool,
-                rawOutput: rawToolCall,
-                durationMs: Int(Date().timeIntervalSince(start) * 1000),
-                generationError: nil
-            )
-        } catch {
-            return benchmarkToolCallResult(
-                step: .speechToTool,
-                rawOutput: "",
-                durationMs: Int(Date().timeIntervalSince(start) * 1000),
-                generationError: error.localizedDescription
-            )
+        await MainActor.run {
+            viewModel?.benchmarkStatus = "Generating tool call from audio..."
         }
+        let result = await LeapBenchmarkToolCallModel.shared.generate(
+            input: .audio(url),
+            progressHandler: { progress, speed in
+                Task { @MainActor [weak viewModel] in
+                    guard viewModel?.benchmarkRequested == true else { return }
+                    viewModel?.benchmarkStatus = leapDownloadMessage(progress: progress, speed: speed)
+                }
+            }
+        )
+        return benchmarkToolCallResult(step: .speechToTool, generation: result)
     }
 
     private nonisolated static func benchmarkToolCallResult(
         step: BenchmarkStep,
-        rawOutput: String,
-        durationMs: Int,
-        generationError: String?
+        generation: BenchmarkToolCallGenerationResult
     ) -> BenchmarkToolCallResult {
-        guard generationError == nil else {
-            return BenchmarkToolCallResult(
-                step: step,
-                rawOutput: rawOutput,
-                durationMs: durationMs,
-                parsedJSON: nil,
-                canonicalJSON: nil,
-                errorDescription: generationError
-            )
-        }
-
-        let parsed = parseBenchmarkJSON(from: rawOutput)
-        return BenchmarkToolCallResult(
+        BenchmarkToolCallResult(
             step: step,
-            rawOutput: rawOutput,
-            durationMs: durationMs,
-            parsedJSON: parsed.value,
-            canonicalJSON: parsed.value?.canonicalString,
-            errorDescription: parsed.error
+            rawOutput: generation.rawOutput,
+            durationMs: generation.durationMs,
+            parsedJSON: generation.parsedJSON,
+            canonicalJSON: generation.canonicalJSON,
+            errorDescription: generation.errorDescription,
+            provider: generation.provider,
+            modelId: generation.modelId,
+            modelName: generation.modelName
         )
-    }
-
-    private nonisolated static func parseBenchmarkJSON(
-        from text: String
-    ) -> (value: BenchmarkJSONValue?, error: String?) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.isEmpty == false else {
-            return (nil, "No JSON output.")
-        }
-        guard let jsonObjectText = extractFirstJSONObject(from: trimmed) else {
-            return (nil, "No JSON object found.")
-        }
-        guard let data = jsonObjectText.data(using: .utf8) else {
-            return (nil, "JSON output is not UTF-8.")
-        }
-
-        do {
-            let object = try JSONSerialization.jsonObject(with: data)
-            let value = try BenchmarkJSONValue(any: object)
-            guard case .object = value else {
-                return (nil, "Tool call must be a JSON object.")
-            }
-            return (value, nil)
-        } catch {
-            return (nil, error.localizedDescription)
-        }
-    }
-
-    private nonisolated static func extractFirstJSONObject(from text: String) -> String? {
-        var startIndex: String.Index?
-        var depth = 0
-        var isInString = false
-        var isEscaped = false
-        var index = text.startIndex
-
-        while index < text.endIndex {
-            let character = text[index]
-            if isInString {
-                if isEscaped {
-                    isEscaped = false
-                } else if character == "\\" {
-                    isEscaped = true
-                } else if character == "\"" {
-                    isInString = false
-                }
-            } else if character == "\"" {
-                isInString = true
-            } else if character == "{" {
-                if depth == 0 {
-                    startIndex = index
-                }
-                depth += 1
-            } else if character == "}" {
-                depth -= 1
-                if depth == 0, let startIndex {
-                    let endIndex = text.index(after: index)
-                    return String(text[startIndex..<endIndex])
-                }
-            }
-
-            index = text.index(after: index)
-        }
-
-        return nil
     }
 
     private nonisolated static func benchmarkToolCallComparisonMeta(
@@ -1848,7 +1662,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     }
 
     private nonisolated static func expectedToolCallDisplay(for item: BenchmarkDatasetItem) -> String {
-        if let pretty = prettyJSONString(from: item.expectedToolCallJSON) {
+        if let pretty = ToolCallJSON.prettyString(from: item.expectedToolCallJSON) {
             return pretty
         }
         if let expectedToolCall = item.expectedToolCall, expectedToolCall.isEmpty == false {
@@ -1862,7 +1676,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
 
     private nonisolated static func actualToolCallDisplay(for result: BenchmarkToolCallResult?) -> String {
         guard let result else { return "" }
-        if let pretty = prettyJSONString(from: result.parsedJSON) {
+        if let pretty = ToolCallJSON.prettyString(from: result.parsedJSON) {
             return pretty
         }
         if result.rawOutput.isEmpty == false {
@@ -1872,19 +1686,6 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             return "Error: \(error)"
         }
         return ""
-    }
-
-    private nonisolated static func prettyJSONString(from value: BenchmarkJSONValue?) -> String? {
-        guard let value else { return nil }
-        guard JSONSerialization.isValidJSONObject(value.foundationObject),
-              let data = try? JSONSerialization.data(
-                withJSONObject: value.foundationObject,
-                options: [.prettyPrinted, .sortedKeys]
-              )
-        else {
-            return value.canonicalString
-        }
-        return String(data: data, encoding: .utf8)
     }
 
     private nonisolated static func benchmarkStepsDescription(_ steps: [BenchmarkStep]) -> String {
@@ -1960,8 +1761,9 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     ) -> String {
         var inputMeta: [String: Any] = [
             "source": "VoiceRecorderSample",
-            "provider": "leap_sdk",
-            "model_id": modelHandle.modelId,
+            "provider": toolCall.provider,
+            "model_id": toolCall.modelId,
+            "logical_model_id": modelHandle.modelId,
             "benchmark_tool_step": toolCall.step.rawValue
         ]
         for (key, value) in additionalInputMeta {
@@ -1979,12 +1781,17 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         }
 
         let success = toolCall.errorDescription == nil && toolCall.parsedSuccessfully
+        let errorCode = success
+            ? nil
+            : toolCall.rawOutput.isEmpty
+            ? "tool_call_generation_failed"
+            : "tool_call_parse_failed"
         return modelHandle.trackInference(
             durationMs: toolCall.durationMs,
             inputModality: inputModality,
             outputModality: .generation,
             success: success,
-            errorCode: success ? nil : toolCall.parsedSuccessfully ? "leap_tool_call_failed" : "tool_call_parse_failed",
+            errorCode: errorCode,
             inputMeta: inputMeta,
             outputMeta: outputMeta,
             attachments: [],
@@ -2015,8 +1822,11 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "benchmark_recording_id": item.recordingID,
             "input_data_name": item.audioURL.lastPathComponent,
             "input_data_file": item.audioBundlePath,
+            "recording_duration_seconds": item.audioDurationSeconds ?? 0,
+            "input_audio_duration_seconds": item.audioDurationSeconds ?? 0,
             "preprocessing_file": item.processingAudioURL.lastPathComponent,
             "processing_audio_extension": item.processingAudioURL.pathExtension.lowercased(),
+            "processing_audio_duration_seconds": item.processingAudioDurationSeconds ?? item.audioDurationSeconds ?? 0,
             "converted_to_wav_before_inference": item.wasConvertedForProcessing,
             "benchmark_delay_seconds": settings.benchmarkDelaySeconds,
             "benchmark_number_of_inferences": settings.benchmarkNumberOfInferences,
@@ -2066,8 +1876,11 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "benchmark_inference_count": inferenceCount,
             "input_data_name": item.audioURL.lastPathComponent,
             "input_data_file": item.audioBundlePath,
+            "recording_duration_seconds": item.audioDurationSeconds ?? 0,
+            "input_audio_duration_seconds": item.audioDurationSeconds ?? 0,
             "preprocessing_file": item.processingAudioURL.lastPathComponent,
             "processing_audio_extension": item.processingAudioURL.pathExtension.lowercased(),
+            "processing_audio_duration_seconds": item.processingAudioDurationSeconds ?? item.audioDurationSeconds ?? 0,
             "converted_to_wav_before_inference": item.wasConvertedForProcessing,
             "voice_to_text_mode": settings.voiceToTextMode.rawValue,
             "speech_to_text_model": transcription?.modelId ?? "",
@@ -2230,6 +2043,11 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     }
     #endif
 
+    private nonisolated static func roundedDurationSeconds(_ seconds: Double) -> Double? {
+        guard seconds.isFinite, seconds > 0 else { return nil }
+        return (seconds * 1_000).rounded() / 1_000
+    }
+
     private nonisolated static func leapDownloadMessage(progress: Double, speed: Int64) -> String {
         "Downloading Leap LFM2.5 Audio \(Int(progress * 100))% - \(formattedByteRate(speed))"
     }
@@ -2253,6 +2071,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         whisperTinySpeechModelHandle: ModelHandle,
         whisperBaseSpeechModelHandle: ModelHandle,
         leapSpeechModelHandle: ModelHandle,
+        recordingDurationSeconds: Double? = nil,
         attachments: [InferenceAttachment],
         additionalInputMeta: [String: Any] = [:],
         additionalOutputMeta: [String: Any] = [:],
@@ -2279,6 +2098,11 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "requires_on_device_recognition": transcription.requiresOnDeviceRecognition,
             "whisper_model_size": transcription.whisperModelSize?.rawValue ?? ""
         ]
+        if let recordingDurationSeconds {
+            let roundedDuration = roundedDurationSeconds(recordingDurationSeconds) ?? recordingDurationSeconds
+            inputMeta["recording_duration_seconds"] = roundedDuration
+            inputMeta["input_audio_duration_seconds"] = roundedDuration
+        }
         for (key, value) in additionalInputMeta {
             inputMeta[key] = value
         }

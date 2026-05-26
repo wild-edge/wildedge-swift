@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		250DFD46FA680BAB855B296C /* RecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05511051000AA992C8B7D739 /* RecordingView.swift */; };
 		4A7D2D1B3E5B4D4D9D2C8A11 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A7D2D1A3E5B4D4D9D2C8A11 /* SettingsStore.swift */; };
+		7B1122334455667788990001 /* ToolCallSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990002 /* ToolCallSupport.swift */; };
+		7B1122334455667788990003 /* BenchmarkToolCallModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990004 /* BenchmarkToolCallModel.swift */; };
+		7B1122334455667788990005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990006 /* Assets.xcassets */; };
 		ABCD00000000000000000001 /* benchmark_data in Resources */ = {isa = PBXBuildFile; fileRef = ABCD00000000000000000002 /* benchmark_data */; };
 		A3595218B85326094F38F424 /* RecorderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30357B251393A34B2BE2087F /* RecorderViewModel.swift */; };
 		AA2222222222222222222222 /* onnxruntime in Frameworks */ = {isa = PBXBuildFile; productRef = EE1111111111111111111111 /* onnxruntime */; };
@@ -29,6 +32,9 @@
 		1C0FB45592A08089950D96D9 /* VoiceRecorderSample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VoiceRecorderSample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		30357B251393A34B2BE2087F /* RecorderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderViewModel.swift; sourceTree = "<group>"; };
 		4A7D2D1A3E5B4D4D9D2C8A11 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		7B1122334455667788990002 /* ToolCallSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallSupport.swift; sourceTree = "<group>"; };
+		7B1122334455667788990004 /* BenchmarkToolCallModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkToolCallModel.swift; sourceTree = "<group>"; };
+		7B1122334455667788990006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		803F58F1EB4984FCC62D3361 /* wildedge-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wildedge-swift"; path = ../..; sourceTree = SOURCE_ROOT; };
 		9F718E01DE511FF02B526B16 /* VoiceRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecorderApp.swift; sourceTree = "<group>"; };
 		ABCD00000000000000000002 /* benchmark_data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = benchmark_data; sourceTree = "<group>"; };
@@ -59,6 +65,7 @@
 		0FF926428A3B809EA8702027 /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				7B1122334455667788990006 /* Assets.xcassets */,
 				DDDABCD6E96C3BC2A9919AF6 /* Info.plist */,
 				30357B251393A34B2BE2087F /* RecorderViewModel.swift */,
 				05511051000AA992C8B7D739 /* RecordingView.swift */,
@@ -67,6 +74,8 @@
 				E8B9C61B1A4F4F46A92D4D11 /* SpeechTranscriber.swift */,
 				F6A7B8C9D0E1F20304050606 /* WhisperSpeechTranscriber.swift */,
 				B7C8D9E0F102030405060707 /* LeapSpeechTranscriber.swift */,
+				7B1122334455667788990002 /* ToolCallSupport.swift */,
+				7B1122334455667788990004 /* BenchmarkToolCallModel.swift */,
 				B41A9D0E5C94415BB81B6A11 /* SpectrogramRenderer.swift */,
 				D6C8C924B3D64F9E9A3A2C11 /* RemoteSDKConfig.swift */,
 				9F718E01DE511FF02B526B16 /* VoiceRecorderApp.swift */,
@@ -110,7 +119,7 @@
 				3C89EAB019E618599F04E5AB /* Sources */,
 				08FCA085397A00B668B53EFC /* Frameworks */,
 				CC1111111111111111111111 /* Resources */,
-				DD4444444444444444444444 /* Sign Leap nested libraries */,
+				DD4444444444444444444444 /* Prepare Leap runtime for distribution */,
 			);
 			buildRules = (
 			);
@@ -166,6 +175,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7B1122334455667788990005 /* Assets.xcassets in Resources */,
 				ABCD00000000000000000001 /* benchmark_data in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -173,7 +183,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		DD4444444444444444444444 /* Sign Leap nested libraries */ = {
+		DD4444444444444444444444 /* Prepare Leap runtime for distribution */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -183,14 +193,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Sign Leap nested libraries";
+			name = "Prepare Leap runtime for distribution";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\n\nLEAP_FRAMEWORK=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/LeapSDK.framework\"\nLEAP_NESTED_FRAMEWORKS=\"${LEAP_FRAMEWORK}/Frameworks\"\nINFERENCE_ENGINE=\"${LEAP_NESTED_FRAMEWORKS}/libinference_engine.dylib\"\n\nif [ ! -d \"${LEAP_NESTED_FRAMEWORKS}\" ]; then\n  exit 0\nfi\n\nif [ -f \"${INFERENCE_ENGINE}\" ]; then\n  /usr/bin/install_name_tool \\\n    -change \"@rpath/inference_engine_llamacpp_backend.framework/inference_engine_llamacpp_backend\" \\\n    \"@rpath/libinference_engine_llamacpp_backend.dylib\" \\\n    \"${INFERENCE_ENGINE}\" || true\nfi\n\nif [ -z \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ] || [ \"${EXPANDED_CODE_SIGN_IDENTITY}\" = \"-\" ]; then\n  echo \"Skipping Leap nested library signing: no code signing identity.\"\n  exit 0\nfi\n\nfind \"${LEAP_NESTED_FRAMEWORKS}\" -type f \\( -name '*.dylib' -o -perm +111 \\) -print0 | while IFS= read -r -d '' binary; do\n  /usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --timestamp=none --generate-entitlement-der \"${binary}\"\ndone\n\n/usr/bin/codesign --force --sign \"${EXPANDED_CODE_SIGN_IDENTITY}\" --timestamp=none --preserve-metadata=identifier,entitlements,flags --generate-entitlement-der \"${LEAP_FRAMEWORK}\"\n";
+			shellScript = "\"${SRCROOT}/Scripts/prepare_leap_for_distribution.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -206,6 +216,8 @@
 				E8B9C61C1A4F4F46A92D4D11 /* SpeechTranscriber.swift in Sources */,
 				F6A7B8C9D0E1F20304050607 /* WhisperSpeechTranscriber.swift in Sources */,
 				B7C8D9E0F102030405060708 /* LeapSpeechTranscriber.swift in Sources */,
+				7B1122334455667788990001 /* ToolCallSupport.swift in Sources */,
+				7B1122334455667788990003 /* BenchmarkToolCallModel.swift in Sources */,
 				B41A9D0F5C94415BB81B6A11 /* SpectrogramRenderer.swift in Sources */,
 				D6C8C925B3D64F9E9A3A2C11 /* RemoteSDKConfig.swift in Sources */,
 				E2CBA71C03C7A7E7F869522C /* VoiceRecorderApp.swift in Sources */,

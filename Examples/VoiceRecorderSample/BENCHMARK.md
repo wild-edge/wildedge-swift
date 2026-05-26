@@ -332,8 +332,11 @@ Input metadata should include:
 - `benchmark_recording_id`
 - `input_data_name`
 - `input_data_file`
+- `recording_duration_seconds`
+- `input_audio_duration_seconds`
 - `preprocessing_file`
 - `processing_audio_extension`
+- `processing_audio_duration_seconds`
 - `converted_to_wav_before_inference`
 - `benchmark_line_id`
 - `benchmark_variant_id`
@@ -391,4 +394,4 @@ The v1 supported tools are:
 - `change_volume` with string `direction`
 - `navigate` with string `destination`
 
-Expected and actual tool calls are compared by parsed canonical JSON equality. Model output may contain surrounding text or code fences; the benchmark extracts the first JSON object before parsing.
+Expected and actual tool calls are compared by parsed canonical JSON equality. Model output may contain surrounding text or code fences; the benchmark extracts the first JSON object before parsing. The parsed object must use one supported `tool_name`, contain only `tool_name` and `arguments`, and use the expected argument key and value type for that tool.
