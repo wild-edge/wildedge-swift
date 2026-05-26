@@ -63,6 +63,7 @@ final class LlamaRunner: ObservableObject {
         var ctxParams = llama_context_default_params()
         ctxParams.n_ctx = 2048
         ctxParams.n_batch = 512
+        ctxParams.no_perf = false
 
         guard let ctx = llama_init_from_model(m, ctxParams) else {
             llama_model_free(m)
@@ -79,6 +80,23 @@ final class LlamaRunner: ObservableObject {
         llama_sampler_chain_add(smpl, llama_sampler_init_temp(0.7))
         llama_sampler_chain_add(smpl, llama_sampler_init_dist(UInt32.random(in: 0 ... .max)))
         sampler = smpl
+
+        // Warmup: force all Metal tensors to be loaded and compiled now, during the
+        // loading phase where blocking is expected. Without this, the first llama_decode
+        // lazily loads GPU weights and can silently fail on iOS.
+        let vocab0 = llama_model_get_vocab(m)
+        llama_set_warmup(ctx, true)
+        var warmupBatch = llama_batch_init(1, 0, 1)
+        warmupBatch.n_tokens = 1
+        warmupBatch.token?[0] = llama_vocab_bos(vocab0)
+        warmupBatch.pos?[0] = 0
+        warmupBatch.n_seq_id?[0] = 1
+        warmupBatch.seq_id?[0]?[0] = 0
+        warmupBatch.logits?[0] = 0
+        llama_decode(ctx, warmupBatch)
+        llama_batch_free(warmupBatch)
+        llama_set_warmup(ctx, false)
+        llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1)
 
         var descBuf = [CChar](repeating: 0, count: 256)
         llama_model_desc(m, &descBuf, descBuf.count)
@@ -119,23 +137,26 @@ final class LlamaRunner: ObservableObject {
                 Task { @MainActor [weak self] in self?.isGenerating = false }
             }
 
-            let genStart = Date()
-            var tokensGenerated = 0
             var stopReason = "max_tokens"
 
             let vocab = llama_model_get_vocab(mdl)
 
-            // Reset KV cache and sampler state for a fresh generation
+            // Remove previous sequence from KV cache (safe no-op on a fresh context)
+            // and reset sampler state. Snapshot perf counters for per-generation delta.
             let mem = llama_get_memory(ctx)
-            llama_memory_clear(mem, true)
+            llama_memory_seq_rm(mem, 0, -1, -1)
             llama_sampler_reset(smpl)
+            let perfBefore = llama_perf_context(ctx)
 
             // Tokenize the prompt
             var tokens = [llama_token](repeating: 0, count: prompt.count + 64)
             let nTokens = prompt.withCString { cstr in
                 llama_tokenize(vocab, cstr, Int32(prompt.utf8.count), &tokens, Int32(tokens.count), true, true)
             }
-            guard nTokens > 0 else { return }
+            guard nTokens > 0 else {
+                await MainActor.run { [weak self] in self?.output = "[Error: tokenization returned 0 tokens]" }
+                return
+            }
             tokens = Array(tokens.prefix(Int(nTokens)))
 
             // Prefill: decode all prompt tokens in one batch
@@ -152,7 +173,11 @@ final class LlamaRunner: ObservableObject {
             }
             batch.n_tokens = Int32(tokens.count)
 
-            guard llama_decode(ctx, batch) == 0 else { return }
+            let prefillResult = llama_decode(ctx, batch)
+            guard prefillResult == 0 else {
+                await MainActor.run { [weak self] in self?.output = "[Error: prefill decode failed (\(prefillResult))]" }
+                return
+            }
 
             var nPos = Int32(tokens.count)
 
@@ -182,7 +207,6 @@ final class LlamaRunner: ObservableObject {
                 }
 
                 llama_sampler_accept(smpl, token)
-                tokensGenerated += 1
 
                 // Decode the sampled token to advance the KV cache
                 batch.n_tokens = 1
@@ -196,16 +220,22 @@ final class LlamaRunner: ObservableObject {
                 nPos += 1
             }
 
-            let durationMs = Int(Date().timeIntervalSince(genStart) * 1000)
-            let tps = durationMs > 0 ? Double(tokensGenerated) / (Double(durationMs) / 1000.0) : 0
+            let perfAfter = llama_perf_context(ctx)
+            let dtPrefill = perfAfter.t_p_eval_ms - perfBefore.t_p_eval_ms
+            let dtEval    = perfAfter.t_eval_ms   - perfBefore.t_eval_ms
+            let dTokensIn  = Int(perfAfter.n_p_eval - perfBefore.n_p_eval)
+            let dTokensOut = Int(perfAfter.n_eval   - perfBefore.n_eval)
+            let durationMs = Int(dtPrefill + dtEval)
+            let tps = dtEval > 0 ? Double(dTokensOut) / (dtEval / 1000.0) : 0
 
             let inputMeta = TextInputMeta(
                 charCount: prompt.count,
-                tokenCount: Int(nTokens)
+                tokenCount: dTokensIn
             ).toMap()
             let outputMeta = GenerationOutputMeta(
-                tokensIn: Int(nTokens),
-                tokensOut: tokensGenerated,
+                tokensIn: dTokensIn,
+                tokensOut: dTokensOut,
+                timeToFirstTokenMs: Int(dtPrefill),
                 tokensPerSecond: tps,
                 stopReason: stopReason
             ).toMap()
