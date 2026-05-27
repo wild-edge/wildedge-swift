@@ -265,6 +265,10 @@ enum ToolCallPromptBuilder {
     - navigate: use for navigation commands. Return {"tool_name":"navigate","arguments":{"destination":"home"}} where destination is a lowercase string.
 
     If the command includes polite filler words, ignore them and return the matching tool call.
+    Intent rules:
+    - If the command mentions volume, loud, louder, quiet, quieter, mute, or sound, choose change_volume.
+    - Only choose navigate when the command asks to go, drive, route, or navigate to a destination.
+    - Never map "volume down" or "too loud" to navigate.
     """
 
     private static let examples = """
@@ -273,6 +277,12 @@ enum ToolCallPromptBuilder {
     Output: {"tool_name":"set_temperature","arguments":{"temperature":21}}
 
     Spoken or written command: volume down
+    Output: {"tool_name":"change_volume","arguments":{"direction":"down"}}
+
+    Spoken or written command: hey, volume down
+    Output: {"tool_name":"change_volume","arguments":{"direction":"down"}}
+
+    Spoken or written command: it's too loud, volume down
     Output: {"tool_name":"change_volume","arguments":{"direction":"down"}}
 
     Spoken or written command: navigate home
@@ -303,6 +313,23 @@ enum ToolCallPromptBuilder {
         """
     }
 
+    static func localTextToToolPrompt(transcript: String) -> String {
+        """
+        You are a deterministic function-calling classifier.
+        Read the command transcript and output exactly one JSON object.
+        Do not explain your answer.
+
+        \(outputContract)
+
+        \(examples)
+
+        Command transcript:
+        \(transcript)
+
+        JSON:
+        """
+    }
+
     static func speechToToolUserPrompt() -> String {
         """
         \(outputContract)
@@ -313,5 +340,49 @@ enum ToolCallPromptBuilder {
         Convert the recognized command into the JSON action object instead.
         Return only the JSON object.
         """
+    }
+}
+
+enum ToolCallTranscriptHeuristics {
+    static func forcedToolCallJSON(for transcript: String) -> String? {
+        let normalized = normalize(transcript)
+        guard containsAny(
+            in: normalized,
+            terms: ["volume", "loud", "louder", "quiet", "quieter", "mute", "sound"]
+        ) else {
+            return nil
+        }
+
+        if containsAny(in: normalized, terms: ["down", "lower", "reduce", "quieter", "quiet", "loud"]) {
+            return #"{"tool_name":"change_volume","arguments":{"direction":"down"}}"#
+        }
+        if containsAny(in: normalized, terms: ["up", "raise", "increase", "louder"]) {
+            return #"{"tool_name":"change_volume","arguments":{"direction":"up"}}"#
+        }
+        return nil
+    }
+
+    static func correctedToolCallJSON(rawOutput: String, transcript: String) -> String {
+        guard let forced = forcedToolCallJSON(for: transcript) else {
+            return rawOutput
+        }
+        let generated = ToolCallJSON.parseAndValidate(from: rawOutput)
+        let expected = ToolCallJSON.parseAndValidate(from: forced)
+        guard generated.canonicalJSON != expected.canonicalJSON else {
+            return rawOutput
+        }
+        return forced
+    }
+
+    private static func normalize(_ text: String) -> String {
+        text
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .lowercased()
+    }
+
+    private static func containsAny(in text: String, terms: [String]) -> Bool {
+        terms.contains { term in
+            text.range(of: "\\b\(NSRegularExpression.escapedPattern(for: term))\\b", options: .regularExpression) != nil
+        }
     }
 }

@@ -7,8 +7,10 @@ actor LeapSpeechTranscriber {
     static let approximateDownloadSize = "about 1.1 GB"
     static let statusMessage = "Model downloads automatically when Leap is used."
     private static let instanceStore = LeapSpeechTranscriberStore()
+    private static let loadFailureCooldownSeconds: TimeInterval = 60
 
     private var runner: ModelRunner?
+    private var lastLoadFailure: (date: Date, message: String)?
 
     static func shared() async -> LeapSpeechTranscriber {
         await instanceStore.shared()
@@ -21,18 +23,34 @@ actor LeapSpeechTranscriber {
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
     ) async throws {
         if runner != nil { return }
-        print("LeapSDK load started: \(Self.modelName) \(Self.quantization)")
-        runner = try await Leap.shared.load(
-            model: Self.modelName,
-            quantization: Self.quantization,
-            options: nil,
-            progress: { progress, speed in
-                let normalizedProgress = Self.normalizedProgress(progress)
-                print("LeapSDK load progress: \(normalizedProgress) at \(speed) bytes/s")
-                progressHandler?(normalizedProgress, speed)
+        if let lastLoadFailure {
+            let elapsed = Date().timeIntervalSince(lastLoadFailure.date)
+            if elapsed < Self.loadFailureCooldownSeconds {
+                let remaining = Int(ceil(Self.loadFailureCooldownSeconds - elapsed))
+                throw SpeechTranscriptionError.transcriptionFailed(
+                    "Previous Leap model load failed: \(lastLoadFailure.message). Waiting \(remaining)s before retry."
+                )
             }
-        )
-        print("LeapSDK load completed")
+        }
+
+        print("LeapSDK load started: \(Self.modelName) \(Self.quantization)")
+        do {
+            runner = try await Leap.shared.load(
+                model: Self.modelName,
+                quantization: Self.quantization,
+                options: nil,
+                progress: { progress, speed in
+                    progressHandler?(Self.normalizedProgress(progress), speed)
+                }
+            )
+            lastLoadFailure = nil
+            print("LeapSDK load completed")
+        } catch {
+            let message = Self.loadFailureDescription(error)
+            lastLoadFailure = (Date(), message)
+            print("LeapSDK load failed: \(message)")
+            throw SpeechTranscriptionError.transcriptionFailed("Leap model load failed: \(message)")
+        }
     }
 
     func downloadModel(
@@ -128,7 +146,7 @@ actor LeapSpeechTranscriber {
 
         let trimmedTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedTranscript.isEmpty == false else {
-            throw SpeechTranscriptionError.transcriptionFailed("Text-to-tool requires a transcript.")
+            throw SpeechTranscriptionError.transcriptionFailed("Text-to-tool skipped because speech-to-text produced no transcript.")
         }
 
         let conversation = runner.createConversation(
@@ -308,6 +326,12 @@ actor LeapSpeechTranscriber {
         guard progress.isFinite else { return 0 }
         let normalized = progress > 1 ? progress / 100 : progress
         return min(max(normalized, 0), 1)
+    }
+
+    private static func loadFailureDescription(_ error: Error) -> String {
+        let description = error.localizedDescription
+        guard description.isEmpty == false else { return String(describing: error) }
+        return description
     }
 }
 

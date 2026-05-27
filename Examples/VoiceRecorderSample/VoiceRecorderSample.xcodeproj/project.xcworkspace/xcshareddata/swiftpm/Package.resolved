@@ -19,6 +19,15 @@
       }
     },
     {
+      "identity" : "llama.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mattt/llama.swift",
+      "state" : {
+        "revision" : "a58ac5f2da9a5c058dcb7bb2b177f70a58e262e9",
+        "version" : "2.9357.0"
+      }
+    },
+    {
       "identity" : "onnxruntime-swift-package-manager",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/microsoft/onnxruntime-swift-package-manager",

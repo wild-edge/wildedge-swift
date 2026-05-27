@@ -38,6 +38,13 @@ struct RecordingView: View {
                         }
                         #endif
 
+                        ActiveConfigurationCard(
+                            sourceText: effectiveSettingsSourceText,
+                            flowText: settingsStore.effectiveSettings.flowDisplayName,
+                            modelText: settingsStore.effectiveSettings.modelDisplayName,
+                            configStatusText: settingsStore.effectiveSettings.remoteConfigWarning ?? "Config supported"
+                        )
+
                         Spacer(minLength: 12)
 
                         VoiceBarsView(levels: viewModel.barLevels)
@@ -152,6 +159,19 @@ struct RecordingView: View {
         return String(format: "%02d:%02d.%d", total / 60, total % 60, tenths)
     }
 
+    private var effectiveSettingsSourceText: String {
+        let settings = settingsStore.effectiveSettings
+        if settings.remoteConfigWarning != nil {
+            #if BENCHMARK_BUILD
+            if settings.benchmarkEnabled {
+                return "SDK payload unsupported"
+            }
+            #endif
+            return "SDK payload fallback"
+        }
+        return settings.isUsingSDKPayload ? "SDK payload" : "Local"
+    }
+
     #if BENCHMARK_BUILD
     private var shouldShowBenchmarkPanel: Bool {
         settingsStore.effectiveSettings.benchmarkEnabled
@@ -172,6 +192,56 @@ struct RecordingView: View {
             : "Benchmark disabled."
     }
     #endif
+}
+
+private struct ActiveConfigurationCard: View {
+    let sourceText: String
+    let flowText: String
+    let modelText: String
+    let configStatusText: String
+
+    private var isWarning: Bool {
+        configStatusText.localizedCaseInsensitiveContains("unsupported")
+            || configStatusText.localizedCaseInsensitiveContains("falling back")
+            || configStatusText.localizedCaseInsensitiveContains("stopped")
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: isWarning ? "exclamationmark.triangle.fill" : "checkmark.shield.fill")
+                    .foregroundStyle(isWarning ? .orange : .green)
+                Text("Active configuration")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(sourceText)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            Divider()
+
+            row(label: "Flow", value: flowText)
+            row(label: "Model", value: modelText)
+            row(label: "Config", value: configStatusText, emphasized: isWarning)
+        }
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+    }
+
+    private func row(label: String, value: String, emphasized: Bool = false) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 54, alignment: .leading)
+            Text(value)
+                .foregroundStyle(emphasized ? .orange : .primary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(3, reservesSpace: true)
+                .textSelection(.enabled)
+        }
+        .font(.caption)
+    }
 }
 
 #if BENCHMARK_BUILD

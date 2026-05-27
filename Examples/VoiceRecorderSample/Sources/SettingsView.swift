@@ -11,6 +11,16 @@ struct SettingsView: View {
     @State private var leapModelStatus = LeapSpeechTranscriber.statusMessage
     @State private var leapDownloadProgress: Double?
     @State private var leapDownloadSpeedBytesPerSecond: Int64 = 0
+    #if BENCHMARK_BUILD
+    @State private var isDownloadingTextToToolModel = false
+    #if canImport(LlamaSwift)
+    @State private var textToToolModelStatus = "FunctionGemma and Qwen download automatically when selected."
+    #else
+    @State private var textToToolModelStatus = "FunctionGemma and Qwen are not linked in this build."
+    #endif
+    @State private var textToToolDownloadProgress: Double?
+    @State private var textToToolDownloadSpeedBytesPerSecond: Int64 = 0
+    #endif
 
     var body: some View {
         NavigationStack {
@@ -111,6 +121,50 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                #if BENCHMARK_BUILD
+                Section("Text To Tool") {
+                    #if canImport(LlamaSwift)
+                    ForEach([BenchmarkTextToToolModel.functionGemma, .qwen3FourB4Bit]) { model in
+                        VStack(alignment: .leading, spacing: 8) {
+                            LabeledContent(model.displayName, value: model.approximateDownloadSize ?? "Unknown size")
+                            Button {
+                                downloadTextToToolModel(model)
+                            } label: {
+                                Label("Download \(model.displayName)", systemImage: "arrow.down.circle")
+                            }
+                            .disabled(isDownloadingTextToToolModel)
+                        }
+                    }
+                    #else
+                    Text("FunctionGemma and Qwen are disabled in this build because LlamaSwift is not linked.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    #endif
+
+                    LabeledContent("ONNX", value: "Runtime linked; no text-to-tool model configured")
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(textToToolModelStatus)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        if let textToToolDownloadProgress {
+                            ProgressView(value: textToToolDownloadProgress)
+                            HStack {
+                                Text("\(Int(textToToolDownloadProgress * 100))%")
+                                Spacer()
+                                Text(formattedByteRate(textToToolDownloadSpeedBytesPerSecond))
+                            }
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        } else if isDownloadingTextToToolModel {
+                            ProgressView()
+                        }
+                    }
+                }
+                #endif
 
                 Section("Attachments") {
                     Toggle("WAV", isOn: includeWAVAttachmentBinding)
@@ -268,6 +322,40 @@ struct SettingsView: View {
             }
         }
     }
+
+    #if BENCHMARK_BUILD
+    private func downloadTextToToolModel(_ model: BenchmarkTextToToolModel) {
+        isDownloadingTextToToolModel = true
+        textToToolModelStatus = "Preparing \(model.displayName) download..."
+        textToToolDownloadProgress = 0
+        textToToolDownloadSpeedBytesPerSecond = 0
+
+        Task {
+            do {
+                _ = try await LlamaCppBenchmarkTextToToolModel.shared.downloadModel(model) { progress, speed in
+                    Task { @MainActor in
+                        textToToolDownloadProgress = progress
+                        textToToolDownloadSpeedBytesPerSecond = speed
+                        textToToolModelStatus = "Downloading \(model.displayName) \(Int(progress * 100))%"
+                    }
+                }
+                await MainActor.run {
+                    textToToolModelStatus = "\(model.displayName) is downloaded."
+                    textToToolDownloadProgress = nil
+                    textToToolDownloadSpeedBytesPerSecond = 0
+                    isDownloadingTextToToolModel = false
+                }
+            } catch {
+                await MainActor.run {
+                    textToToolModelStatus = error.localizedDescription
+                    textToToolDownloadProgress = nil
+                    textToToolDownloadSpeedBytesPerSecond = 0
+                    isDownloadingTextToToolModel = false
+                }
+            }
+        }
+    }
+    #endif
 
     private func formattedByteRate(_ bytesPerSecond: Int64) -> String {
         guard bytesPerSecond > 0 else { return "Waiting..." }
