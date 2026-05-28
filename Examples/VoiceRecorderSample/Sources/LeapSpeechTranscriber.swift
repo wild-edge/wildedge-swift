@@ -6,6 +6,8 @@ actor LeapSpeechTranscriber {
     static let quantization = "Q4_0"
     static let approximateDownloadSize = "about 1.1 GB"
     static let statusMessage = "Model downloads automatically when Leap is used."
+    static let isLoadTemporarilyDisabled = true
+    static let loadDisabledReason = "LeapSDK 0.10.6 aborts while loading LFM2.5-Audio-1.5B Q4_0: the backend expects gpt-oss.context_length, but the GGUF provides lfm2.context_length."
     private static let instanceStore = LeapSpeechTranscriberStore()
     private static let loadFailureCooldownSeconds: TimeInterval = 60
 
@@ -23,6 +25,9 @@ actor LeapSpeechTranscriber {
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
     ) async throws {
         if runner != nil { return }
+        if Self.isLoadTemporarilyDisabled {
+            throw SpeechTranscriptionError.transcriptionFailed(Self.loadDisabledReason)
+        }
         if let lastLoadFailure {
             let elapsed = Date().timeIntervalSince(lastLoadFailure.date)
             if elapsed < Self.loadFailureCooldownSeconds {

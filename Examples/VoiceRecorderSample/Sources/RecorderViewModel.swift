@@ -73,7 +73,14 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     private let whisperBaseSpeechModelHandle: ModelHandle
     private let leapSpeechModelHandle: ModelHandle
     private let leapAudioTextToolModelHandle: ModelHandle
+    private let leapSmallTextToolModelHandle: ModelHandle
+    private let leapInstructTextToolModelHandle: ModelHandle
     private let functionGemmaTextToolModelHandle: ModelHandle
+    private let functionGemmaMLXTextToolModelHandle: ModelHandle
+    private let qwen35SmallMLXTextToolModelHandle: ModelHandle
+    private let tinyLlamaTextToolModelHandle: ModelHandle
+    private let qwen25TextToolModelHandle: ModelHandle
+    private let qwen3SmallTextToolModelHandle: ModelHandle
     private let qwen3TextToolModelHandle: ModelHandle
     private let onnxTextToolModelHandle: ModelHandle
     private let appleFoundationTextToolModelHandle: ModelHandle
@@ -154,10 +161,73 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 modelFamily: "tool-calling"
             )
         )
+	        leapSmallTextToolModelHandle = WildEdge.shared.registerModel(
+	            modelId: BenchmarkTextToToolModel.leapLFM25350M.logicalModelId,
+	            info: ModelInfo(
+	                modelName: "LFM2 350M Text To Tool",
+	                modelSource: "huggingface",
+	                modelFormat: "gguf",
+	                modelFamily: "tool-calling"
+	            )
+        )
+	        leapInstructTextToolModelHandle = WildEdge.shared.registerModel(
+	            modelId: BenchmarkTextToToolModel.leapLFM2512BInstruct.logicalModelId,
+	            info: ModelInfo(
+	                modelName: "LFM2 1.2B Instruct Text To Tool",
+	                modelSource: "huggingface",
+	                modelFormat: "gguf",
+	                modelFamily: "tool-calling"
+	            )
+        )
         functionGemmaTextToolModelHandle = WildEdge.shared.registerModel(
             modelId: BenchmarkTextToToolModel.functionGemma.logicalModelId,
             info: ModelInfo(
                 modelName: "FunctionGemma Text To Tool",
+                modelSource: "huggingface",
+                modelFormat: "gguf",
+                modelFamily: "tool-calling"
+            )
+        )
+        functionGemmaMLXTextToolModelHandle = WildEdge.shared.registerModel(
+            modelId: BenchmarkTextToToolModel.functionGemmaMLX.logicalModelId,
+            info: ModelInfo(
+                modelName: "FunctionGemma MLX 4-bit Text To Tool",
+                modelSource: "huggingface",
+                modelFormat: "safetensors",
+                modelFamily: "tool-calling"
+            )
+        )
+        qwen35SmallMLXTextToolModelHandle = WildEdge.shared.registerModel(
+            modelId: BenchmarkTextToToolModel.qwen35ZeroPointEightBOptiQMLX.logicalModelId,
+            info: ModelInfo(
+                modelName: "Qwen3.5 0.8B OptiQ MLX 4-bit Text To Tool",
+                modelSource: "huggingface",
+                modelFormat: "safetensors",
+                modelFamily: "tool-calling"
+            )
+        )
+        tinyLlamaTextToolModelHandle = WildEdge.shared.registerModel(
+            modelId: BenchmarkTextToToolModel.tinyLlamaOnePointOneB.logicalModelId,
+            info: ModelInfo(
+                modelName: "TinyLlama 1.1B 4-bit GGUF Text To Tool",
+                modelSource: "huggingface",
+                modelFormat: "gguf",
+                modelFamily: "tool-calling"
+            )
+        )
+        qwen25TextToolModelHandle = WildEdge.shared.registerModel(
+            modelId: BenchmarkTextToToolModel.qwen25OnePointFiveBInstruct.logicalModelId,
+            info: ModelInfo(
+                modelName: "Qwen2.5 1.5B Instruct Text To Tool",
+                modelSource: "huggingface",
+                modelFormat: "gguf",
+                modelFamily: "tool-calling"
+            )
+        )
+        qwen3SmallTextToolModelHandle = WildEdge.shared.registerModel(
+            modelId: BenchmarkTextToToolModel.qwen3ZeroPointSixB4Bit.logicalModelId,
+            info: ModelInfo(
+                modelName: "Qwen3 0.6B 4-bit Text To Tool",
                 modelSource: "huggingface",
                 modelFormat: "gguf",
                 modelFamily: "tool-calling"
@@ -280,7 +350,14 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             whisperBaseSpeechModelHandle = self.whisperBaseSpeechModelHandle,
             leapSpeechModelHandle = self.leapSpeechModelHandle,
             leapAudioTextToolModelHandle = self.leapAudioTextToolModelHandle,
+            leapSmallTextToolModelHandle = self.leapSmallTextToolModelHandle,
+            leapInstructTextToolModelHandle = self.leapInstructTextToolModelHandle,
             functionGemmaTextToolModelHandle = self.functionGemmaTextToolModelHandle,
+            functionGemmaMLXTextToolModelHandle = self.functionGemmaMLXTextToolModelHandle,
+            qwen35SmallMLXTextToolModelHandle = self.qwen35SmallMLXTextToolModelHandle,
+            tinyLlamaTextToolModelHandle = self.tinyLlamaTextToolModelHandle,
+            qwen25TextToolModelHandle = self.qwen25TextToolModelHandle,
+            qwen3SmallTextToolModelHandle = self.qwen3SmallTextToolModelHandle,
             qwen3TextToolModelHandle = self.qwen3TextToolModelHandle,
             onnxTextToolModelHandle = self.onnxTextToolModelHandle,
             appleFoundationTextToolModelHandle = self.appleFoundationTextToolModelHandle,
@@ -295,7 +372,14 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 whisperBaseSpeechModelHandle: whisperBaseSpeechModelHandle,
                 leapSpeechModelHandle: leapSpeechModelHandle,
                 leapAudioTextToolModelHandle: leapAudioTextToolModelHandle,
+                leapSmallTextToolModelHandle: leapSmallTextToolModelHandle,
+                leapInstructTextToolModelHandle: leapInstructTextToolModelHandle,
                 functionGemmaTextToolModelHandle: functionGemmaTextToolModelHandle,
+                functionGemmaMLXTextToolModelHandle: functionGemmaMLXTextToolModelHandle,
+                qwen35SmallMLXTextToolModelHandle: qwen35SmallMLXTextToolModelHandle,
+                tinyLlamaTextToolModelHandle: tinyLlamaTextToolModelHandle,
+                qwen25TextToolModelHandle: qwen25TextToolModelHandle,
+                qwen3SmallTextToolModelHandle: qwen3SmallTextToolModelHandle,
                 qwen3TextToolModelHandle: qwen3TextToolModelHandle,
                 onnxTextToolModelHandle: onnxTextToolModelHandle,
                 appleFoundationTextToolModelHandle: appleFoundationTextToolModelHandle,
@@ -903,7 +987,14 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         whisperBaseSpeechModelHandle: ModelHandle,
         leapSpeechModelHandle: ModelHandle,
         leapAudioTextToolModelHandle: ModelHandle,
+        leapSmallTextToolModelHandle: ModelHandle,
+        leapInstructTextToolModelHandle: ModelHandle,
         functionGemmaTextToolModelHandle: ModelHandle,
+        functionGemmaMLXTextToolModelHandle: ModelHandle,
+        qwen35SmallMLXTextToolModelHandle: ModelHandle,
+        tinyLlamaTextToolModelHandle: ModelHandle,
+        qwen25TextToolModelHandle: ModelHandle,
+        qwen3SmallTextToolModelHandle: ModelHandle,
         qwen3TextToolModelHandle: ModelHandle,
         onnxTextToolModelHandle: ModelHandle,
         appleFoundationTextToolModelHandle: ModelHandle,
@@ -1006,6 +1097,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         var finishStatus = "Benchmark disabled."
         var iteration = 1
         var preparedWhisperModels = Set<WhisperModelSize>()
+        var preparedTextToToolModels = Set<BenchmarkTextToToolModel>()
         benchmarkLoop: while !Task.isCancelled {
             guard await isBenchmarkRequested(viewModel) else { break }
             guard let passSettings = await benchmarkSettings(from: viewModel) else { break }
@@ -1086,6 +1178,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 guard let settings = await benchmarkSettings(from: viewModel) else { break }
 
                 let needsSpeechToText = settings.benchmarkSteps.contains(.speechToText)
+                let needsTextToTool = settings.benchmarkSteps.contains(.textToTool)
                 if needsSpeechToText,
                    settings.voiceToTextMode == .whisper,
                    !preparedWhisperModels.contains(settings.whisperModelSize) {
@@ -1100,6 +1193,22 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                         continue
                     }
                     preparedWhisperModels.insert(settings.whisperModelSize)
+                }
+
+                if needsTextToTool,
+                   Self.needsLocalTextToToolPreparation(settings.benchmarkTextToToolModel),
+                   !preparedTextToToolModels.contains(settings.benchmarkTextToToolModel) {
+                    let didPrepare = await prepareTextToToolBenchmarkModel(
+                        settings.benchmarkTextToToolModel,
+                        viewModel: viewModel
+                    )
+                    guard didPrepare else {
+                        guard await sleepBenchmarkDelay(seconds: settings.benchmarkDelaySeconds, viewModel: viewModel) else {
+                            break
+                        }
+                        continue
+                    }
+                    preparedTextToToolModels.insert(settings.benchmarkTextToToolModel)
                 }
 
                 guard needsSpeechToText == false || settings.voiceToTextMode != .disabled else {
@@ -1247,7 +1356,14 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                                 ? textToToolModelHandle(
                                     for: settings.benchmarkTextToToolModel,
                                     leapAudioTextToolModelHandle: leapAudioTextToolModelHandle,
+                                    leapSmallTextToolModelHandle: leapSmallTextToolModelHandle,
+                                    leapInstructTextToolModelHandle: leapInstructTextToolModelHandle,
                                     functionGemmaTextToolModelHandle: functionGemmaTextToolModelHandle,
+                                    functionGemmaMLXTextToolModelHandle: functionGemmaMLXTextToolModelHandle,
+                                    qwen35SmallMLXTextToolModelHandle: qwen35SmallMLXTextToolModelHandle,
+                                    tinyLlamaTextToolModelHandle: tinyLlamaTextToolModelHandle,
+                                    qwen25TextToolModelHandle: qwen25TextToolModelHandle,
+                                    qwen3SmallTextToolModelHandle: qwen3SmallTextToolModelHandle,
                                     qwen3TextToolModelHandle: qwen3TextToolModelHandle,
                                     onnxTextToolModelHandle: onnxTextToolModelHandle,
                                     appleFoundationTextToolModelHandle: appleFoundationTextToolModelHandle,
@@ -1396,13 +1512,13 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         }
 
         do {
-            try await WhisperSpeechTranscriber.shared.prepareModels([model]) { progress in
-                Task { @MainActor [weak viewModel] in
-                    guard viewModel?.benchmarkRequested == true else { return }
-                    viewModel?.benchmarkStatus = "Preparing Whisper \(progress.model.displayName) \(Int(progress.modelProgress * 100))%"
-                    viewModel?.benchmarkPreprocessingFile = "Whisper \(progress.model.displayName)"
-                }
-            }
+	            try await WhisperSpeechTranscriber.shared.prepareModels([model]) { progress in
+	                Task { @MainActor [weak viewModel] in
+	                    guard viewModel?.benchmarkRequested == true else { return }
+	                    viewModel?.benchmarkStatus = whisperPreparationMessage(progress)
+	                    viewModel?.benchmarkPreprocessingFile = "Whisper \(progress.model.displayName)"
+	                }
+	            }
             await MainActor.run {
                 viewModel?.benchmarkStatus = "Whisper \(model.displayName) ready."
                 viewModel?.benchmarkPreprocessingFile = "Whisper \(model.displayName)"
@@ -1418,6 +1534,85 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             }
             return false
         }
+    }
+
+    private nonisolated static func prepareTextToToolBenchmarkModel(
+        _ model: BenchmarkTextToToolModel,
+        viewModel: RecorderViewModel?
+    ) async -> Bool {
+        await MainActor.run {
+            viewModel?.benchmarkStatus = "Checking \(model.displayName) before measurement..."
+            viewModel?.benchmarkPreprocessingFile = model.displayName
+            viewModel?.benchmarkRunProgress = ""
+            viewModel?.benchmarkSleepCountdown = ""
+            viewModel?.benchmarkLatencyText = ""
+            viewModel?.benchmarkTranscriptMatchText = ""
+            viewModel?.benchmarkToolCallMatchText = ""
+        }
+
+        do {
+            let status: ModelAssetStatus
+            if model.provider == "mlx" {
+                status = await MlxBenchmarkTextToToolModel.shared.modelStatus(model)
+            } else {
+                status = await LlamaCppBenchmarkTextToToolModel.shared.modelStatus(model)
+            }
+            if status.isCached {
+                await MainActor.run {
+                    viewModel?.benchmarkStatus = "Using cached \(model.displayName)."
+                    viewModel?.benchmarkPreprocessingFile = model.displayName
+                }
+            } else if status.state == .partial {
+                await MainActor.run {
+                    viewModel?.benchmarkStatus = "Resuming \(model.displayName) download..."
+                    viewModel?.benchmarkPreprocessingFile = model.displayName
+                }
+            }
+
+            if model.provider == "mlx" {
+                try await MlxBenchmarkTextToToolModel.shared.prepareModel(model) { progress, speed in
+                    Task { @MainActor [weak viewModel] in
+                        guard viewModel?.benchmarkRequested == true else { return }
+                        viewModel?.benchmarkStatus = modelDownloadMessage(
+                            modelName: model.displayName,
+                            progress: progress,
+                            speed: speed
+                        )
+                        viewModel?.benchmarkPreprocessingFile = model.displayName
+                    }
+                }
+            } else {
+                try await LlamaCppBenchmarkTextToToolModel.shared.prepareModel(model) { progress, speed in
+                    Task { @MainActor [weak viewModel] in
+                        guard viewModel?.benchmarkRequested == true else { return }
+                        viewModel?.benchmarkStatus = modelDownloadMessage(
+                            modelName: model.displayName,
+                            progress: progress,
+                            speed: speed
+                        )
+                        viewModel?.benchmarkPreprocessingFile = model.displayName
+                    }
+                }
+            }
+            await MainActor.run {
+                viewModel?.benchmarkStatus = "\(model.displayName) ready."
+                viewModel?.benchmarkPreprocessingFile = model.displayName
+            }
+            return true
+        } catch {
+            await MainActor.run {
+                viewModel?.benchmarkStatus = "\(model.displayName) preparation failed: \(error.localizedDescription)"
+                viewModel?.benchmarkPreprocessingFile = model.displayName
+                viewModel?.benchmarkLatencyText = ""
+                viewModel?.benchmarkTranscriptMatchText = ""
+                viewModel?.benchmarkToolCallMatchText = "model error"
+            }
+            return false
+        }
+    }
+
+    private nonisolated static func needsLocalTextToToolPreparation(_ model: BenchmarkTextToToolModel) -> Bool {
+        model.provider == "llama_cpp" || model.provider == "mlx"
     }
 
     private nonisolated static func benchmarkSettings(from viewModel: RecorderViewModel?) async -> VoiceRecorderEffectiveSettings? {
@@ -1904,13 +2099,13 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         let result = await LeapBenchmarkToolCallModel.shared.generate(
             input: .text(trimmedTranscript),
             textToToolModel: model,
-            progressHandler: { progress, speed in
-                Task { @MainActor [weak viewModel] in
-                    guard viewModel?.benchmarkRequested == true else { return }
-                    viewModel?.benchmarkStatus = leapDownloadMessage(
-                        modelName: model.displayName,
-                        progress: progress,
-                        speed: speed
+	            progressHandler: { progress, speed in
+	                Task { @MainActor [weak viewModel] in
+	                    guard viewModel?.benchmarkRequested == true else { return }
+	                    viewModel?.benchmarkStatus = modelDownloadMessage(
+	                        modelName: model.displayName,
+	                        progress: progress,
+	                        speed: speed
                     )
                 }
             }
@@ -1940,7 +2135,14 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     private nonisolated static func textToToolModelHandle(
         for model: BenchmarkTextToToolModel,
         leapAudioTextToolModelHandle: ModelHandle,
+        leapSmallTextToolModelHandle: ModelHandle,
+        leapInstructTextToolModelHandle: ModelHandle,
         functionGemmaTextToolModelHandle: ModelHandle,
+        functionGemmaMLXTextToolModelHandle: ModelHandle,
+        qwen35SmallMLXTextToolModelHandle: ModelHandle,
+        tinyLlamaTextToolModelHandle: ModelHandle,
+        qwen25TextToolModelHandle: ModelHandle,
+        qwen3SmallTextToolModelHandle: ModelHandle,
         qwen3TextToolModelHandle: ModelHandle,
         onnxTextToolModelHandle: ModelHandle,
         appleFoundationTextToolModelHandle: ModelHandle,
@@ -1949,8 +2151,22 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         switch model.kind {
         case .leapLFM25Audio:
             return leapAudioTextToolModelHandle
+        case .leapLFM25350M:
+            return leapSmallTextToolModelHandle
+        case .leapLFM2512BInstruct:
+            return leapInstructTextToolModelHandle
         case .functionGemma:
             return functionGemmaTextToolModelHandle
+        case .functionGemmaMLX:
+            return functionGemmaMLXTextToolModelHandle
+        case .qwen35ZeroPointEightBOptiQMLX:
+            return qwen35SmallMLXTextToolModelHandle
+        case .tinyLlamaOnePointOneB:
+            return tinyLlamaTextToolModelHandle
+        case .qwen25OnePointFiveBInstruct:
+            return qwen25TextToolModelHandle
+        case .qwen3ZeroPointSixB:
+            return qwen3SmallTextToolModelHandle
         case .qwen3FourB:
             return qwen3TextToolModelHandle
         case .onnxRuntime:
@@ -2422,10 +2638,25 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     }
 
     private nonisolated static func leapDownloadMessage(progress: Double, speed: Int64) -> String {
-        leapDownloadMessage(modelName: "Leap LFM2.5 Audio", progress: progress, speed: speed)
+        modelDownloadMessage(modelName: "Leap LFM2.5 Audio", progress: progress, speed: speed)
     }
 
-    private nonisolated static func leapDownloadMessage(
+    private nonisolated static func whisperPreparationMessage(_ progress: WhisperModelDownloadProgress) -> String {
+        switch progress.phase {
+        case .checking:
+            return "Checking Whisper \(progress.model.displayName)..."
+        case .cached:
+            return "Using cached Whisper \(progress.model.displayName)."
+        case .downloading:
+            return "Downloading Whisper \(progress.model.displayName) \(Int(progress.modelProgress * 100))%"
+        case .loading:
+            return "Loading Whisper \(progress.model.displayName)..."
+        case .blocked:
+            return "Blocked: Whisper \(progress.model.displayName)"
+        }
+    }
+
+    private nonisolated static func modelDownloadMessage(
         modelName: String,
         progress: Double,
         speed: Int64

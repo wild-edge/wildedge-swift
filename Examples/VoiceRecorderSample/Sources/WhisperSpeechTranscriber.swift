@@ -6,16 +6,32 @@ struct WhisperModelDownloadProgress: Sendable {
     let modelIndex: Int
     let totalModels: Int
     let modelProgress: Double
+    let phase: ModelAssetPhase
 
     var overallProgress: Double {
         guard totalModels > 0 else { return 1 }
         return (Double(modelIndex) + modelProgress) / Double(totalModels)
+    }
+
+    init(
+        model: WhisperModelSize,
+        modelIndex: Int,
+        totalModels: Int,
+        modelProgress: Double,
+        phase: ModelAssetPhase = .downloading
+    ) {
+        self.model = model
+        self.modelIndex = modelIndex
+        self.totalModels = totalModels
+        self.modelProgress = modelProgress
+        self.phase = phase
     }
 }
 
 actor WhisperSpeechTranscriber {
     static let shared = WhisperSpeechTranscriber()
 
+    private let modelManager = VoiceRecorderModelManager.shared
     private var pipelines: [WhisperModelSize: WhisperKit] = [:]
 
     func prepareModels(
@@ -28,7 +44,8 @@ actor WhisperSpeechTranscriber {
                     model: model,
                     modelIndex: index,
                     totalModels: models.count,
-                    modelProgress: 0
+                    modelProgress: 0,
+                    phase: .checking
                 )
             )
             _ = try await pipeline(
@@ -42,7 +59,8 @@ actor WhisperSpeechTranscriber {
                     model: model,
                     modelIndex: index,
                     totalModels: models.count,
-                    modelProgress: 1
+                    modelProgress: 1,
+                    phase: .cached
                 )
             )
         }
@@ -73,25 +91,89 @@ actor WhisperSpeechTranscriber {
                     model: model,
                     modelIndex: modelIndex,
                     totalModels: totalModels,
-                    modelProgress: 1
+                    modelProgress: 1,
+                    phase: .cached
                 )
             )
             return pipeline
         }
 
-        let modelFolder = try await WhisperKit.download(
-            variant: model.whisperKitModelName,
-            progressCallback: { progress in
+        let modelFolder = try await prepareModelFolder(
+            model,
+            modelIndex: modelIndex,
+            totalModels: totalModels,
+            progressHandler: progressHandler
+        )
+
+        let pipeline: WhisperKit
+        do {
+            progressHandler?(
+                WhisperModelDownloadProgress(
+                    model: model,
+                    modelIndex: modelIndex,
+                    totalModels: totalModels,
+                    modelProgress: 1,
+                    phase: .loading
+                )
+            )
+            pipeline = try await makePipeline(model: model, modelFolder: modelFolder)
+        } catch {
+            await modelManager.invalidate(.whisper(model))
+            let refreshedFolder = try await prepareModelFolder(
+                model,
+                modelIndex: modelIndex,
+                totalModels: totalModels,
+                progressHandler: progressHandler
+            )
+            progressHandler?(
+                WhisperModelDownloadProgress(
+                    model: model,
+                    modelIndex: modelIndex,
+                    totalModels: totalModels,
+                    modelProgress: 1,
+                    phase: .loading
+                )
+            )
+            pipeline = try await makePipeline(model: model, modelFolder: refreshedFolder)
+        }
+        pipelines[model] = pipeline
+        return pipeline
+    }
+
+    private func prepareModelFolder(
+        _ model: WhisperModelSize,
+        modelIndex: Int,
+        totalModels: Int,
+        progressHandler: (@Sendable (WhisperModelDownloadProgress) -> Void)?
+    ) async throws -> URL {
+        guard let modelFolder = try await modelManager.prepare(
+            .whisper(model),
+            progressHandler: { progress in
+                let modelProgress: Double
+                if let progressValue = progress.progress {
+                    modelProgress = progressValue
+                } else if progress.phase == .cached {
+                    modelProgress = 1
+                } else {
+                    modelProgress = 0
+                }
                 progressHandler?(
                     WhisperModelDownloadProgress(
                         model: model,
                         modelIndex: modelIndex,
                         totalModels: totalModels,
-                        modelProgress: Self.normalizedProgress(progress)
+                        modelProgress: modelProgress,
+                        phase: progress.phase
                     )
                 )
             }
-        )
+        ) else {
+            throw SpeechTranscriptionError.transcriptionFailed("Whisper \(model.displayName) did not resolve to a local model folder.")
+        }
+        return modelFolder
+    }
+
+    private func makePipeline(model: WhisperModelSize, modelFolder: URL) async throws -> WhisperKit {
         let config = WhisperKitConfig(
             model: model.whisperKitModelName,
             modelFolder: modelFolder.path,
@@ -100,14 +182,7 @@ actor WhisperSpeechTranscriber {
             load: true,
             download: false
         )
-        let pipeline = try await WhisperKit(config)
-        pipelines[model] = pipeline
-        return pipeline
+        return try await WhisperKit(config)
     }
 
-    private static func normalizedProgress(_ progress: Progress) -> Double {
-        let fraction = progress.fractionCompleted
-        guard fraction.isFinite else { return 0 }
-        return min(max(fraction, 0), 1)
-    }
 }

@@ -11,14 +11,19 @@
 		4A7D2D1B3E5B4D4D9D2C8A11 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A7D2D1A3E5B4D4D9D2C8A11 /* SettingsStore.swift */; };
 		7B1122334455667788990001 /* ToolCallSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990002 /* ToolCallSupport.swift */; };
 		7B1122334455667788990003 /* BenchmarkToolCallModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990004 /* BenchmarkToolCallModel.swift */; };
-		7B1122334455667788990005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990006 /* Assets.xcassets */; };
-		7B1122334455667788990007 /* BenchmarkLocalTextToToolModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990008 /* BenchmarkLocalTextToToolModels.swift */; };
+			7B1122334455667788990005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990006 /* Assets.xcassets */; };
+			7B1122334455667788990007 /* BenchmarkLocalTextToToolModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990008 /* BenchmarkLocalTextToToolModels.swift */; };
+			7B1122334455667788990009 /* VoiceRecorderModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990010 /* VoiceRecorderModelManager.swift */; };
+			7B1122334455667788990011 /* MlxBenchmarkTextToToolModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990012 /* MlxBenchmarkTextToToolModel.swift */; };
 		ABCD00000000000000000001 /* benchmark_data in Resources */ = {isa = PBXBuildFile; fileRef = ABCD00000000000000000002 /* benchmark_data */; };
 		A3595218B85326094F38F424 /* RecorderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30357B251393A34B2BE2087F /* RecorderViewModel.swift */; };
 		AA2222222222222222222222 /* onnxruntime in Frameworks */ = {isa = PBXBuildFile; productRef = EE1111111111111111111111 /* onnxruntime */; };
 		BB1111111111111111111111 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = BB3333333333333333333333 /* WhisperKit */; };
 		CC2222222222222222222222 /* LeapSDK in Frameworks */ = {isa = PBXBuildFile; productRef = CC4444444444444444444444 /* LeapSDK */; };
 		DD5555555555555555555555 /* LlamaSwift in Frameworks */ = {isa = PBXBuildFile; productRef = DD6666666666666666666666 /* LlamaSwift */; };
+		EE7777777777777777777771 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = EE7777777777777777777772 /* MLXLLM */; };
+		EE7777777777777777777773 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = EE7777777777777777777774 /* MLXLMCommon */; };
+		EE7777777777777777777775 /* Hub in Frameworks */ = {isa = PBXBuildFile; productRef = EE7777777777777777777776 /* Hub */; };
 		B41A9D0F5C94415BB81B6A11 /* SpectrogramRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41A9D0E5C94415BB81B6A11 /* SpectrogramRenderer.swift */; };
 		B7C8D9E0F102030405060708 /* LeapSpeechTranscriber.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C8D9E0F102030405060707 /* LeapSpeechTranscriber.swift */; };
 		C81241262FB4AB2100DB60A8 /* WildEdge in Frameworks */ = {isa = PBXBuildFile; productRef = C81241252FB4AB2100DB60A8 /* WildEdge */; };
@@ -35,9 +40,11 @@
 		30357B251393A34B2BE2087F /* RecorderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderViewModel.swift; sourceTree = "<group>"; };
 		4A7D2D1A3E5B4D4D9D2C8A11 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		7B1122334455667788990002 /* ToolCallSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallSupport.swift; sourceTree = "<group>"; };
-		7B1122334455667788990004 /* BenchmarkToolCallModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkToolCallModel.swift; sourceTree = "<group>"; };
-		7B1122334455667788990006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		7B1122334455667788990008 /* BenchmarkLocalTextToToolModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkLocalTextToToolModels.swift; sourceTree = "<group>"; };
+			7B1122334455667788990004 /* BenchmarkToolCallModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkToolCallModel.swift; sourceTree = "<group>"; };
+			7B1122334455667788990006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+			7B1122334455667788990008 /* BenchmarkLocalTextToToolModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkLocalTextToToolModels.swift; sourceTree = "<group>"; };
+			7B1122334455667788990010 /* VoiceRecorderModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecorderModelManager.swift; sourceTree = "<group>"; };
+			7B1122334455667788990012 /* MlxBenchmarkTextToToolModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MlxBenchmarkTextToToolModel.swift; sourceTree = "<group>"; };
 		803F58F1EB4984FCC62D3361 /* wildedge-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wildedge-swift"; path = ../..; sourceTree = SOURCE_ROOT; };
 		9F718E01DE511FF02B526B16 /* VoiceRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecorderApp.swift; sourceTree = "<group>"; };
 		ABCD00000000000000000002 /* benchmark_data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = benchmark_data; sourceTree = "<group>"; };
@@ -60,6 +67,9 @@
 				BB1111111111111111111111 /* WhisperKit in Frameworks */,
 				CC2222222222222222222222 /* LeapSDK in Frameworks */,
 				DD5555555555555555555555 /* LlamaSwift in Frameworks */,
+				EE7777777777777777777771 /* MLXLLM in Frameworks */,
+				EE7777777777777777777773 /* MLXLMCommon in Frameworks */,
+				EE7777777777777777777775 /* Hub in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -76,11 +86,13 @@
 				4A7D2D1A3E5B4D4D9D2C8A11 /* SettingsStore.swift */,
 				F2B3E01A0D4C4E6CA61C2B11 /* SettingsView.swift */,
 				E8B9C61B1A4F4F46A92D4D11 /* SpeechTranscriber.swift */,
-				F6A7B8C9D0E1F20304050606 /* WhisperSpeechTranscriber.swift */,
-				B7C8D9E0F102030405060707 /* LeapSpeechTranscriber.swift */,
-				7B1122334455667788990002 /* ToolCallSupport.swift */,
+					F6A7B8C9D0E1F20304050606 /* WhisperSpeechTranscriber.swift */,
+					B7C8D9E0F102030405060707 /* LeapSpeechTranscriber.swift */,
+					7B1122334455667788990010 /* VoiceRecorderModelManager.swift */,
+					7B1122334455667788990002 /* ToolCallSupport.swift */,
 				7B1122334455667788990004 /* BenchmarkToolCallModel.swift */,
 				7B1122334455667788990008 /* BenchmarkLocalTextToToolModels.swift */,
+				7B1122334455667788990012 /* MlxBenchmarkTextToToolModel.swift */,
 				B41A9D0E5C94415BB81B6A11 /* SpectrogramRenderer.swift */,
 				D6C8C924B3D64F9E9A3A2C11 /* RemoteSDKConfig.swift */,
 				9F718E01DE511FF02B526B16 /* VoiceRecorderApp.swift */,
@@ -137,6 +149,9 @@
 				BB3333333333333333333333 /* WhisperKit */,
 				CC4444444444444444444444 /* LeapSDK */,
 				DD6666666666666666666666 /* LlamaSwift */,
+				EE7777777777777777777772 /* MLXLLM */,
+				EE7777777777777777777774 /* MLXLMCommon */,
+				EE7777777777777777777776 /* Hub */,
 			);
 			productName = VoiceRecorderSample;
 			productReference = 1C0FB45592A08089950D96D9 /* VoiceRecorderSample.app */;
@@ -166,6 +181,8 @@
 				BB2222222222222222222222 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
 				CC3333333333333333333333 /* XCRemoteSwiftPackageReference "leap-sdk" */,
 				DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */,
+				EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+				EE7777777777777777777778 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8BDCCCFF747CF63B96350B03 /* Products */;
@@ -222,10 +239,12 @@
 				F2B3E01B0D4C4E6CA61C2B11 /* SettingsView.swift in Sources */,
 				E8B9C61C1A4F4F46A92D4D11 /* SpeechTranscriber.swift in Sources */,
 				F6A7B8C9D0E1F20304050607 /* WhisperSpeechTranscriber.swift in Sources */,
-				B7C8D9E0F102030405060708 /* LeapSpeechTranscriber.swift in Sources */,
-				7B1122334455667788990001 /* ToolCallSupport.swift in Sources */,
+					B7C8D9E0F102030405060708 /* LeapSpeechTranscriber.swift in Sources */,
+					7B1122334455667788990009 /* VoiceRecorderModelManager.swift in Sources */,
+					7B1122334455667788990001 /* ToolCallSupport.swift in Sources */,
 				7B1122334455667788990003 /* BenchmarkToolCallModel.swift in Sources */,
 				7B1122334455667788990007 /* BenchmarkLocalTextToToolModels.swift in Sources */,
+				7B1122334455667788990011 /* MlxBenchmarkTextToToolModel.swift in Sources */,
 				B41A9D0F5C94415BB81B6A11 /* SpectrogramRenderer.swift in Sources */,
 				D6C8C925B3D64F9E9A3A2C11 /* RemoteSDKConfig.swift in Sources */,
 				E2CBA71C03C7A7E7F869522C /* VoiceRecorderApp.swift in Sources */,
@@ -542,6 +561,22 @@
 				minimumVersion = 2.9334.0;
 			};
 		};
+		EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
+			requirement = {
+				kind = exactVersion;
+				version = 2.31.3;
+			};
+		};
+		EE7777777777777777777778 /* XCRemoteSwiftPackageReference "swift-transformers" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/huggingface/swift-transformers";
+			requirement = {
+				kind = upToNextMinorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -568,6 +603,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */;
 			productName = LlamaSwift;
+		};
+		EE7777777777777777777772 /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLLM;
+		};
+		EE7777777777777777777774 /* MLXLMCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLMCommon;
+		};
+		EE7777777777777777777776 /* Hub */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EE7777777777777777777778 /* XCRemoteSwiftPackageReference "swift-transformers" */;
+			productName = Hub;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

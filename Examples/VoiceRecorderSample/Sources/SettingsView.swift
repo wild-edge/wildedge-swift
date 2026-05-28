@@ -13,10 +13,10 @@ struct SettingsView: View {
     @State private var leapDownloadSpeedBytesPerSecond: Int64 = 0
     #if BENCHMARK_BUILD
     @State private var isDownloadingTextToToolModel = false
-    #if canImport(LlamaSwift)
-    @State private var textToToolModelStatus = "FunctionGemma and Qwen download automatically when selected."
+    #if canImport(LlamaSwift) || (canImport(MLXLLM) && canImport(MLXLMCommon))
+    @State private var textToToolModelStatus = "Local text-to-tool models download automatically when selected."
     #else
-    @State private var textToToolModelStatus = "FunctionGemma and Qwen are not linked in this build."
+    @State private var textToToolModelStatus = "Local text-to-tool models are not linked in this build."
     #endif
     @State private var textToToolDownloadProgress: Double?
     @State private var textToToolDownloadSpeedBytesPerSecond: Int64 = 0
@@ -125,21 +125,43 @@ struct SettingsView: View {
                 #if BENCHMARK_BUILD
                 Section("Text To Tool") {
                     #if canImport(LlamaSwift)
-                    ForEach([BenchmarkTextToToolModel.functionGemma, .qwen3FourB4Bit]) { model in
-                        VStack(alignment: .leading, spacing: 8) {
-                            LabeledContent(model.displayName, value: model.approximateDownloadSize ?? "Unknown size")
-                            Button {
-                                downloadTextToToolModel(model)
-                            } label: {
-                                Label("Download \(model.displayName)", systemImage: "arrow.down.circle")
-                            }
-                            .disabled(isDownloadingTextToToolModel)
-                        }
+                    ForEach([
+                        BenchmarkTextToToolModel.leapLFM25350M,
+                        .leapLFM2512BInstruct,
+                        .functionGemma,
+                        .tinyLlamaOnePointOneB,
+                        .qwen25OnePointFiveBInstruct,
+                        .qwen3ZeroPointSixB4Bit,
+                        .qwen3FourB4Bit
+                    ]) { model in
+                        textToToolDownloadRow(model)
                     }
-                    #else
-                    Text("FunctionGemma and Qwen are disabled in this build because LlamaSwift is not linked.")
+                    #endif
+
+                    #if canImport(MLXLLM) && canImport(MLXLMCommon)
+                    ForEach([
+                        BenchmarkTextToToolModel.functionGemmaMLX,
+                        .qwen35ZeroPointEightBOptiQMLX
+                    ]) { model in
+                        textToToolDownloadRow(model)
+                    }
+                    #endif
+
+                    #if !canImport(LlamaSwift) && !(canImport(MLXLLM) && canImport(MLXLMCommon))
+                    Text("Local text-to-tool models are disabled in this build because neither LlamaSwift nor MLX is linked.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    #endif
+
+                    #if !canImport(MLXLLM) || !canImport(MLXLMCommon)
+                    if BenchmarkTextToToolModel.functionGemmaMLX.provider == "mlx" {
+                        VStack(alignment: .leading, spacing: 4) {
+                            LabeledContent(BenchmarkTextToToolModel.functionGemmaMLX.displayName, value: BenchmarkTextToToolModel.functionGemmaMLX.approximateDownloadSize ?? "Unknown size")
+                            Text("MLX is not linked in this build.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     #endif
 
                     LabeledContent("ONNX", value: "Runtime linked; no text-to-tool model configured")
@@ -250,8 +272,8 @@ struct SettingsView: View {
 
     private func downloadWhisperModels() {
         isDownloadingWhisperModels = true
-        whisperDownloadStatus = "Starting Whisper Tiny and Base downloads..."
-        whisperDownloadProgress = 0
+        whisperDownloadStatus = "Checking Whisper models..."
+        whisperDownloadProgress = nil
         whisperDownloadModelProgress = nil
 
         Task {
@@ -260,7 +282,7 @@ struct SettingsView: View {
                     Task { @MainActor in
                         whisperDownloadProgress = progress.overallProgress
                         whisperDownloadModelProgress = progress.modelProgress
-                        whisperDownloadStatus = "Downloading Whisper \(progress.model.displayName) \(Int(progress.modelProgress * 100))%"
+                        whisperDownloadStatus = whisperPreparationMessage(progress)
                     }
                 }
                 await MainActor.run {
@@ -282,12 +304,38 @@ struct SettingsView: View {
 
     private func downloadLeapModel() {
         isPreparingLeapModel = true
-        leapModelStatus = "Preparing Leap downloader..."
+        leapModelStatus = "Checking Leap LFM2.5 Audio..."
         leapDownloadProgress = nil
         leapDownloadSpeedBytesPerSecond = 0
 
         Task {
             do {
+                let status = await VoiceRecorderModelManager.shared.status(
+                    for: .leapAudio(
+                        modelName: LeapSpeechTranscriber.modelName,
+                        quantization: LeapSpeechTranscriber.quantization
+                    )
+                )
+                if status.state == .blocked {
+                    await MainActor.run {
+                        let cachedPrefix = status.localURL == nil ? "" : "Cached locally. "
+                        leapModelStatus = "Blocked: \(cachedPrefix)\(status.message ?? LeapSpeechTranscriber.loadDisabledReason)"
+                        leapDownloadProgress = nil
+                        leapDownloadSpeedBytesPerSecond = 0
+                        isPreparingLeapModel = false
+                    }
+                    return
+                }
+                if status.isCached {
+                    await MainActor.run {
+                        leapModelStatus = "Using cached Leap LFM2.5 Audio."
+                        leapDownloadProgress = nil
+                        leapDownloadSpeedBytesPerSecond = 0
+                        isPreparingLeapModel = false
+                    }
+                    return
+                }
+
                 await MainActor.run {
                     leapModelStatus = "Starting Leap SDK download..."
                     leapDownloadProgress = 0
@@ -307,7 +355,7 @@ struct SettingsView: View {
                     }
                 }
                 await MainActor.run {
-                    leapModelStatus = "Leap LFM2.5 Audio is downloaded."
+                    leapModelStatus = "Leap LFM2.5 Audio is downloaded. It will load when used."
                     leapDownloadProgress = nil
                     leapDownloadSpeedBytesPerSecond = 0
                     isPreparingLeapModel = false
@@ -324,23 +372,69 @@ struct SettingsView: View {
     }
 
     #if BENCHMARK_BUILD
+    private func textToToolDownloadRow(_ model: BenchmarkTextToToolModel) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            LabeledContent(model.displayName, value: model.approximateDownloadSize ?? "Unknown size")
+            Button {
+                downloadTextToToolModel(model)
+            } label: {
+                Label("Prepare \(model.displayName)", systemImage: "arrow.down.circle")
+            }
+            .disabled(isDownloadingTextToToolModel)
+        }
+    }
+
     private func downloadTextToToolModel(_ model: BenchmarkTextToToolModel) {
         isDownloadingTextToToolModel = true
-        textToToolModelStatus = "Preparing \(model.displayName) download..."
-        textToToolDownloadProgress = 0
+        textToToolModelStatus = "Checking \(model.displayName)..."
+        textToToolDownloadProgress = nil
         textToToolDownloadSpeedBytesPerSecond = 0
 
         Task {
             do {
-                _ = try await LlamaCppBenchmarkTextToToolModel.shared.downloadModel(model) { progress, speed in
-                    Task { @MainActor in
-                        textToToolDownloadProgress = progress
-                        textToToolDownloadSpeedBytesPerSecond = speed
-                        textToToolModelStatus = "Downloading \(model.displayName) \(Int(progress * 100))%"
+                let status: ModelAssetStatus
+                if model.provider == "mlx" {
+                    status = await MlxBenchmarkTextToToolModel.shared.modelStatus(model)
+                } else {
+                    status = await LlamaCppBenchmarkTextToToolModel.shared.modelStatus(model)
+                }
+                if status.isCached {
+                    await MainActor.run {
+                        textToToolModelStatus = "Using cached \(model.displayName)."
+                        textToToolDownloadProgress = nil
+                        textToToolDownloadSpeedBytesPerSecond = 0
+                    }
+                } else if status.state == .partial {
+                    await MainActor.run {
+                        textToToolModelStatus = "Resuming \(model.displayName) download..."
+                        textToToolDownloadProgress = nil
+                        textToToolDownloadSpeedBytesPerSecond = 0
+                    }
+                } else {
+                    await MainActor.run {
+                        textToToolModelStatus = "Downloading \(model.displayName)..."
+                        textToToolDownloadProgress = 0
+                    }
+                }
+                if model.provider == "mlx" {
+                    try await MlxBenchmarkTextToToolModel.shared.prepareModel(model) { progress, speed in
+                        Task { @MainActor in
+                            textToToolDownloadProgress = progress
+                            textToToolDownloadSpeedBytesPerSecond = speed
+                            textToToolModelStatus = "Downloading \(model.displayName) \(Int(progress * 100))%"
+                        }
+                    }
+                } else {
+                    _ = try await LlamaCppBenchmarkTextToToolModel.shared.downloadModel(model) { progress, speed in
+                        Task { @MainActor in
+                            textToToolDownloadProgress = progress
+                            textToToolDownloadSpeedBytesPerSecond = speed
+                            textToToolModelStatus = "Downloading \(model.displayName) \(Int(progress * 100))%"
+                        }
                     }
                 }
                 await MainActor.run {
-                    textToToolModelStatus = "\(model.displayName) is downloaded."
+                    textToToolModelStatus = "\(model.displayName) is ready."
                     textToToolDownloadProgress = nil
                     textToToolDownloadSpeedBytesPerSecond = 0
                     isDownloadingTextToToolModel = false
@@ -356,6 +450,21 @@ struct SettingsView: View {
         }
     }
     #endif
+
+    private func whisperPreparationMessage(_ progress: WhisperModelDownloadProgress) -> String {
+        switch progress.phase {
+        case .checking:
+            return "Checking Whisper \(progress.model.displayName)..."
+        case .cached:
+            return "Using cached Whisper \(progress.model.displayName)."
+        case .downloading:
+            return "Downloading Whisper \(progress.model.displayName) \(Int(progress.modelProgress * 100))%"
+        case .loading:
+            return "Loading Whisper \(progress.model.displayName)..."
+        case .blocked:
+            return "Blocked: Whisper \(progress.model.displayName)"
+        }
+    }
 
     private func formattedByteRate(_ bytesPerSecond: Int64) -> String {
         guard bytesPerSecond > 0 else { return "Waiting..." }

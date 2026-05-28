@@ -9,7 +9,7 @@ import OnnxRuntimeBindings
 actor LlamaCppBenchmarkTextToToolModel {
     static let shared = LlamaCppBenchmarkTextToToolModel()
 
-    private let fileStore = BenchmarkTextToToolModelFileStore.shared
+    private let modelManager = VoiceRecorderModelManager.shared
     private var loadedConfiguration: BenchmarkTextToToolModel?
 
     #if canImport(LlamaSwift)
@@ -36,7 +36,34 @@ actor LlamaCppBenchmarkTextToToolModel {
         guard model.provider == "llama_cpp", model.modelFormat == "gguf" else {
             throw SpeechTranscriptionError.transcriptionFailed("\(model.displayName) is not a llama.cpp GGUF model.")
         }
-        return try await fileStore.downloadIfNeeded(model: model, progressHandler: progressHandler)
+        guard let url = try await modelManager.prepare(
+            .gguf(model),
+            progressHandler: { progress in
+                guard progress.phase == .downloading,
+                      let fraction = progress.progress
+                else {
+                    return
+                }
+                progressHandler?(fraction, progress.speedBytesPerSecond)
+            }
+        ) else {
+            throw SpeechTranscriptionError.transcriptionFailed("\(model.displayName) did not resolve to a local GGUF file.")
+        }
+        return url
+    }
+
+    func modelStatus(_ model: BenchmarkTextToToolModel) async -> ModelAssetStatus {
+        await modelManager.status(for: .gguf(model))
+    }
+
+    func prepareModel(
+        _ model: BenchmarkTextToToolModel,
+        progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
+    ) async throws {
+        let modelURL = try await downloadModel(model, progressHandler: progressHandler)
+        #if canImport(LlamaSwift)
+        try loadModelIfNeeded(model, modelURL: modelURL)
+        #endif
     }
 
     func toolCall(
@@ -45,8 +72,7 @@ actor LlamaCppBenchmarkTextToToolModel {
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
     ) async throws -> String {
         #if canImport(LlamaSwift)
-        let modelURL = try await downloadModel(model, progressHandler: progressHandler)
-        try loadModelIfNeeded(model, modelURL: modelURL)
+        try await prepareModel(model, progressHandler: progressHandler)
         return try generateToolCall(fromTranscript: transcript, model: model)
         #else
         throw SpeechTranscriptionError.transcriptionFailed(
@@ -112,7 +138,7 @@ actor LlamaCppBenchmarkTextToToolModel {
 
         var contextParams = llama_context_default_params()
         contextParams.n_ctx = UInt32(max(256, model.contextSize))
-        contextParams.n_batch = min(contextParams.n_ctx, 512)
+        contextParams.n_batch = contextParams.n_ctx
         contextParams.n_ubatch = min(contextParams.n_batch, 512)
         let threads = Int32(max(1, min(4, ProcessInfo.processInfo.activeProcessorCount)))
         contextParams.n_threads = threads
@@ -273,135 +299,5 @@ actor OnnxBenchmarkTextToToolModel {
         _ = model
         throw SpeechTranscriptionError.transcriptionFailed("ONNX Runtime is not linked in this build.")
         #endif
-    }
-}
-
-actor BenchmarkTextToToolModelFileStore {
-    static let shared = BenchmarkTextToToolModelFileStore()
-
-    private let fileManager = FileManager.default
-
-    private init() {
-    }
-
-    func downloadIfNeeded(
-        model: BenchmarkTextToToolModel,
-        progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
-    ) async throws -> URL {
-        let destinationURL = try localFileURL(for: model)
-        if try existingFileIsPresent(at: destinationURL) {
-            progressHandler?(1, 0)
-            return destinationURL
-        }
-
-        guard let downloadURLString = model.downloadURLString,
-              let downloadURL = URL(string: downloadURLString)
-        else {
-            throw SpeechTranscriptionError.transcriptionFailed(
-                "\(model.displayName) does not define a download URL."
-            )
-        }
-
-        try fileManager.createDirectory(
-            at: destinationURL.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-
-        let tempURL = destinationURL.appendingPathExtension("download")
-        if fileManager.fileExists(atPath: tempURL.path) {
-            try fileManager.removeItem(at: tempURL)
-        }
-        fileManager.createFile(atPath: tempURL.path, contents: nil)
-
-        let (bytes, response) = try await URLSession.shared.bytes(from: downloadURL)
-        if let httpResponse = response as? HTTPURLResponse,
-           (200..<300).contains(httpResponse.statusCode) == false {
-            throw SpeechTranscriptionError.transcriptionFailed(
-                "\(model.displayName) download failed with HTTP \(httpResponse.statusCode)."
-            )
-        }
-
-        let expectedLength = max(response.expectedContentLength, 0)
-        let startedAt = Date()
-        var receivedLength: Int64 = 0
-        var chunk: [UInt8] = []
-        chunk.reserveCapacity(64 * 1024)
-
-        let handle = try FileHandle(forWritingTo: tempURL)
-        do {
-            for try await byte in bytes {
-                chunk.append(byte)
-                if chunk.count >= 64 * 1024 {
-                    try handle.write(contentsOf: chunk)
-                    receivedLength += Int64(chunk.count)
-                    chunk.removeAll(keepingCapacity: true)
-                    reportProgress(
-                        receivedLength: receivedLength,
-                        expectedLength: expectedLength,
-                        startedAt: startedAt,
-                        progressHandler: progressHandler
-                    )
-                }
-            }
-
-            if chunk.isEmpty == false {
-                try handle.write(contentsOf: chunk)
-                receivedLength += Int64(chunk.count)
-                reportProgress(
-                    receivedLength: receivedLength,
-                    expectedLength: expectedLength,
-                    startedAt: startedAt,
-                    progressHandler: progressHandler
-                )
-            }
-            try handle.close()
-        } catch {
-            try? handle.close()
-            try? fileManager.removeItem(at: tempURL)
-            throw error
-        }
-
-        if fileManager.fileExists(atPath: destinationURL.path) {
-            try fileManager.removeItem(at: destinationURL)
-        }
-        try fileManager.moveItem(at: tempURL, to: destinationURL)
-        progressHandler?(1, 0)
-        return destinationURL
-    }
-
-    private func localFileURL(for model: BenchmarkTextToToolModel) throws -> URL {
-        let baseDirectory = try fileManager.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        let fileName = model.downloadFilename
-            ?? model.modelName
-            .replacingOccurrences(of: "/", with: "__")
-            .appending(".gguf")
-        return baseDirectory
-            .appendingPathComponent("BenchmarkTextToToolModels", isDirectory: true)
-            .appendingPathComponent(fileName, isDirectory: false)
-    }
-
-    private func existingFileIsPresent(at url: URL) throws -> Bool {
-        guard fileManager.fileExists(atPath: url.path) else { return false }
-        let values = try url.resourceValues(forKeys: [.fileSizeKey])
-        return (values.fileSize ?? 0) > 0
-    }
-
-    private nonisolated func reportProgress(
-        receivedLength: Int64,
-        expectedLength: Int64,
-        startedAt: Date,
-        progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)?
-    ) {
-        let elapsed = max(Date().timeIntervalSince(startedAt), 0.1)
-        let speed = Int64(Double(receivedLength) / elapsed)
-        let progress = expectedLength > 0
-            ? min(max(Double(receivedLength) / Double(expectedLength), 0), 1)
-            : 0
-        progressHandler?(progress, speed)
     }
 }

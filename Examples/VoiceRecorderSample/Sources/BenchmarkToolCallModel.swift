@@ -61,8 +61,25 @@ actor LeapBenchmarkToolCallModel {
                     rawOutput = try await AppleFoundationModelsBenchmarkTextToToolModel.shared.toolCall(
                         fromTranscript: trimmedTranscript
                     )
-                } else if textToToolModel.kind == .functionGemma || textToToolModel.kind == .qwen3FourB {
+                } else if textToToolModel.kind == .functionGemma
+                    || textToToolModel.kind == .leapLFM25350M
+                    || textToToolModel.kind == .leapLFM2512BInstruct
+                    || textToToolModel.kind == .tinyLlamaOnePointOneB
+                    || textToToolModel.kind == .qwen25OnePointFiveBInstruct
+                    || textToToolModel.kind == .qwen3ZeroPointSixB
+                    || textToToolModel.kind == .qwen3FourB {
                     rawOutput = try await LlamaCppBenchmarkTextToToolModel.shared.toolCall(
+                        fromTranscript: trimmedTranscript,
+                        model: textToToolModel,
+                        progressHandler: progressHandler
+                    )
+                    rawOutput = ToolCallTranscriptHeuristics.correctedToolCallJSON(
+                        rawOutput: rawOutput,
+                        transcript: trimmedTranscript
+                    )
+                } else if textToToolModel.kind == .functionGemmaMLX
+                    || textToToolModel.kind == .qwen35ZeroPointEightBOptiQMLX {
+                    rawOutput = try await MlxBenchmarkTextToToolModel.shared.toolCall(
                         fromTranscript: trimmedTranscript,
                         model: textToToolModel,
                         progressHandler: progressHandler

@@ -103,7 +103,14 @@ enum BenchmarkStep: String, CaseIterable, Identifiable, Sendable {
 
 enum BenchmarkTextToToolModelKind: String, Sendable {
     case leapLFM25Audio
+    case leapLFM25350M
+    case leapLFM2512BInstruct
     case functionGemma
+    case functionGemmaMLX
+    case qwen35ZeroPointEightBOptiQMLX
+    case tinyLlamaOnePointOneB
+    case qwen25OnePointFiveBInstruct
+    case qwen3ZeroPointSixB
     case qwen3FourB
     case onnxRuntime
     case appleFoundationModels
@@ -166,6 +173,38 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         modelFormat: "gguf"
     )
 
+    static let leapLFM25350M = BenchmarkTextToToolModel(
+        kind: .leapLFM25350M,
+        id: "lfm2.5-350m",
+        displayName: "LFM2 350M Instruct",
+        modelName: "LiquidAI/LFM2-350M-GGUF",
+        quantization: "Q4_K_M",
+        provider: "llama_cpp",
+        modelSource: "huggingface",
+        modelFormat: "gguf",
+        downloadURLString: "https://huggingface.co/LiquidAI/LFM2-350M-GGUF/resolve/main/LFM2-350M-Q4_K_M.gguf",
+        downloadFilename: "LFM2-350M-Q4_K_M.gguf",
+        approximateDownloadSize: "229 MB",
+        contextSize: 1024,
+        maxGenerationTokens: 128
+    )
+
+    static let leapLFM2512BInstruct = BenchmarkTextToToolModel(
+        kind: .leapLFM2512BInstruct,
+        id: "lfm2.5-1.2b-instruct",
+        displayName: "LFM2 1.2B Instruct",
+        modelName: "LiquidAI/LFM2-1.2B-GGUF",
+        quantization: "Q4_K_M",
+        provider: "llama_cpp",
+        modelSource: "huggingface",
+        modelFormat: "gguf",
+        downloadURLString: "https://huggingface.co/LiquidAI/LFM2-1.2B-GGUF/resolve/main/LFM2-1.2B-Q4_K_M.gguf",
+        downloadFilename: "LFM2-1.2B-Q4_K_M.gguf",
+        approximateDownloadSize: "697 MB",
+        contextSize: 1024,
+        maxGenerationTokens: 128
+    )
+
     static let functionGemma = BenchmarkTextToToolModel(
         kind: .functionGemma,
         id: "functiongemma",
@@ -178,6 +217,82 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         downloadURLString: "https://huggingface.co/bartowski/google_functiongemma-270m-it-GGUF/resolve/main/google_functiongemma-270m-it-Q4_K_M.gguf",
         downloadFilename: "google_functiongemma-270m-it-Q4_K_M.gguf",
         approximateDownloadSize: "253 MB",
+        contextSize: 1024,
+        maxGenerationTokens: 128
+    )
+
+    static let functionGemmaMLX = BenchmarkTextToToolModel(
+        kind: .functionGemmaMLX,
+        id: "functiongemma-mlx-4bit",
+        displayName: "FunctionGemma MLX 4-bit",
+        modelName: "mlx-community/functiongemma-270m-it-4bit",
+        quantization: "4-bit",
+        provider: "mlx",
+        modelSource: "huggingface",
+        modelFormat: "safetensors",
+        approximateDownloadSize: "151 MB",
+        contextSize: 1024,
+        maxGenerationTokens: 64
+    )
+
+    static let qwen35ZeroPointEightBOptiQMLX = BenchmarkTextToToolModel(
+        kind: .qwen35ZeroPointEightBOptiQMLX,
+        id: "qwen3.5-0.8b-mlx-optiq-4bit",
+        displayName: "Qwen3.5 0.8B OptiQ MLX 4-bit",
+        modelName: "mlx-community/Qwen3.5-0.8B-OptiQ-4bit",
+        quantization: "OptiQ 4-bit",
+        provider: "mlx",
+        modelSource: "huggingface",
+        modelFormat: "safetensors",
+        approximateDownloadSize: "0.6 GB",
+        contextSize: 1024,
+        maxGenerationTokens: 64
+    )
+
+    static let tinyLlamaOnePointOneB = BenchmarkTextToToolModel(
+        kind: .tinyLlamaOnePointOneB,
+        id: "tinyllama-1.1b-4bit",
+        displayName: "TinyLlama 1.1B 4-bit GGUF",
+        modelName: "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF",
+        quantization: "Q4_K_M",
+        provider: "llama_cpp",
+        modelSource: "huggingface",
+        modelFormat: "gguf",
+        downloadURLString: "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/main/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+        downloadFilename: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+        approximateDownloadSize: "about 700 MB",
+        contextSize: 1024,
+        maxGenerationTokens: 128
+    )
+
+    static let qwen25OnePointFiveBInstruct = BenchmarkTextToToolModel(
+        kind: .qwen25OnePointFiveBInstruct,
+        id: "qwen2.5-1.5b-instruct",
+        displayName: "Qwen2.5 1.5B Instruct",
+        modelName: "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
+        quantization: "Q4_K_M",
+        provider: "llama_cpp",
+        modelSource: "huggingface",
+        modelFormat: "gguf",
+        downloadURLString: "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        downloadFilename: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+        approximateDownloadSize: "1.04 GB",
+        contextSize: 1024,
+        maxGenerationTokens: 128
+    )
+
+    static let qwen3ZeroPointSixB4Bit = BenchmarkTextToToolModel(
+        kind: .qwen3ZeroPointSixB,
+        id: "qwen3-0.6b-4bit",
+        displayName: "Qwen3 0.6B 4-bit",
+        modelName: "unsloth/Qwen3-0.6B-GGUF",
+        quantization: "Q4_K_M",
+        provider: "llama_cpp",
+        modelSource: "huggingface",
+        modelFormat: "gguf",
+        downloadURLString: "https://huggingface.co/unsloth/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf",
+        downloadFilename: "Qwen3-0.6B-Q4_K_M.gguf",
+        approximateDownloadSize: "397 MB",
         contextSize: 1024,
         maxGenerationTokens: 128
     )
@@ -220,7 +335,7 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         modelFormat: "foundationmodels"
     )
 
-    static let `default` = leapLFM25Audio
+    static let `default` = functionGemma
 
     var modelId: String {
         if quantization.isEmpty {
@@ -329,9 +444,27 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         switch normalized {
         case "", "default", "leap", "leapsdk", "lfm25audio", "lfm25audio15b", "leaplfm25audio15b", "leaplfm25audio15bq40":
             return .leapLFM25Audio
+        case "lfm25350m", "lfm25350mq4km", "leaplfm25350m", "leaplfm25350mq4km", "lfm25small", "smallest":
+            return .leapLFM25350M
+        case "lfm2350m", "lfm2350mq4km", "leaplfm2350m", "leaplfm2350mq4km", "lfm2small":
+            return .leapLFM25350M
+        case "lfm2512binstruct", "lfm2512binstructq4km", "lfm2512b", "lfm25instruct", "leaplfm2512binstruct", "leaplfm2512binstructq4km":
+            return .leapLFM2512BInstruct
         case "functiongemma", "functiongemma4bit", "functiongemmaq40", "gemmafunction", "gemmafunctioncalling":
             return .functionGemma
-        case "qwen34b", "qwen34b4bit", "qwen34bq40", "qwen34bq4", "qwen3":
+        case "functiongemmamlx", "functiongemmamlx4bit", "functiongemma270mmlx", "functiongemma270mmlx4bit":
+            return .functionGemmaMLX
+        case "qwen3508bmlx", "qwen3508bmlx4bit", "qwen3508boptiq", "qwen3508boptiq4bit", "qwen3508bmlxoptiq4bit", "qwen3508b", "qwen35small":
+            return .qwen35ZeroPointEightBOptiQMLX
+        case "tinyllama", "tinyllama11b", "tinyllama11b4bit", "tinyllama11bgguf", "tinyllama11b4bitgguf", "tinyllama11bq4km", "tinyllama11bchat", "tinyllama11bchatv10", "tinyllama1b":
+            return .tinyLlamaOnePointOneB
+        case "qwen15b", "qwen15binstruct", "qwen2515b", "qwen2515binstruct", "qwen25small":
+            return .qwen25OnePointFiveBInstruct
+        case "qwen306b", "qwen306b4bit", "qwen306bq4km", "qwen306bgguf", "qwen3600m", "qwen3600m4bit", "qwen3600mq4km", "qwen3small":
+            return .qwen3ZeroPointSixB4Bit
+        case "qwen34b", "qwen34b4bit", "qwen34bq40", "qwen34bq4":
+            return .qwen3FourB4Bit
+        case "qwen3":
             return .functionGemma
         case "onnx", "onnxruntime", "onnxtexttotool":
             return .onnxRuntime
@@ -339,10 +472,38 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
             return .appleFoundationModels
         default:
             if normalized.contains("functiongemma") {
+                if normalized.contains("mlx") {
+                    return .functionGemmaMLX
+                }
                 return .functionGemma
             }
+            if normalized.contains("qwen35") || normalized.contains("qwen3.5") || normalized.contains("qwen3_5") {
+                if normalized.contains("08b") || normalized.contains("0.8b") || normalized.contains("800m") || normalized.contains("optiq") {
+                    return .qwen35ZeroPointEightBOptiQMLX
+                }
+            }
+            if normalized.contains("tinyllama") {
+                return .tinyLlamaOnePointOneB
+            }
+            if normalized.contains("qwen"), normalized.contains("15b") || normalized.contains("1b5") {
+                return .qwen25OnePointFiveBInstruct
+            }
+            if normalized.contains("qwen3"), (normalized.contains("06b") || normalized.contains("600m")) {
+                return .qwen3ZeroPointSixB4Bit
+            }
             if normalized.contains("qwen3"), normalized.contains("4b") {
-                return .functionGemma
+                return .qwen3FourB4Bit
+            }
+            if normalized.contains("lfm25") || normalized.contains("lfm2.5") || normalized.contains("lfm2_5") {
+                if normalized.contains("12b") && normalized.contains("instruct") {
+                    return .leapLFM2512BInstruct
+                }
+                if normalized.contains("350m") {
+                    return .leapLFM25350M
+                }
+            }
+            if normalized.contains("lfm2"), normalized.contains("350m") {
+                return .leapLFM25350M
             }
             if normalized.contains("onnx") {
                 return .onnxRuntime
@@ -920,13 +1081,22 @@ final class SettingsStore: ObservableObject {
             ?? audioToToolArchitecture(from: config).map(benchmarkSteps(for:))
             ?? defaultBenchmarkSteps
 
+        if configuredSteps.contains(.speechToText),
+           let value = voiceToTextModelValue(from: config),
+           voiceToTextMode(fromValue: value) == .leap,
+           LeapSpeechTranscriber.isLoadTemporarilyDisabled {
+            unsupportedSettings.append("voice_to_text_model Leap LFM2.5 Audio")
+        }
+
         if configuredSteps.contains(.textToTool) {
             let configuredTextModel = benchmarkTextToToolModel(from: config) ?? .default
             if isSupportedRemoteTextToToolModel(configuredTextModel) == false {
                 unsupportedSettings.append("text_to_tool_model \(configuredTextModel.displayName)")
             }
         } else if configuredSteps.contains(.speechToTool) {
-            if let value = benchmarkSpeechToToolModelValue(from: config) ?? benchmarkTextToToolModelValue(from: config) {
+            if LeapSpeechTranscriber.isLoadTemporarilyDisabled {
+                unsupportedSettings.append("speech_to_tool_model \(BenchmarkTextToToolModel.leapLFM25Audio.displayName)")
+            } else if let value = benchmarkSpeechToToolModelValue(from: config) ?? benchmarkTextToToolModelValue(from: config) {
                 if let model = benchmarkTextToToolModel(from: value) {
                     if isSupportedRemoteSpeechToToolModel(model) == false {
                         unsupportedSettings.append("speech_to_tool_model \(model.displayName)")
@@ -1440,11 +1610,53 @@ final class SettingsStore: ObservableObject {
         switch model.kind {
         case .leapLFM25Audio:
             return false
+        case .leapLFM25350M:
+            #if canImport(LlamaSwift)
+            return model.matchesRemoteAllowlistPreset(.leapLFM25350M)
+            #else
+            return false
+            #endif
+        case .leapLFM2512BInstruct:
+            #if canImport(LlamaSwift)
+            return model.matchesRemoteAllowlistPreset(.leapLFM2512BInstruct)
+            #else
+            return false
+            #endif
         case .appleFoundationModels:
             return model.matchesRemoteAllowlistPreset(.appleFoundationModels)
         case .functionGemma:
             #if canImport(LlamaSwift)
             return model.matchesRemoteAllowlistPreset(.functionGemma)
+            #else
+            return false
+            #endif
+        case .functionGemmaMLX:
+            #if canImport(MLXLLM) && canImport(MLXLMCommon)
+            return model.matchesRemoteAllowlistPreset(.functionGemmaMLX)
+            #else
+            return false
+            #endif
+        case .qwen35ZeroPointEightBOptiQMLX:
+            #if canImport(MLXLLM) && canImport(MLXLMCommon)
+            return model.matchesRemoteAllowlistPreset(.qwen35ZeroPointEightBOptiQMLX)
+            #else
+            return false
+            #endif
+        case .tinyLlamaOnePointOneB:
+            #if canImport(LlamaSwift)
+            return model.matchesRemoteAllowlistPreset(.tinyLlamaOnePointOneB)
+            #else
+            return false
+            #endif
+        case .qwen25OnePointFiveBInstruct:
+            #if canImport(LlamaSwift)
+            return model.matchesRemoteAllowlistPreset(.qwen25OnePointFiveBInstruct)
+            #else
+            return false
+            #endif
+        case .qwen3ZeroPointSixB:
+            #if canImport(LlamaSwift)
+            return model.matchesRemoteAllowlistPreset(.qwen3ZeroPointSixB4Bit)
             #else
             return false
             #endif
@@ -1462,7 +1674,10 @@ final class SettingsStore: ObservableObject {
     }
 
     private static func isSupportedRemoteSpeechToToolModel(_ model: BenchmarkTextToToolModel) -> Bool {
-        model.matchesRemoteAllowlistPreset(.leapLFM25Audio)
+        if LeapSpeechTranscriber.isLoadTemporarilyDisabled {
+            return false
+        }
+        return model.matchesRemoteAllowlistPreset(.leapLFM25Audio)
     }
 
     private static func firstInt(in object: [String: JSONValue], keys: [String]) -> Int? {
