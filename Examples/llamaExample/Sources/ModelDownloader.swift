@@ -1,6 +1,11 @@
 import Foundation
 import WildEdge
 
+enum ModelSource: String {
+    case huggingFace = "huggingface"
+    case liquidAI = "liquid"
+}
+
 struct CatalogModel: Identifiable {
     let id: String
     let name: String
@@ -8,9 +13,31 @@ struct CatalogModel: Identifiable {
     let sizeLabel: String
     let downloadURL: URL
     let filename: String
+    var source: ModelSource = .huggingFace
 }
 
-let modelCatalog: [CatalogModel] = [
+let liquidAICatalog: [CatalogModel] = [
+    CatalogModel(
+        id: "lfm2-350m-q4km",
+        name: "LFM2-350M Instruct",
+        subtitle: "LiquidAI/LFM2-350M-GGUF · Q4_K_M",
+        sizeLabel: "229 MB",
+        downloadURL: URL(string: "https://huggingface.co/LiquidAI/LFM2-350M-GGUF/resolve/main/LFM2-350M-Q4_K_M.gguf")!,
+        filename: "LFM2-350M-Q4_K_M.gguf",
+        source: .liquidAI
+    ),
+    CatalogModel(
+        id: "lfm2-12b-q4km",
+        name: "LFM2-1.2B Instruct",
+        subtitle: "LiquidAI/LFM2-1.2B-GGUF · Q4_K_M",
+        sizeLabel: "697 MB",
+        downloadURL: URL(string: "https://huggingface.co/LiquidAI/LFM2-1.2B-GGUF/resolve/main/LFM2-1.2B-Q4_K_M.gguf")!,
+        filename: "LFM2-1.2B-Q4_K_M.gguf",
+        source: .liquidAI
+    ),
+]
+
+let huggingFaceCatalog: [CatalogModel] = [
     CatalogModel(
         id: "qwen25-05b-q4km",
         name: "Qwen2.5 0.5B Instruct",
@@ -28,6 +55,8 @@ let modelCatalog: [CatalogModel] = [
         filename: "tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"
     ),
 ]
+
+let modelCatalog: [CatalogModel] = liquidAICatalog + huggingFaceCatalog
 
 // MARK: -
 
@@ -142,7 +171,7 @@ extension ModelDownloader: URLSessionDownloadDelegate {
                 )
                 handle.trackDownload(
                     sourceUrl: model.downloadURL.absoluteString,
-                    sourceType: "huggingface",
+                    sourceType: model.source.rawValue,
                     fileSizeBytes: fileSizeBytes,
                     downloadedBytes: fileSizeBytes,
                     durationMs: durationMs,

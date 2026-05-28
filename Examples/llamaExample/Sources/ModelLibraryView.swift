@@ -13,14 +13,30 @@ struct ModelLibraryView: View {
         NavigationStack {
             List {
                 Section {
-                    ForEach(modelCatalog) { model in
+                    ForEach(liquidAICatalog) { model in
+                        ModelRow(model: model, downloader: downloader) {
+                            onLoad(downloader.localURL(for: model))
+                            dismiss()
+                        }
+                    }
+                    Link(destination: URL(string: "https://leap.liquid.ai/models")!) {
+                        Label("Browse more on LEAP ↗", systemImage: "safari")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Liquid AI")
+                }
+
+                Section {
+                    ForEach(huggingFaceCatalog) { model in
                         ModelRow(model: model, downloader: downloader) {
                             onLoad(downloader.localURL(for: model))
                             dismiss()
                         }
                     }
                 } header: {
-                    Text("Download")
+                    Text("HuggingFace")
                 }
 
                 Section {
