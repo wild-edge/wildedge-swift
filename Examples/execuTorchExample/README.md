@@ -98,18 +98,31 @@ The project uses `-Wl,-all_load` to force-load ExecuTorch backend registration. 
 
 ### Model loads but generates nothing
 
-Verify the tokenizer matches the model. Llama 3.2 uses `tokenizer.model` (SentencePiece); using a mismatched tokenizer produces empty output.
+Verify the tokenizer matches the model. The catalog models use `tokenizer.json` (HuggingFace JSON format); using a mismatched tokenizer produces empty output.
 
 ---
 
 ## 6. Usage
 
-1. Tap **Browse** next to "Model (.pte)" and pick your `.pte` file from the Files app.
-2. Tap **Browse** next to "Tokenizer" and pick `tokenizer.bin` / `tokenizer.model`. If a `tokenizer.bin` already lives in the same Documents folder, it is auto-detected.
-3. Tap **Load Model** and wait (model loading can take 10–30 s for 1B+ parameter models).
-4. Edit the prompt and tap **Generate** to stream tokens.
-5. Tap **Stop** at any time to cancel.
-6. Tap **Unload** (top-right) to free memory before switching models.
+### Using the catalog
+
+1. Tap **Pick Model** to open the model library.
+2. Tap **↓ Download** on a catalog model — both the `.pte` file and `tokenizer.json` download automatically. Progress is shown as a combined byte count.
+3. When both files are ready the button changes to **Load** — tap it.
+4. Wait for the model to initialise (10–30 s for 1B+ models; the main screen shows a spinner).
+5. Edit the prompt and tap **Generate** to stream tokens.
+6. Tap **Stop** to cancel, or **Unload** (top-right) to free memory before switching models.
+
+### Using your own model files
+
+1. Transfer both files to the device:
+   - **Simulator** — drag the `.pte` and `tokenizer.json` into the Simulator's Files app window.
+   - **Physical device** — AirDrop the files, or copy them via Finder (iPhone → Files → execuTorchExample).
+2. Tap **Pick Model** → scroll to **Or pick from Files**.
+3. Tap **Browse** next to *Model (.pte)* and select your `.pte` file.
+4. Tap **Browse** next to *Tokenizer (.json / .model / .bin)* and select the matching tokenizer. If a `tokenizer.json` with the expected name already exists in the app's Documents folder it may be auto-detected and pre-filled.
+5. Tap **Load Custom Model** (enabled once both files are selected).
+6. Wait for the model to initialise, then generate as normal.
 
 ---
 
