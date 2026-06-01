@@ -971,12 +971,9 @@ enum ToolCallPromptBuilder {
         Do not choose navigate just because a place word appears. Choose navigate only when the command asks to go, drive, route, navigate, or get directions.
 
         Examples:
-        "set the temperature to 21 degrees" -> {"tool_name":"set_temperature","arguments":{"temperature":21}}
         "temperature 21 degrees" -> {"tool_name":"set_temperature","arguments":{"temperature":21}}
-        "volume down" -> {"tool_name":"change_volume","arguments":{"direction":"down"}}
         "it's too loud, volume down" -> {"tool_name":"change_volume","arguments":{"direction":"down"}}
         "I can't hear it" -> {"tool_name":"change_volume","arguments":{"direction":"up"}}
-        "navigate home, please" -> {"tool_name":"navigate","arguments":{"destination":"home"}}
         "let's go home" -> {"tool_name":"navigate","arguments":{"destination":"home"}}
         """
     }
