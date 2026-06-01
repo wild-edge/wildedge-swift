@@ -58,6 +58,26 @@ actor MlxBenchmarkTextToToolModel {
         }
     }
 
+    func deleteModel(_ model: BenchmarkTextToToolModel) async {
+        guard model.provider == "mlx", model.modelFormat == "safetensors" else {
+            return
+        }
+
+        do {
+            if let directory = try cachedModelDirectory(for: model) {
+                try? fileManager.removeItem(at: directory)
+            }
+            if loadedConfiguration == model {
+                loadedConfiguration = nil
+                #if canImport(Hub) && canImport(MLXLLM) && canImport(MLXLMCommon)
+                loadedContainer = nil
+                #endif
+            }
+        } catch {
+            return
+        }
+    }
+
     func prepareModel(
         _ model: BenchmarkTextToToolModel,
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
@@ -101,19 +121,29 @@ actor MlxBenchmarkTextToToolModel {
             throw SpeechTranscriptionError.transcriptionFailed("\(model.displayName) is not loaded.")
         }
 
-        let session = ChatSession(
-            loadedContainer,
-            instructions: ToolCallPromptBuilder.systemPrompt,
-            generateParameters: Self.generateParameters(for: model),
-            additionalContext: ["enable_thinking": false]
+        let input = try await loadedContainer.prepare(
+            input: UserInput(
+                chat: [
+                    .system(ToolCallPromptBuilder.compactSystemPrompt),
+                    .user(ToolCallPromptBuilder.chatTextToToolUserPrompt(transcript: transcript))
+                ],
+                additionalContext: ["enable_thinking": false]
+            )
+        )
+        let stream = try await loadedContainer.generate(
+            input: input,
+            parameters: Self.generateParameters(for: model)
         )
         var response = ""
-        for try await chunk in session.streamResponse(
-            to: ToolCallPromptBuilder.chatTextToToolUserPrompt(transcript: transcript)
-        ) {
-            response += chunk
-            if let toolCallJSON = ToolCallJSON.firstValidToolCallJSONString(from: response) {
+        for await generation in stream {
+            if let toolCall = generation.toolCall,
+               let toolCallJSON = Self.toolCallJSON(from: toolCall) {
                 return toolCallJSON
+            } else if let chunk = generation.chunk {
+                response += chunk
+                if let toolCallJSON = ToolCallJSON.firstValidToolCallJSONString(from: response) {
+                    return toolCallJSON
+                }
             }
         }
 
@@ -121,7 +151,8 @@ actor MlxBenchmarkTextToToolModel {
         guard trimmed.isEmpty == false else {
             throw SpeechTranscriptionError.transcriptionFailed("\(model.displayName) returned no text output.")
         }
-        return ToolCallJSON.firstValidToolCallJSONString(from: trimmed) ?? trimmed
+        return ToolCallJSON.firstValidToolCallJSONString(from: trimmed)
+            ?? Self.unknownToolCallJSON
         #else
         throw SpeechTranscriptionError.transcriptionFailed(
             "MLX is not linked in this build. Cannot run \(model.displayName)."
@@ -221,11 +252,26 @@ actor MlxBenchmarkTextToToolModel {
         for model: BenchmarkTextToToolModel
     ) -> GenerateParameters {
         GenerateParameters(
-            maxTokens: min(max(model.maxGenerationTokens, 24), 64),
+            maxTokens: min(max(model.maxGenerationTokens, 16), 40),
             temperature: 0.0,
             topP: 1.0,
             topK: 1
         )
     }
+
+    private nonisolated static func toolCallJSON(from toolCall: ToolCall) -> String? {
+        let object: [String: Any] = [
+            "name": toolCall.function.name,
+            "arguments": toolCall.function.arguments.mapValues { $0.anyValue }
+        ]
+        guard JSONSerialization.isValidJSONObject(object),
+              let data = try? JSONSerialization.data(withJSONObject: object),
+              let text = String(data: data, encoding: .utf8) else {
+            return nil
+        }
+        return ToolCallJSON.firstValidToolCallJSONString(from: text)
+    }
+
+    private nonisolated static let unknownToolCallJSON = #"{"tool_name":"unknown","arguments":{}}"#
     #endif
 }

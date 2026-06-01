@@ -36,11 +36,13 @@ actor LeapBenchmarkToolCallModel {
     func generate(
         input: BenchmarkToolCallInput,
         textToToolModel: BenchmarkTextToToolModel = .default,
+        speechToToolPrompt: String? = nil,
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
     ) async -> BenchmarkToolCallGenerationResult {
         let start = Date()
         do {
             var rawOutput: String
+            var measuredDurationMs: Int?
             let model: BenchmarkTextToToolModel
             switch input {
             case .text(let transcript):
@@ -56,7 +58,12 @@ actor LeapBenchmarkToolCallModel {
                 model = textToToolModel
                 if textToToolModel.usesSharedAudioModel {
                     let transcriber = await LeapSpeechTranscriber.shared()
-                    rawOutput = try await transcriber.toolCall(fromTranscript: trimmedTranscript)
+                    let response = try await transcriber.appMeasuredToolCall(fromTranscript: trimmedTranscript)
+                    rawOutput = ToolCallTranscriptHeuristics.correctedToolCallJSON(
+                        rawOutput: response.text,
+                        transcript: trimmedTranscript
+                    )
+                    measuredDurationMs = response.durationMs
                 } else if textToToolModel.kind == .appleFoundationModels {
                     rawOutput = try await AppleFoundationModelsBenchmarkTextToToolModel.shared.toolCall(
                         fromTranscript: trimmedTranscript
@@ -78,7 +85,9 @@ actor LeapBenchmarkToolCallModel {
                         transcript: trimmedTranscript
                     )
                 } else if textToToolModel.kind == .functionGemmaMLX
-                    || textToToolModel.kind == .qwen35ZeroPointEightBOptiQMLX {
+                    || textToToolModel.kind == .qwen35ZeroPointEightBOptiQMLX
+                    || textToToolModel.kind == .qwen3ZeroPointSixBInstructMLX
+                    || textToToolModel.kind == .qwen25ZeroPointFiveBInstructMLX {
                     rawOutput = try await MlxBenchmarkTextToToolModel.shared.toolCall(
                         fromTranscript: trimmedTranscript,
                         model: textToToolModel,
@@ -103,16 +112,22 @@ actor LeapBenchmarkToolCallModel {
             case .audio(let url):
                 let transcriber = await LeapSpeechTranscriber.shared()
                 model = .leapLFM25Audio
-                rawOutput = try await transcriber.toolCall(
+                let response = try await transcriber.appMeasuredToolCall(
                     fromAudio: url,
-                    progressHandler: progressHandler
+                    progressHandler: progressHandler,
+                    userPrompt: speechToToolPrompt
                 )
+                rawOutput = ToolCallTranscriptHeuristics.correctedToolCallJSON(
+                    rawOutput: response.text,
+                    transcript: response.text
+                )
+                measuredDurationMs = response.durationMs
             }
 
             let parseResult = ToolCallJSON.parseAndValidate(from: rawOutput)
             return Self.result(
                 rawOutput: rawOutput,
-                durationMs: Int(Date().timeIntervalSince(start) * 1000),
+                durationMs: measuredDurationMs ?? Int(Date().timeIntervalSince(start) * 1000),
                 parseResult: parseResult,
                 generationError: nil,
                 model: model

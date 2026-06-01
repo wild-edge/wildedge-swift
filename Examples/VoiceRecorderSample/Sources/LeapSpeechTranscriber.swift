@@ -1,13 +1,18 @@
 import Foundation
 import LeapSDK
 
+struct AppMeasuredTextResponse {
+    let text: String
+    let durationMs: Int
+}
+
 actor LeapSpeechTranscriber {
     static let modelName = "LFM2.5-Audio-1.5B"
     static let quantization = "Q4_0"
     static let approximateDownloadSize = "about 1.1 GB"
     static let statusMessage = "Model downloads automatically when Leap is used."
-    static let isLoadTemporarilyDisabled = true
-    static let loadDisabledReason = "LeapSDK 0.10.6 aborts while loading LFM2.5-Audio-1.5B Q4_0: the backend expects gpt-oss.context_length, but the GGUF provides lfm2.context_length."
+    static let isLoadTemporarilyDisabled = false
+    static let loadDisabledReason = "Leap model loading is disabled in this build."
     private static let instanceStore = LeapSpeechTranscriberStore()
     private static let loadFailureCooldownSeconds: TimeInterval = 60
 
@@ -25,9 +30,6 @@ actor LeapSpeechTranscriber {
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
     ) async throws {
         if runner != nil { return }
-        if Self.isLoadTemporarilyDisabled {
-            throw SpeechTranscriptionError.transcriptionFailed(Self.loadDisabledReason)
-        }
         if let lastLoadFailure {
             let elapsed = Date().timeIntervalSince(lastLoadFailure.date)
             if elapsed < Self.loadFailureCooldownSeconds {
@@ -143,6 +145,10 @@ actor LeapSpeechTranscriber {
     }
 
     func toolCall(fromTranscript transcript: String) async throws -> String {
+        try await appMeasuredToolCall(fromTranscript: transcript).text
+    }
+
+    func appMeasuredToolCall(fromTranscript transcript: String) async throws -> AppMeasuredTextResponse {
         try await prepareModel()
 
         guard let runner else {
@@ -177,6 +183,14 @@ actor LeapSpeechTranscriber {
         fromAudio url: URL,
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
     ) async throws -> String {
+        try await appMeasuredToolCall(fromAudio: url, progressHandler: progressHandler).text
+    }
+
+    func appMeasuredToolCall(
+        fromAudio url: URL,
+        progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil,
+        userPrompt: String? = nil
+    ) async throws -> AppMeasuredTextResponse {
         try await prepareModel(progressHandler: progressHandler)
 
         guard let runner else {
@@ -194,7 +208,7 @@ actor LeapSpeechTranscriber {
         let message = ChatMessage(
             role: .user,
             content: [
-                ChatMessageContent.text(ToolCallPromptBuilder.speechToToolUserPrompt()),
+                ChatMessageContent.text(userPrompt ?? ToolCallPromptBuilder.speechToToolUserPrompt()),
                 ChatMessageContent.audio(data: audioData, format: audioFormat)
             ],
             reasoningContent: nil,
@@ -213,14 +227,16 @@ actor LeapSpeechTranscriber {
         message: ChatMessage,
         maxTokens: Int,
         logPrefix: String
-    ) async throws -> String {
+    ) async throws -> AppMeasuredTextResponse {
         let options = GenerationOptions()
             .with(maxTokens: Int32(maxTokens))
+            .with(temperature: 0)
             .with(enableThinking: false)
 
         var generatedText = ""
         var reasoningFallback = ""
         var responseEvents: [String] = []
+        let start = Date()
         for try await response in conversation.generateResponse(message: message, generationOptions: options) {
             switch onEnum(of: response) {
             case .chunk(let chunk):
@@ -234,6 +250,7 @@ actor LeapSpeechTranscriber {
                     }
                     return nil
                 }.joined()
+                let finalFunctionCallJSON = completion.fullMessage.functionCalls?.first.flatMap(Self.toolCallJSON(from:))
                 if let stats = completion.stats {
                     print("\(logPrefix) complete: tokens=\(stats.totalTokens), tps=\(stats.tokenPerSecond)")
                 } else {
@@ -241,7 +258,7 @@ actor LeapSpeechTranscriber {
                 }
                 responseEvents.append("complete(text:\(finalText.count))")
                 if generatedText.isEmpty {
-                    generatedText = finalText
+                    generatedText = finalFunctionCallJSON ?? finalText
                 }
             case .reasoningChunk(let text):
                 reasoningFallback += text.reasoning
@@ -262,11 +279,12 @@ actor LeapSpeechTranscriber {
 
         let trimmed = generatedText.trimmingCharacters(in: .whitespacesAndNewlines)
         let fallback = reasoningFallback.trimmingCharacters(in: .whitespacesAndNewlines)
+        let durationMs = Int(Date().timeIntervalSince(start) * 1000)
         if trimmed.isEmpty == false {
-            return trimmed
+            return AppMeasuredTextResponse(text: trimmed, durationMs: durationMs)
         }
         if fallback.isEmpty == false {
-            return fallback
+            return AppMeasuredTextResponse(text: fallback, durationMs: durationMs)
         }
         let events = responseEvents.isEmpty
             ? "no response events"

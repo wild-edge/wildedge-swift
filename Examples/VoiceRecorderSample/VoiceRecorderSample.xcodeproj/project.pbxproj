@@ -20,7 +20,6 @@
 		AA2222222222222222222222 /* onnxruntime in Frameworks */ = {isa = PBXBuildFile; productRef = EE1111111111111111111111 /* onnxruntime */; };
 		BB1111111111111111111111 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = BB3333333333333333333333 /* WhisperKit */; };
 		CC2222222222222222222222 /* LeapSDK in Frameworks */ = {isa = PBXBuildFile; productRef = CC4444444444444444444444 /* LeapSDK */; };
-		DD5555555555555555555555 /* LlamaSwift in Frameworks */ = {isa = PBXBuildFile; productRef = DD6666666666666666666666 /* LlamaSwift */; };
 		EE7777777777777777777771 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = EE7777777777777777777772 /* MLXLLM */; };
 		EE7777777777777777777773 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = EE7777777777777777777774 /* MLXLMCommon */; };
 		EE7777777777777777777775 /* Hub in Frameworks */ = {isa = PBXBuildFile; productRef = EE7777777777777777777776 /* Hub */; };
@@ -66,7 +65,6 @@
 				AA2222222222222222222222 /* onnxruntime in Frameworks */,
 				BB1111111111111111111111 /* WhisperKit in Frameworks */,
 				CC2222222222222222222222 /* LeapSDK in Frameworks */,
-				DD5555555555555555555555 /* LlamaSwift in Frameworks */,
 				EE7777777777777777777771 /* MLXLLM in Frameworks */,
 				EE7777777777777777777773 /* MLXLMCommon in Frameworks */,
 				EE7777777777777777777775 /* Hub in Frameworks */,
@@ -148,7 +146,6 @@
 				EE1111111111111111111111 /* onnxruntime */,
 				BB3333333333333333333333 /* WhisperKit */,
 				CC4444444444444444444444 /* LeapSDK */,
-				DD6666666666666666666666 /* LlamaSwift */,
 				EE7777777777777777777772 /* MLXLLM */,
 				EE7777777777777777777774 /* MLXLMCommon */,
 				EE7777777777777777777776 /* Hub */,
@@ -180,7 +177,6 @@
 				DD1111111111111111111111 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */,
 				BB2222222222222222222222 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
 				CC3333333333333333333333 /* XCRemoteSwiftPackageReference "leap-sdk" */,
-				DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */,
 				EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				EE7777777777777777777778 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 			);
@@ -238,7 +234,7 @@
 				4A7D2D1B3E5B4D4D9D2C8A11 /* SettingsStore.swift in Sources */,
 				F2B3E01B0D4C4E6CA61C2B11 /* SettingsView.swift in Sources */,
 				E8B9C61C1A4F4F46A92D4D11 /* SpeechTranscriber.swift in Sources */,
-				F6A7B8C9D0E1F20304050607 /* WhisperSpeechTranscriber.swift in Sources */,
+					F6A7B8C9D0E1F20304050607 /* WhisperSpeechTranscriber.swift in Sources */,
 					B7C8D9E0F102030405060708 /* LeapSpeechTranscriber.swift in Sources */,
 					7B1122334455667788990009 /* VoiceRecorderModelManager.swift in Sources */,
 					7B1122334455667788990001 /* ToolCallSupport.swift in Sources */,
@@ -550,15 +546,7 @@
 			repositoryURL = "https://github.com/Liquid4All/leap-sdk.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.10.6;
-			};
-		};
-		DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/mattt/llama.swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.9334.0;
+				version = 0.10.7;
 			};
 		};
 		EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
@@ -598,11 +586,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CC3333333333333333333333 /* XCRemoteSwiftPackageReference "leap-sdk" */;
 			productName = LeapSDK;
-		};
-		DD6666666666666666666666 /* LlamaSwift */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */;
-			productName = LlamaSwift;
 		};
 		EE7777777777777777777772 /* MLXLLM */ = {
 			isa = XCSwiftPackageProductDependency;

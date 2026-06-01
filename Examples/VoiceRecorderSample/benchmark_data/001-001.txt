@@ -1,1 +1,1 @@
-set temperature to 21 degrees
+set the temperature to 21 degrees

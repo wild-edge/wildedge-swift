@@ -18,10 +18,7 @@ packages:
     from: 1.0.0
   leap-sdk:
     url: https://github.com/Liquid4All/leap-sdk.git
-    exactVersion: 0.10.6
-  llama.swift:
-    url: https://github.com/mattt/llama.swift
-    from: 2.9334.0
+    exactVersion: 0.10.7
 targets:
   VoiceRecorderSample:
     type: application
@@ -52,8 +49,6 @@ targets:
         product: WhisperKit
       - package: leap-sdk
         product: LeapSDK
-      - package: llama.swift
-        product: LlamaSwift
     postBuildScripts:
       - name: Prepare Leap runtime for distribution
         basedOnDependencyAnalysis: false
