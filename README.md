@@ -12,7 +12,7 @@ drift, and hardware metrics without ever sending raw inputs.
 | Example | Runtime | What it shows |
 |---|---|---|
 | [llamaExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/llamaExample) | llama.cpp · Metal GPU | On-device LLM — in-app GGUF catalog (Qwen2.5, TinyLlama, Liquid AI LFM2), streaming token output, Metal warmup, perf telemetry via `llama_perf_context` |
-| [execuTorchExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/execuTorchExample) | ExecuTorch · XNNPACK CPU | On-device LLM — Llama 3.2 1B catalog (.pte + tokenizer.json), RE2 tokenizer patching, `kernels_quantized` / `kernels_torchao` for INT4 models |
+| [execuTorchExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/execuTorchExample) | ExecuTorch · XNNPACK CPU | On-device LLM — Llama 3.2 1B catalog (.pte + tokenizer.json), zero-code telemetry via `ExecuTorchLLMInterceptor` (`.execuTorchLLM`), RE2 tokenizer patching, `kernels_quantized` / `kernels_torchao` for INT4 models |
 | [CarScannerExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/CarScannerExample) | OpenRouter / Gemini API | iOS camera app — scans cars with remote vision APIs, tracks each inference and uploads the input image as an attachment |
 | [VoiceRecorderSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/VoiceRecorderSample) | ONNX Runtime | Records audio, runs a local ONNX voice-conversion model, tracks inference + uploads the recording as an attachment |
 | [OnnxExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/OnnxExample) | ONNX Runtime | Zero-code tracking via auto-interceptor |
@@ -161,6 +161,30 @@ TFLInterpreter *interpreter = [[TFLInterpreter alloc] initWithModelPath:modelPat
 
 > **Note:** The pure-Swift `TensorFlowLite` package (`Interpreter` class) cannot be intercepted — use explicit model handles for that path (see below).
 
+### ExecuTorch LLM — zero-code integration
+
+When your app links `ExecuTorchLLM` and uses `TextRunner`, WildEdge intercepts load, generate, and dealloc automatically:
+
+```swift
+import ExecuTorchLLM
+// No WildEdge calls required.
+
+let runner = TextRunner(modelPath: modelPath, tokenizerPath: tokenizerPath)
+try runner.load()
+// ↑ trackLoad fires automatically (duration, CPU accelerator)
+
+try runner.generate(prompt, config) { token in
+    // ↑ token callback is wrapped — exact output token count is measured
+    print(token)
+}
+// ↑ trackInference fires automatically after generate returns
+//   (tokensOut, TPS, duration, success/error)
+
+// runner dealloc → trackUnload fires automatically
+```
+
+Token counting is done by wrapping the caller's callback block at the ObjC runtime level — no changes to the callback needed. `ModelHandle` is stored as an associated object on the runner instance so it survives background threads and arbitrary lifetimes.
+
 ### TFLite (pure Swift) — manual integration
 
 The Swift `Interpreter` class has no ObjC runtime exposure, so use explicit model handles:
@@ -215,6 +239,7 @@ Available members of `Interceptors`:
 | `.mlKitDetector` | ML Kit detector classes (FaceDetector, ObjectDetector, etc.) |
 | `.mlKitModelManager` | ML Kit `ModelManager` remote model downloads |
 | `.tfl` | TensorFlow Lite `TFLInterpreter` |
+| `.execuTorchLLM` | ExecuTorch `ExecuTorchLLMTextRunner` (load, generate with token counting, dealloc) |
 | `.mlKit` | Convenience: `.mlKitDetector` + `.mlKitModelManager` combined |
 | `.all` | All interceptors enabled (default) |
 

@@ -14,11 +14,13 @@ public struct Interceptors: OptionSet, Sendable {
     public static let mlKitModelManager = Interceptors(rawValue: 1 << 2)
     /// TensorFlow Lite `TFLInterpreter`.
     public static let tfl               = Interceptors(rawValue: 1 << 3)
+    /// ExecuTorch `ExecuTorchLLMTextRunner` (load, generate, dealloc).
+    public static let execuTorchLLM     = Interceptors(rawValue: 1 << 4)
 
     /// Convenience: both ML Kit interceptors together.
     public static let mlKit: Interceptors = [.mlKitDetector, .mlKitModelManager]
     /// All interceptors enabled (default).
-    public static let all: Interceptors   = [.ort, .mlKit, .tfl]
+    public static let all: Interceptors   = [.ort, .mlKit, .tfl, .execuTorchLLM]
 }
 
 public enum Accelerator: String {

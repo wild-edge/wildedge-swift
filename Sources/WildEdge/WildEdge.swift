@@ -101,6 +101,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         if enabledInterceptors.contains(.mlKitDetector)     { MLKitDetectorInterceptor.install(client: self) }
         if enabledInterceptors.contains(.mlKitModelManager) { MLKitModelManagerInterceptor.install(client: self) }
         if enabledInterceptors.contains(.tfl)               { TFLInterceptor.install(client: self) }
+        if enabledInterceptors.contains(.execuTorchLLM)     { ExecuTorchLLMInterceptor.install(client: self) }
     }
 
     public func registerModel(modelId: String, info: ModelInfo) -> ModelHandle {

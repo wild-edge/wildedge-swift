@@ -131,17 +131,30 @@ Verify the tokenizer matches the model. The catalog models use `tokenizer.json` 
 ```
 Sources/
 ├── ExecuTorchExampleApp.swift   @main — WildEdge.initialize()
-├── LLMRunner.swift              @MainActor ObservableObject
+│                                installs ExecuTorchLLMInterceptor at launch
+├── LLMRunner.swift              @MainActor ObservableObject — no WildEdge calls
 │   ├── loadModel()              TextRunner init + load() on background thread
-│   │                            → WildEdge trackLoad (duration, CPU accelerator)
 │   ├── generate()               ExecuTorchLLMConfig + r.generate() token callback
-│   │                            → WildEdge trackInference (tokens out, TPS, stop reason)
 │   └── unload()                 runner.reset() + runner = nil
-│                                → WildEdge trackUnload
-└── ContentView.swift            File pickers + streaming output UI
+├── ModelDownloader.swift        URLSession download manager
+│                                → WildEdge trackDownload on completion
+├── ModelLibraryView.swift       Sheet with catalog rows + "Pick from Files"
+└── ContentView.swift            Main screen — prompt input + streaming output
 ```
 
 `TextRunner` (`ExecuTorchLLMTextRunner` in ObjC) is the ExecuTorch Swift-bridged class for text LLM inference. Its `generate(_:_:tokenCallback:)` method is a **blocking** call that streams tokens via a Swift closure — it must run on a background thread (`Task.detached`). UI updates are dispatched back to the main actor per token.
+
+### WildEdge integration — zero-code via `ExecuTorchLLMInterceptor`
+
+`WildEdge.initialize()` installs `ExecuTorchLLMInterceptor` into the ObjC runtime at launch. It swizzles three selectors on `ExecuTorchLLMTextRunner` without any changes to `LLMRunner.swift`:
+
+| Swizzled selector | Event emitted |
+|---|---|
+| `loadWithError:` | `trackLoad` — duration, CPU accelerator, success/error |
+| `generateWithPrompt:config:tokenCallback:error:` | `trackInference` — wraps the token callback block to count `tokensOut` exactly, measures TPS and total duration |
+| `deinit` (via `RunnerObserver`) | `trackUnload(reason: "dealloc")` |
+
+`ModelHandle` is stored as an associated object on the runner instance so it is available on any thread when `generate` returns, without a dictionary lookup or lock.
 
 Unlike `llamaExample` (llama.cpp), there is no manual KV-cache management or sampler setup — ExecuTorch's runtime handles that internally.
 

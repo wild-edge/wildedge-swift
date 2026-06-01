@@ -52,11 +52,11 @@ open Examples/execuTorchExample/execuTorchExample.xcodeproj
 
 > Models in the catalog require accepting the Llama 3.2 Community License on HuggingFace before the download will succeed.
 
-**What gets tracked:**
+**What gets tracked** (zero-code via `ExecuTorchLLMInterceptor`):
 - `model_load` — load duration, CPU accelerator
-- `model_download` — per catalog download (model + tokenizer treated as one event)
-- `inference` — tokens out (exact), tokens in (estimated), TPS, stop reason
-- `model_unload` — on explicit unload
+- `model_download` — per catalog download (model + tokenizer, via `ModelDownloader`)
+- `inference` — tokens out (exact, counted by wrapping the token callback), TPS, duration
+- `model_unload` — on dealloc
 
 ---
 
