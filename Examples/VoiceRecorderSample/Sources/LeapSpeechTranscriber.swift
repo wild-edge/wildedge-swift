@@ -42,10 +42,11 @@ actor LeapSpeechTranscriber {
 
         print("LeapSDK load started: \(Self.modelName) \(Self.quantization)")
         do {
+            let options = try Self.inferenceOptions()
             runner = try await Leap.shared.load(
                 model: Self.modelName,
                 quantization: Self.quantization,
-                options: nil,
+                options: options,
                 progress: { progress, speed in
                     progressHandler?(Self.normalizedProgress(progress), speed)
                 }
@@ -58,6 +59,24 @@ actor LeapSpeechTranscriber {
             print("LeapSDK load failed: \(message)")
             throw SpeechTranscriptionError.transcriptionFailed("Leap model load failed: \(message)")
         }
+    }
+
+    private static func inferenceOptions() throws -> LiquidInferenceEngineManifestOptions {
+        let cacheDirectory = try leapKVCacheDirectory()
+        return LiquidInferenceEngineManifestOptions(
+            cacheOptions: LiquidCacheOptions.enabled(path: cacheDirectory.path)
+        )
+    }
+
+    private static func leapKVCacheDirectory() throws -> URL {
+        let baseDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        let cacheDirectory = baseDirectory.appendingPathComponent("leap-kv-cache", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: cacheDirectory,
+            withIntermediateDirectories: true
+        )
+        return cacheDirectory
     }
 
     func downloadModel(
@@ -202,13 +221,17 @@ actor LeapSpeechTranscriber {
             throw SpeechTranscriptionError.transcriptionFailed("Leap audio input is empty.")
         }
         let audioFormat = Self.audioFormat(for: url)
+        let prompt = userPrompt ?? ToolCallPromptBuilder.speechToToolUserPrompt()
+        print(
+            "Leap speech-to-tool prompt override=\(userPrompt == nil ? "false" : "true") length=\(prompt.count) preview=\(Self.promptPreview(prompt))"
+        )
         let conversation = runner.createConversation(
             systemPrompt: ToolCallPromptBuilder.speechToToolSystemPrompt
         )
         let message = ChatMessage(
             role: .user,
             content: [
-                ChatMessageContent.text(userPrompt ?? ToolCallPromptBuilder.speechToToolUserPrompt()),
+                ChatMessageContent.text(prompt),
                 ChatMessageContent.audio(data: audioData, format: audioFormat)
             ],
             reasoningContent: nil,
@@ -349,6 +372,15 @@ actor LeapSpeechTranscriber {
         guard progress.isFinite else { return 0 }
         let normalized = progress > 1 ? progress / 100 : progress
         return min(max(normalized, 0), 1)
+    }
+
+    private static func promptPreview(_ prompt: String) -> String {
+        let singleLine = prompt
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let preview = singleLine.prefix(120)
+        return String(preview)
     }
 
     private static func loadFailureDescription(_ error: Error) -> String {

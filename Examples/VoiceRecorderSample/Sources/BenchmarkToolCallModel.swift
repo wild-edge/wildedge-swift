@@ -117,10 +117,12 @@ actor LeapBenchmarkToolCallModel {
                     progressHandler: progressHandler,
                     userPrompt: speechToToolPrompt
                 )
-                rawOutput = ToolCallTranscriptHeuristics.correctedToolCallJSON(
-                    rawOutput: response.text,
-                    transcript: response.text
-                )
+                rawOutput = speechToToolPrompt == nil
+                    ? ToolCallTranscriptHeuristics.correctedToolCallJSON(
+                        rawOutput: response.text,
+                        transcript: response.text
+                    )
+                    : response.text
                 measuredDurationMs = response.durationMs
             }
 

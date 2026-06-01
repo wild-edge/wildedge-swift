@@ -6,6 +6,7 @@ options:
 configs:
   Debug: debug
   Benchmark: debug
+  BenchmarkLeapSDK: debug
   Release: release
 packages:
   WildEdge:
@@ -32,6 +33,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.wildedge.sample.voice
+        VOICE_RECORDER_DISPLAY_NAME: Voice Recorder
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: "NO"
         INFOPLIST_FILE: Sources/Info.plist
@@ -40,6 +42,10 @@ targets:
       configs:
         Benchmark:
           SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG BENCHMARK_BUILD
+        BenchmarkLeapSDK:
+          PRODUCT_BUNDLE_IDENTIFIER: dev.wildedge.sample.voice-leapsdk
+          VOICE_RECORDER_DISPLAY_NAME: Voice Recorder LeapSDK
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG BENCHMARK_BUILD LEAP_SDK_SPEECH_TO_TOOL_ONLY
     dependencies:
       - package: WildEdge
         product: WildEdge
@@ -89,3 +95,20 @@ schemes:
       config: Benchmark
     archive:
       config: Benchmark
+  VoiceRecorderSample-Benchmark-LeapSDK:
+    build:
+      targets:
+        VoiceRecorderSample: all
+    run:
+      config: BenchmarkLeapSDK
+      environmentVariables:
+        WILDEDGE_DSN: ""
+        WILDEDGE_DEBUG: "true"
+    test:
+      config: BenchmarkLeapSDK
+    profile:
+      config: BenchmarkLeapSDK
+    analyze:
+      config: BenchmarkLeapSDK
+    archive:
+      config: BenchmarkLeapSDK

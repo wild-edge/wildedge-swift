@@ -588,6 +588,7 @@ struct VoiceRecorderEffectiveSettings: Sendable {
     let benchmarkDelaySeconds: TimeInterval
     let benchmarkRecordingsMatch: [String]
     let benchmarkNumberOfInferences: Int
+    let benchmarkLoop: Bool
     let benchmarkSteps: [BenchmarkStep]
     let benchmarkStepsError: String?
     let benchmarkTextToToolModel: BenchmarkTextToToolModel
@@ -861,6 +862,7 @@ final class SettingsStore: ObservableObject {
             String(settings.benchmarkDelaySeconds),
             settings.benchmarkRecordingsMatch.joined(separator: ","),
             String(settings.benchmarkNumberOfInferences),
+            settings.benchmarkLoop ? "loop" : "once",
             settings.benchmarkSteps.map(\.rawValue).joined(separator: ","),
             settings.benchmarkStepsError ?? "",
             settings.benchmarkTextToToolModel.signature,
@@ -888,7 +890,8 @@ final class SettingsStore: ObservableObject {
         if settings.benchmarkEnabled && settings.remoteConfigWarning != nil {
             benchmark = ", benchmark stopped"
         } else if settings.benchmarkEnabled {
-            benchmark = ", benchmark on, steps \(steps), text-to-tool \(settings.benchmarkTextToToolModel.displayName), delay \(Int(settings.benchmarkDelaySeconds))s, \(settings.benchmarkNumberOfInferences)x"
+            let loop = settings.benchmarkLoop ? "loop" : "single pass"
+            benchmark = ", benchmark on, steps \(steps), text-to-tool \(settings.benchmarkTextToToolModel.displayName), delay \(Int(settings.benchmarkDelaySeconds))s, \(settings.benchmarkNumberOfInferences)x, \(loop)"
         } else {
             benchmark = ", benchmark off"
         }

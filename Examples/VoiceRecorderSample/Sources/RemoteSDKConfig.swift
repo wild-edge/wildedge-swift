@@ -380,6 +380,7 @@ struct BenchmarkConfigRuntime {
                     benchmarkDelaySeconds: 10,
                     benchmarkRecordingsMatch: ["*"],
                     benchmarkNumberOfInferences: 1,
+                    benchmarkLoop: true,
                     benchmarkSteps: [.speechToText],
                     benchmarkStepsError: nil,
                     benchmarkTextToToolModel: .default,
@@ -409,6 +410,7 @@ struct BenchmarkConfigRuntime {
                     benchmarkDelaySeconds: 10,
                     benchmarkRecordingsMatch: ["*"],
                     benchmarkNumberOfInferences: 1,
+                    benchmarkLoop: true,
                     benchmarkSteps: [],
                     benchmarkStepsError: nil,
                     benchmarkTextToToolModel: .default,
@@ -425,11 +427,28 @@ struct BenchmarkConfigRuntime {
         var isUsingRemote = false
         var remoteModelNames = Set<String>()
 
+        #if LEAP_SDK_SPEECH_TO_TEXT_ONLY
+        effectiveConfig = localConfig.forcingLeapSpeechToTextFlow(from: localConfig)
+        #elseif LEAP_SDK_SPEECH_TO_TOOL_ONLY
+        effectiveConfig = localConfig.forcingLeapSpeechToToolFlow(from: localConfig)
+        #endif
+
         if useRemoteConfig, let remoteConfig {
             do {
+                #if LEAP_SDK_SPEECH_TO_TEXT_ONLY || LEAP_SDK_SPEECH_TO_TOOL_ONLY
+                let overlay = try BenchmarkRemoteOverlay.decodeLenient(from: remoteConfig)
+                #else
                 let overlay = try BenchmarkRemoteOverlay.decode(from: remoteConfig)
+                #endif
                 remoteModelNames = Set(overlay.modelDefinitions?.keys.map { $0 } ?? [])
                 effectiveConfig = localConfig.merging(overlay)
+                #if LEAP_SDK_SPEECH_TO_TEXT_ONLY
+                effectiveConfig = effectiveConfig.forcingLeapSpeechToTextFlow(from: localConfig)
+                remoteModelNames = []
+                #elseif LEAP_SDK_SPEECH_TO_TOOL_ONLY
+                effectiveConfig = effectiveConfig.forcingLeapSpeechToToolFlow(from: localConfig)
+                remoteModelNames = []
+                #endif
                 try BenchmarkConfigValidator.validateEffectiveConfig(
                     effectiveConfig,
                     remoteModelNames: remoteModelNames
@@ -437,7 +456,13 @@ struct BenchmarkConfigRuntime {
                 isUsingRemote = true
             } catch {
                 statusWarning = "SDK payload invalid: \(error.localizedDescription) Using local benchmark config."
+                #if LEAP_SDK_SPEECH_TO_TEXT_ONLY
+                effectiveConfig = localConfig.forcingLeapSpeechToTextFlow(from: localConfig)
+                #elseif LEAP_SDK_SPEECH_TO_TOOL_ONLY
+                effectiveConfig = localConfig.forcingLeapSpeechToToolFlow(from: localConfig)
+                #else
                 effectiveConfig = localConfig
+                #endif
                 remoteModelNames = []
             }
         }
@@ -460,6 +485,7 @@ struct BenchmarkConfigRuntime {
                     benchmarkDelaySeconds: max(effectiveConfig.benchmarkParams?.delaySeconds ?? 10, 0),
                     benchmarkRecordingsMatch: effectiveConfig.benchmarkParams?.recordingsMatchArray ?? ["*"],
                     benchmarkNumberOfInferences: max(effectiveConfig.benchmarkParams?.numberOfInferences ?? 1, 1),
+                    benchmarkLoop: effectiveConfig.benchmarkParams?.loop ?? true,
                     benchmarkSteps: effectiveConfig.benchmarkParams?.benchmarkSteps.compactMap(BenchmarkStep.init(remoteValue:)) ?? [],
                     benchmarkStepsError: nil,
                     benchmarkTextToToolModel: .default,
@@ -470,6 +496,14 @@ struct BenchmarkConfigRuntime {
                 statusWarning: "Benchmark config is invalid: \(error.localizedDescription)"
             )
         }
+
+        #if LEAP_SDK_SPEECH_TO_TOOL_ONLY
+        let rawSpeechToToolPrompt = useRemoteConfig
+            ? Self.resolveSpeechToToolPromptOverride(from: remoteConfig)
+            : nil
+        #else
+        let rawSpeechToToolPrompt: String? = nil
+        #endif
 
         return BenchmarkConfigResolution(
             settings: VoiceRecorderEffectiveSettings(
@@ -482,10 +516,11 @@ struct BenchmarkConfigRuntime {
                 benchmarkDelaySeconds: resolved.params.delaySeconds ?? 10,
                 benchmarkRecordingsMatch: resolved.params.recordingsMatchArray,
                 benchmarkNumberOfInferences: max(resolved.params.numberOfInferences ?? 1, 1),
+                benchmarkLoop: resolved.params.loop ?? true,
                 benchmarkSteps: resolved.steps,
                 benchmarkStepsError: nil,
                 benchmarkTextToToolModel: resolved.textToToolModel ?? .default,
-                benchmarkSpeechToToolPrompt: resolved.speechToToolPrompt,
+                benchmarkSpeechToToolPrompt: rawSpeechToToolPrompt ?? resolved.speechToToolPrompt,
                 isUsingSDKPayload: isUsingRemote,
                 remoteConfigWarning: nil
             ),
@@ -497,15 +532,26 @@ struct BenchmarkConfigRuntime {
         do {
             let local = try BenchmarkAppConfig.localDefault()
             try BenchmarkConfigValidator.validateLocalShape(local)
+            #if LEAP_SDK_SPEECH_TO_TEXT_ONLY
+            let overlay = try BenchmarkRemoteOverlay.decodeLenient(from: remoteConfig)
+            let merged = local.merging(overlay).forcingLeapSpeechToTextFlow(from: local)
+            let remoteModelNames = Set<String>()
+            #elseif LEAP_SDK_SPEECH_TO_TOOL_ONLY
+            let overlay = try BenchmarkRemoteOverlay.decodeLenient(from: remoteConfig)
+            let merged = local.merging(overlay).forcingLeapSpeechToToolFlow(from: local)
+            let remoteModelNames = Set<String>()
+            #else
             let overlay = try BenchmarkRemoteOverlay.decode(from: remoteConfig)
             let merged = local.merging(overlay)
+            let remoteModelNames = Set(overlay.modelDefinitions?.keys.map { $0 } ?? [])
+            #endif
             try BenchmarkConfigValidator.validateEffectiveConfig(
                 merged,
-                remoteModelNames: Set(overlay.modelDefinitions?.keys.map { $0 } ?? [])
+                remoteModelNames: remoteModelNames
             )
             _ = try BenchmarkConfigValidator.resolve(
                 merged,
-                remoteModelNames: Set(overlay.modelDefinitions?.keys.map { $0 } ?? [])
+                remoteModelNames: remoteModelNames
             )
             return nil
         } catch {
@@ -517,15 +563,84 @@ struct BenchmarkConfigRuntime {
         do {
             let local = try BenchmarkAppConfig.localDefault()
             try BenchmarkConfigValidator.validateLocalShape(local)
+            #if LEAP_SDK_SPEECH_TO_TEXT_ONLY
+            _ = try BenchmarkConfigValidator.resolve(
+                local.forcingLeapSpeechToTextFlow(from: local),
+                remoteModelNames: []
+            )
+            #elseif LEAP_SDK_SPEECH_TO_TOOL_ONLY
+            _ = try BenchmarkConfigValidator.resolve(
+                local.forcingLeapSpeechToToolFlow(from: local),
+                remoteModelNames: []
+            )
+            #else
             _ = try BenchmarkConfigValidator.resolve(local, remoteModelNames: [])
+            #endif
             return nil
         } catch {
             return "Local benchmark config is invalid: \(error.localizedDescription)"
         }
     }
+
+    private static func resolveSpeechToToolPromptOverride(from remoteConfig: RemoteSDKConfig?) -> String? {
+        guard let remoteConfig else { return nil }
+        if let prompt = promptString(in: remoteConfig) {
+            return prompt
+        }
+        guard let modelDefinitions = remoteConfig["model_definitions"]?.objectValue else {
+            return nil
+        }
+        if let leapModel = modelDefinitions[BenchmarkAppConfig.leapSpeechToToolModelName]?.objectValue,
+           let prompt = promptString(in: leapModel) {
+            return prompt
+        }
+        for (_, modelValue) in modelDefinitions {
+            guard let model = modelValue.objectValue,
+                  let prompt = promptString(in: model)
+            else {
+                continue
+            }
+            return prompt
+        }
+        return nil
+    }
+
+    private static func promptString(in object: [String: JSONValue]) -> String? {
+        if let direct = firstPromptString(in: object) {
+            return direct
+        }
+        guard let inference = object["inference"]?.objectValue else {
+            return nil
+        }
+        return firstPromptString(in: inference)
+    }
+
+    private static func firstPromptString(in object: [String: JSONValue]) -> String? {
+        for key in [
+            "speech_to_tool_prompt",
+            "system_prompt",
+            "systemPrompt",
+            "prompt",
+            "user_prompt",
+            "tool_prompt"
+        ] {
+            guard let prompt = object[key]?.stringValue?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+                prompt.isEmpty == false
+            else {
+                continue
+            }
+            return prompt
+        }
+        return nil
+    }
 }
 
 struct BenchmarkAppConfig: Codable, Equatable {
+    static let leapSpeechToTextStepName = "speech_to_text"
+    static let leapSpeechToToolStepName = "speech_to_tool"
+    static let leapSpeechToToolModelName = "leap-lfm2.5-audio-1.5b"
+
     var configVersion: Int
     var appSettings: BenchmarkAppSettings?
     var sdkSettings: BenchmarkSDKSettings?
@@ -570,6 +685,47 @@ struct BenchmarkAppConfig: Codable, Equatable {
         return merged
     }
 
+    func forcingLeapSpeechToToolFlow(from baseline: BenchmarkAppConfig) -> BenchmarkAppConfig {
+        var forced = self
+        var params = forced.benchmarkParams ?? BenchmarkParams()
+        params.benchmarkSteps = [Self.leapSpeechToToolStepName]
+        forced.benchmarkParams = params
+
+        if let speechToToolStep = baseline.stepDefinitions[Self.leapSpeechToToolStepName] {
+            forced.stepDefinitions[Self.leapSpeechToToolStepName] = speechToToolStep
+        }
+
+        let promptOverride = forced.modelDefinitions[Self.leapSpeechToToolModelName]?.inference
+        if var speechToToolModel = baseline.modelDefinitions[Self.leapSpeechToToolModelName] {
+            speechToToolModel.enabled = true
+            if let promptOverride {
+                speechToToolModel.inference = promptOverride
+            }
+            forced.modelDefinitions[Self.leapSpeechToToolModelName] = speechToToolModel
+        }
+
+        return forced
+    }
+
+    func forcingLeapSpeechToTextFlow(from baseline: BenchmarkAppConfig) -> BenchmarkAppConfig {
+        var forced = self
+        var params = forced.benchmarkParams ?? BenchmarkParams()
+        params.benchmarkSteps = [Self.leapSpeechToTextStepName]
+        forced.benchmarkParams = params
+
+        var speechToTextStep = baseline.stepDefinitions[Self.leapSpeechToTextStepName]
+            ?? BenchmarkStepDefinition(inputType: "audio", outputType: "text")
+        speechToTextStep.modelName = Self.leapSpeechToToolModelName
+        forced.stepDefinitions[Self.leapSpeechToTextStepName] = speechToTextStep
+
+        if var speechModel = baseline.modelDefinitions[Self.leapSpeechToToolModelName] {
+            speechModel.enabled = true
+            forced.modelDefinitions[Self.leapSpeechToToolModelName] = speechModel
+        }
+
+        return forced
+    }
+
     static func localDefault() throws -> BenchmarkAppConfig {
         let data = Data(Self.localDefaultJSON.utf8)
         do {
@@ -594,6 +750,7 @@ struct BenchmarkAppConfig: Codable, Equatable {
         "benchmark_steps": ["speech_to_text", "text_to_tool"],
         "delay_seconds": 10,
         "number_of_inferences": 10,
+        "loop": true,
         "recordings_match": "*"
       },
       "step_definitions": {
@@ -713,6 +870,19 @@ struct BenchmarkRemoteOverlay: Codable, Equatable {
             throw BenchmarkConfigError.decoding(error.localizedDescription)
         }
     }
+
+    static func decodeLenient(from rawConfig: RemoteSDKConfig) throws -> BenchmarkRemoteOverlay {
+        let allowed = Set(["config_version", "benchmark_params", "step_definitions", "model_definitions"])
+        let filtered = rawConfig.filter { allowed.contains($0.key) }
+        do {
+            let data = try JSONEncoder().encode(filtered)
+            return try JSONDecoder().decode(BenchmarkRemoteOverlay.self, from: data)
+        } catch let error as BenchmarkConfigError {
+            throw error
+        } catch {
+            throw BenchmarkConfigError.decoding(error.localizedDescription)
+        }
+    }
 }
 
 struct BenchmarkAppSettings: Codable, Equatable {
@@ -739,12 +909,14 @@ struct BenchmarkParams: Codable, Equatable {
     var benchmarkSteps: [String] = []
     var delaySeconds: Double?
     var numberOfInferences: Int?
+    var loop: Bool?
     var recordingsMatch: BenchmarkStringList?
 
     enum CodingKeys: String, CodingKey {
         case benchmarkSteps = "benchmark_steps"
         case delaySeconds = "delay_seconds"
         case numberOfInferences = "number_of_inferences"
+        case loop
         case recordingsMatch = "recordings_match"
     }
 
@@ -752,11 +924,13 @@ struct BenchmarkParams: Codable, Equatable {
         benchmarkSteps: [String] = [],
         delaySeconds: Double? = nil,
         numberOfInferences: Int? = nil,
+        loop: Bool? = nil,
         recordingsMatch: BenchmarkStringList? = nil
     ) {
         self.benchmarkSteps = benchmarkSteps
         self.delaySeconds = delaySeconds
         self.numberOfInferences = numberOfInferences
+        self.loop = loop
         self.recordingsMatch = recordingsMatch
     }
 
@@ -765,6 +939,7 @@ struct BenchmarkParams: Codable, Equatable {
         benchmarkSteps = try container.decodeIfPresent([String].self, forKey: .benchmarkSteps) ?? []
         delaySeconds = try container.decodeIfPresent(Double.self, forKey: .delaySeconds)
         numberOfInferences = try container.decodeIfPresent(Int.self, forKey: .numberOfInferences)
+        loop = try container.decodeIfPresent(Bool.self, forKey: .loop)
         recordingsMatch = try container.decodeIfPresent(BenchmarkStringList.self, forKey: .recordingsMatch)
     }
 
@@ -782,6 +957,9 @@ struct BenchmarkParams: Codable, Equatable {
         }
         if overlay.numberOfInferences != nil {
             merged.numberOfInferences = overlay.numberOfInferences
+        }
+        if overlay.loop != nil {
+            merged.loop = overlay.loop
         }
         if overlay.recordingsMatch != nil {
             merged.recordingsMatch = overlay.recordingsMatch
@@ -1234,6 +1412,9 @@ enum BenchmarkConfigValidator {
             guard model.enabled == true else {
                 throw BenchmarkConfigError.disabledModel(modelName)
             }
+            if isLeapManagedAudioModel(stepName: stepName, modelName: modelName) {
+                continue
+            }
             try validateModel(
                 name: modelName,
                 model,
@@ -1244,6 +1425,16 @@ enum BenchmarkConfigValidator {
             )
         }
         try validateStepChain(params: params, steps: config.stepDefinitions)
+    }
+
+    private static func isLeapManagedAudioModel(stepName: String, modelName: String) -> Bool {
+        guard modelName == BenchmarkAppConfig.leapSpeechToToolModelName else { return false }
+        switch BenchmarkStep(remoteValue: stepName) {
+        case .speechToText, .speechToTool:
+            return true
+        case .textToTool, .none:
+            return false
+        }
     }
 
     static func resolve(
@@ -1442,6 +1633,9 @@ enum BenchmarkConfigValidator {
             guard let modelName = config.stepDefinitions[stepName]?.modelName,
                   let model = config.modelDefinitions[modelName]
             else {
+                continue
+            }
+            if isLeapManagedAudioModel(stepName: stepName, modelName: modelName) {
                 continue
             }
             let estimate = try BenchmarkMemoryEstimator.estimateMB(

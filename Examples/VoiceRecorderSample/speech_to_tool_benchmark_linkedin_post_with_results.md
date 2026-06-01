@@ -19,7 +19,7 @@ In this benchmark, I want to focus on the fastest possible inference path for sh
 
 The benchmark runs inside an iOS app.
 
-Audio is provided as `.m4v` files and converted to the supported format outside of the measured time, so the measured latency focuses on inference and tool-call preparation rather than preprocessing.
+Audio is provided as `.m4a` files and converted to the supported format outside of the measured time, so the measured latency focuses on inference and tool-call preparation rather than preprocessing.
 
 This benchmark focuses on latency, not model accuracy. I do not measure the model’s general tool-calling accuracy here. Latency results are reported only for runs where the generated output matches the expected tool call. In this test set, that output match rate is 100%, but that should not be read as the model’s general accuracy. It only means the latency numbers are based on valid outputs for these benchmark cases.
 
@@ -81,6 +81,18 @@ gantt
 ```
 
 This approach may be easier to debug and inspect, but it adds another stage to the pipeline.
+
+## Speech-to-tool v1 results
+
+I now have the first direct speech-to-tool result from the iPhone 16 Pro run.
+
+This is a **v1 result** and I plan to re-run it, but it gives the first concrete baseline for the direct path.
+
+| Model | Median duration |
+|---|---:|
+| Leap LFM2.5 Audio 1.5B Speech To Tool | 2354 ms |
+
+For this v1 run, the direct speech-to-tool path is producing a valid tool-call JSON in about **2.35 seconds median**.
 
 ## Text-to-tool results
 

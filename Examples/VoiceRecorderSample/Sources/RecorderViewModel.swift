@@ -1412,6 +1412,11 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                             if toolMatched == true {
                                 toolCallMatchCount += 1
                             } else {
+                                print(
+                                    """
+                                    Benchmark tool-call mismatch: file=\(item.audioURL.lastPathComponent); expected=\(toolComparison["expected_tool_call_json"] as? String ?? ""); actual=\(toolComparison["actual_tool_call_json"] as? String ?? ""); raw=\(toolComparison["actual_tool_call"] as? String ?? "")
+                                    """
+                                )
                                 toolCallMismatchDetails.append(
                                     benchmarkToolCallMismatchDetail(
                                         item: item,
@@ -1559,6 +1564,25 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                         await MainActor.run {
                             viewModel?.benchmarkRequested = false
                             viewModel?.benchmarkRunProgress = "Stopped"
+                        }
+                        break benchmarkLoop
+                    }
+
+                    let isLastSelectedItem = offset == items.indices.last
+                    let isLastInferenceForItem = inferenceIndex == inferenceCount
+                    if isLastSelectedItem && isLastInferenceForItem {
+                        let passCompleteStatus = settings.benchmarkLoop
+                            ? "Benchmark pass \(iteration) complete. Restarting..."
+                            : "Benchmark pass \(iteration) complete."
+                        if settings.benchmarkLoop == false {
+                            finishStatus = passCompleteStatus
+                        }
+                        await MainActor.run {
+                            viewModel?.benchmarkStatus = passCompleteStatus
+                            viewModel?.benchmarkSleepCountdown = ""
+                        }
+                        if settings.benchmarkLoop {
+                            continue
                         }
                         break benchmarkLoop
                     }
@@ -2285,12 +2309,14 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         prompt: String?,
         viewModel: RecorderViewModel?
     ) async -> BenchmarkToolCallResult {
+        let promptStatus = speechToToolPromptStatus(prompt)
         await MainActor.run {
-            viewModel?.benchmarkStatus = "Generating tool call from audio..."
+            viewModel?.benchmarkStatus = "Generating tool call from audio (\(promptStatus))..."
         }
+        print("Benchmark speech-to-tool prompt \(promptStatus)")
         let result = await LeapBenchmarkToolCallModel.shared.generate(
             input: .audio(url),
-            speechToToolPrompt: prompt,
+            speechToToolPrompt: effectiveSpeechToToolPromptOverride(prompt),
             progressHandler: { progress, speed in
                 Task { @MainActor [weak viewModel] in
                     guard viewModel?.benchmarkRequested == true else { return }
@@ -2619,6 +2645,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "converted_to_wav_before_inference": item.wasConvertedForProcessing,
             "benchmark_delay_seconds": settings.benchmarkDelaySeconds,
             "benchmark_number_of_inferences": settings.benchmarkNumberOfInferences,
+            "benchmark_loop": settings.benchmarkLoop,
             "benchmark_recordings_match": settings.benchmarkRecordingsMatch.joined(separator: ","),
             "benchmark_audio_extension": item.audioURL.pathExtension.lowercased(),
             "text_to_tool_model": settings.benchmarkTextToToolModel.modelId,
@@ -2626,6 +2653,10 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "text_to_tool_model_source": settings.benchmarkTextToToolModel.modelSource,
             "text_to_tool_quantization": settings.benchmarkTextToToolModel.quantization
         ]
+        let speechToToolPrompt = effectiveSpeechToToolPrompt(settings.benchmarkSpeechToToolPrompt)
+        meta["speech_to_tool_prompt_override"] = effectiveSpeechToToolPromptOverride(settings.benchmarkSpeechToToolPrompt) != nil
+        meta["speech_to_tool_prompt_length"] = speechToToolPrompt.count
+        meta["speech_to_tool_prompt_preview"] = speechToToolPromptPreview(speechToToolPrompt)
         if let lineID = item.lineID {
             meta["benchmark_line_id"] = lineID
         }
@@ -2721,6 +2752,10 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "benchmark_tool_call_mismatch_count": toolCallMismatchDetails.count,
             "benchmark_tool_call_mismatches": benchmarkMismatchSummary(toolCallMismatchDetails)
         ]
+        let speechToToolPrompt = effectiveSpeechToToolPrompt(settings.benchmarkSpeechToToolPrompt)
+        attributes["speech_to_tool_prompt_override"] = effectiveSpeechToToolPromptOverride(settings.benchmarkSpeechToToolPrompt) != nil
+        attributes["speech_to_tool_prompt_length"] = speechToToolPrompt.count
+        attributes["speech_to_tool_prompt_preview"] = speechToToolPromptPreview(speechToToolPrompt)
         if let expectedToolCallBundlePath = item.expectedToolCallBundlePath {
             attributes["expected_tool_call_file"] = expectedToolCallBundlePath
         }
@@ -2741,6 +2776,37 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
 
     private nonisolated static func benchmarkCompactInputMeta(item: BenchmarkDatasetItem) -> String {
         "file=\(item.audioURL.lastPathComponent); expected=\(item.expectedToolCallCanonicalJSON ?? "")"
+    }
+
+    private nonisolated static func speechToToolPromptStatus(_ prompt: String?) -> String {
+        let effectivePrompt = effectiveSpeechToToolPrompt(prompt)
+        let mode: String
+        #if LEAP_SDK_SPEECH_TO_TOOL_ONLY
+        mode = "hardcoded prompt"
+        #else
+        mode = prompt == nil ? "default prompt" : "override prompt"
+        #endif
+        return "\(mode), \(effectivePrompt.count) chars"
+    }
+
+    private nonisolated static func effectiveSpeechToToolPromptOverride(_ prompt: String?) -> String? {
+        #if LEAP_SDK_SPEECH_TO_TOOL_ONLY
+        return nil
+        #else
+        return prompt
+        #endif
+    }
+
+    private nonisolated static func effectiveSpeechToToolPrompt(_ prompt: String?) -> String {
+        effectiveSpeechToToolPromptOverride(prompt) ?? ToolCallPromptBuilder.speechToToolUserPrompt()
+    }
+
+    private nonisolated static func speechToToolPromptPreview(_ prompt: String) -> String {
+        let singleLine = prompt
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(singleLine.prefix(120))
     }
 
     private nonisolated static func benchmarkCompactOutputMeta(_ outputMeta: [String: Any]) -> String {

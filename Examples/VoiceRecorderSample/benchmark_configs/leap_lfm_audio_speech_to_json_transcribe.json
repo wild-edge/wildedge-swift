@@ -1,0 +1,18 @@
+{
+  "config_version": 1,
+  "benchmark_params": {
+    "benchmark_steps": ["speech_to_tool"],
+    "delay_seconds": 0,
+    "number_of_inferences": 5,
+    "loop": false,
+    "recordings_match": "*.m4a"
+  },
+  "model_definitions": {
+    "leap-lfm2.5-audio-1.5b": {
+      "enabled": true,
+      "inference": {
+        "system_prompt": "Transcribe the audio. Return only JSON in this shape: {\"transcribed\":\"<transcript>\"}."
+      }
+    }
+  }
+}

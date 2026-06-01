@@ -846,6 +846,9 @@ enum ToolCallPromptBuilder {
     Command: hey, it's too loud
     Output: {"tool_name":"change_volume","arguments":{"direction":"down"}}
 
+    Command: its too loud, volume down
+    Output: {"tool_name":"change_volume","arguments":{"direction":"down"}}
+
     Command: I can't hear it
     Output: {"tool_name":"change_volume","arguments":{"direction":"up"}}
 
@@ -952,14 +955,29 @@ enum ToolCallPromptBuilder {
 
     static func speechToToolUserPrompt() -> String {
         """
-        Listen to this audio command. Understand the spoken command internally, then return only the matching JSON tool-call object.
-        Do not return the transcript.
+        You convert one spoken in-car command into exactly one JSON object.
 
-        \(outputContract)
+        Return only valid JSON. No transcript, prose, Markdown, code fences, reasoning, or extra keys. Stop after the JSON object.
 
-        \(examples)
+        Required shape:
+        {"tool_name":"set_temperature|change_volume|navigate|unknown","arguments":{}}
 
-        JSON:
+        Choose exactly one tool:
+        - set_temperature: use for cabin temperature, heat, cold, warmer, cooler, AC, air conditioning. Arguments: {"temperature":number}. If a number is spoken, use it.
+        - change_volume: use for audio volume, sound, loud, quiet, louder, quieter, mute, unmute. Arguments: {"direction":"up"|"down"}. Map "too loud", "quieter", "lower", "volume down" to "down". Map "too quiet", "can't hear", "louder", "volume up" to "up".
+        - navigate: use only for travel, routing, directions, driving, or going to a destination. Arguments: {"destination":"lowercase place"}. Remove filler like please, now, thanks.
+        - unknown: use when no tool clearly matches. Arguments: {}.
+
+        Do not choose navigate just because a place word appears. Choose navigate only when the command asks to go, drive, route, navigate, or get directions.
+
+        Examples:
+        "set the temperature to 21 degrees" -> {"tool_name":"set_temperature","arguments":{"temperature":21}}
+        "temperature 21 degrees" -> {"tool_name":"set_temperature","arguments":{"temperature":21}}
+        "volume down" -> {"tool_name":"change_volume","arguments":{"direction":"down"}}
+        "it's too loud, volume down" -> {"tool_name":"change_volume","arguments":{"direction":"down"}}
+        "I can't hear it" -> {"tool_name":"change_volume","arguments":{"direction":"up"}}
+        "navigate home, please" -> {"tool_name":"navigate","arguments":{"destination":"home"}}
+        "let's go home" -> {"tool_name":"navigate","arguments":{"destination":"home"}}
         """
     }
 }

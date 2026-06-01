@@ -6,13 +6,18 @@ This note records how `VoiceRecorderSample-Benchmark` runs the LeapSDK LFM audio
 
 - Build scheme: `VoiceRecorderSample-Benchmark`
 - Build configuration: `Benchmark`
-- Direct benchmark step: `speech_to_tool`
+- Separate LeapSDK app scheme: `VoiceRecorderSample-Benchmark-LeapSDK`
+- Separate LeapSDK app configuration: `BenchmarkLeapSDK`
+- Separate LeapSDK app bundle ID: `dev.wildedge.sample.voice-leapsdk`
+- Current LeapSDK experiment step: `speech_to_tool`
+- Current LeapSDK experiment flag: `LEAP_SDK_SPEECH_TO_TOOL_ONLY`
 - Model loaded through LeapSDK: `LFM2.5-Audio-1.5B`
 - Quantization: `Q4_0`
+- Leap KV prompt cache: enabled at `Application Support/leap-kv-cache`
 - App-level `llama.framework`: not linked
 - Expected LeapSDK bundled backend: `libinference_engine_llamacpp_backend.framework`
 
-The direct flow is:
+The current speech-to-tool experiment flow is:
 
 ```text
 benchmark .m4a fixture
@@ -21,6 +26,8 @@ benchmark .m4a fixture
   -> JSON tool-call text
   -> canonical JSON comparison against benchmark_data/<line_id>.json
 ```
+
+The `VoiceRecorderSample-Benchmark-LeapSDK` build is the dedicated LeapSDK flavor. For the current latency experiment it compiles with `LEAP_SDK_SPEECH_TO_TOOL_ONLY`, installs as a separate app from `dev.wildedge.sample.voice`, and forces the benchmark flow to `speech_to_tool` with the Leap audio model even if the remote SDK config contains a different `benchmark_steps` value. Remote config can still control non-flow benchmark settings such as `delay_seconds`, `number_of_inferences`, `loop`, `recordings_match`, and the prompt override under `model_definitions.leap-lfm2.5-audio-1.5b.inference.system_prompt`.
 
 For direct `speech_to_tool`, the Leap audio engine must use this SDK system prompt:
 
@@ -41,6 +48,7 @@ The remote payload should enable the direct flow and the Leap model. To keep the
     "benchmark_steps": ["speech_to_tool"],
     "delay_seconds": 10,
     "number_of_inferences": 10,
+    "loop": true,
     "recordings_match": "*.m4a"
   },
   "model_definitions": {
@@ -54,7 +62,9 @@ The remote payload should enable the direct flow and the Leap model. To keep the
 }
 ```
 
-Do not include `loader`, `source`, `capabilities`, download policy, security policy, memory policy, or fallback sections in the remote overlay. The local config defines the model and step; the remote payload selects the flow, enables the model, and may override the benchmark prompt through `model_definitions.<model>.inference.system_prompt`.
+Set `"loop": false` to run one pass over the matched recordings and stop after the last inference. If omitted, the benchmark loops continuously.
+
+Do not include `loader`, `source`, `capabilities`, download policy, security policy, memory policy, or fallback sections in the remote overlay. The local config defines the model and step; the remote payload enables the model and may override the benchmark prompt through `model_definitions.<model>.inference.system_prompt`. In the dedicated LeapSDK app flavor, the direct `speech_to_tool` flow is hardcoded by the build and does not depend on the remote `benchmark_steps` field.
 
 This is plain JSON-text generation, not native Leap function calling. The app does not register benchmark functions with LeapSDK; it passes no `functionCalls` definitions to the SDK request. The model sees the prompt text and audio, then the app parses the returned JSON text and compares it with the expected fixture.
 
@@ -92,6 +102,12 @@ Model preparation happens before measured runs in `prepareLeapSpeechToToolBenchm
 ## Expected Timing
 
 On iPhone 16 Pro with `LFM2.5-Audio-1.5B Q4_0`, direct `speech_to_tool` is currently around 2,000 ms per fixture.
+
+On June 1, 2026, the forced Leap `speech_to_text` experiment processed the same audio fixtures in roughly 300-400 ms. That result strongly suggests the slower direct `speech_to_tool` path is not caused by audio file conversion, model preparation, or basic audio ingestion alone. The remaining likely causes are our app-side request shape, prompt length/content, JSON/tool-output constraints, or output parsing/comparison behavior around the direct tool prompt.
+
+The default direct `speech_to_tool` user prompt is much larger than the ASR prompt. In this app, the ASR user instruction is about 118 characters, while the default direct JSON tool prompt is about 4,347 characters because it includes the output contract and examples. Device logs for the long direct prompt showed about 1,046-1,099 prompt tokens and 16-17 generated tokens, so prompt prefill can dominate repeated direct runs.
+
+Leap prompt caching is enabled through `LiquidCacheOptions.enabled(path:)`, passed to `Leap.shared.load(...)` as `LiquidInferenceEngineManifestOptions`. The cache path is `Application Support/leap-kv-cache` in the app container. This should reduce repeated prefill cost for stable prompts, especially the full JSON tool prompt. It will not remove audio encoding/decoding time, model execution for new audio, or generated-token decoding.
 
 Example observed logs:
 
