@@ -247,7 +247,12 @@ final class LlamaRunner: ObservableObject {
                     outputModality: .generation,
                     inputMeta: inputMeta,
                     outputMeta: outputMeta,
-                    generationConfig: ["max_new_tokens": maxNewTokens, "top_k": 40, "top_p": 0.9, "temperature": 0.7]
+                    generationConfig: GenerationConfig(
+                        temperature: 0.7,
+                        topP: 0.9,
+                        topK: 40,
+                        maxTokens: maxNewTokens
+                    ).toMap()
                 )
             }
         }

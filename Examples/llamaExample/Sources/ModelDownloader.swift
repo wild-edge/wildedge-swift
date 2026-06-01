@@ -18,6 +18,15 @@ struct CatalogModel: Identifiable {
 
 let liquidAICatalog: [CatalogModel] = [
     CatalogModel(
+        id: "lfm25-audio-15b-q40",
+        name: "LFM2.5-Audio-1.5B",
+        subtitle: "LiquidAI/LFM2.5-Audio-1.5B-GGUF · Q4_0",
+        sizeLabel: "663 MB",
+        downloadURL: URL(string: "https://huggingface.co/LiquidAI/LFM2.5-Audio-1.5B-GGUF/resolve/main/LFM2.5-Audio-1.5B-Q4_0.gguf")!,
+        filename: "LFM2.5-Audio-1.5B-Q4_0.gguf",
+        source: .liquidAI
+    ),
+    CatalogModel(
         id: "lfm2-350m-q4km",
         name: "LFM2-350M Instruct",
         subtitle: "LiquidAI/LFM2-350M-GGUF · Q4_K_M",
