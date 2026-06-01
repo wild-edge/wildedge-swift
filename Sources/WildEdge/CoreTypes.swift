@@ -177,6 +177,54 @@ public struct DetectionOutputMeta {
     }
 }
 
+public struct GenerationConfig {
+    public var temperature: Double?
+    public var topP: Double?
+    public var topK: Int?
+    public var maxTokens: Int?
+    public var repetitionPenalty: Double?
+    public var frequencyPenalty: Double?
+    public var presencePenalty: Double?
+    public var seed: Int?
+    public var stopSequencesCount: Int?
+
+    public init(
+        temperature: Double? = nil,
+        topP: Double? = nil,
+        topK: Int? = nil,
+        maxTokens: Int? = nil,
+        repetitionPenalty: Double? = nil,
+        frequencyPenalty: Double? = nil,
+        presencePenalty: Double? = nil,
+        seed: Int? = nil,
+        stopSequencesCount: Int? = nil
+    ) {
+        self.temperature = temperature
+        self.topP = topP
+        self.topK = topK
+        self.maxTokens = maxTokens
+        self.repetitionPenalty = repetitionPenalty
+        self.frequencyPenalty = frequencyPenalty
+        self.presencePenalty = presencePenalty
+        self.seed = seed
+        self.stopSequencesCount = stopSequencesCount
+    }
+
+    public func toMap() -> [String: Any] {
+        var map: [String: Any] = [:]
+        if let temperature { map["temperature"] = temperature }
+        if let topP { map["top_p"] = topP }
+        if let topK { map["top_k"] = topK }
+        if let maxTokens { map["max_tokens"] = maxTokens }
+        if let repetitionPenalty { map["repetition_penalty"] = repetitionPenalty }
+        if let frequencyPenalty { map["frequency_penalty"] = frequencyPenalty }
+        if let presencePenalty { map["presence_penalty"] = presencePenalty }
+        if let seed { map["seed"] = seed }
+        if let stopSequencesCount { map["stop_sequences_count"] = stopSequencesCount }
+        return map
+    }
+}
+
 public struct GenerationOutputMeta {
     public var tokensIn: Int?
     public var tokensOut: Int?
