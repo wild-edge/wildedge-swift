@@ -9,19 +9,19 @@ drift, and hardware metrics without ever sending raw inputs.
 
 ## Repository overview
 
-| Sample | What it shows |
-|---|---|
-| [Sources](https://github.com/wild-edge/wildedge-swift/tree/main/Sources) | SDK source code |
-| [VoiceRecorderSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/VoiceRecorderSample) | iOS app — records audio, runs a local ONNX voice-conversion model, tracks inference + uploads the recording as an attachment |
-| [Benchmarks](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/Benchmarks) | iOS app — interactive benchmarks for BlobStore append throughput, compaction strategies, dictionary encoding formats, and gzip batch compression |
-| [iOSAppSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/iOSAppSample) | iOS app integration using SwiftUI |
-| [SPMExamples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/SPMExamples) | Swift Package examples runnable from the terminal or Xcode |
-| [OnnxExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/OnnxExample) | Zero-code ONNX Runtime tracking via auto-interceptor |
-| [MLKitExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/MLKitExample) | Zero-code ML Kit tracking via auto-interceptor |
-| [TFLiteObjcExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteObjcExample) | Zero-code TensorFlow Lite tracking via `TFLInterpreter` auto-interceptor (`TensorFlowLiteObjC`) |
-| [TFLiteExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteExample) | Manual TensorFlow Lite tracking using the pure-Swift `Interpreter` |
-| [CarScannerExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/CarScannerExample) | iOS camera app — scans cars with OpenRouter and Gemini vision APIs, tracks each inference with `trackInference` and uploads the input image as an attachment |
-| [TracingExample.swift](https://github.com/wild-edge/wildedge-swift/blob/main/Examples/SPMExamples/Sources/WildEdgeExamples/TracingExample.swift) | Multi-step tracing with spans |
+| Example | Runtime | What it shows |
+|---|---|---|
+| [llamaExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/llamaExample) | llama.cpp · Metal GPU | On-device LLM — in-app GGUF catalog (Qwen2.5, TinyLlama, Liquid AI LFM2), streaming token output, Metal warmup, perf telemetry via `llama_perf_context` |
+| [execuTorchExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/execuTorchExample) | ExecuTorch · XNNPACK CPU | On-device LLM — Llama 3.2 1B catalog (.pte + tokenizer.json), RE2 tokenizer patching, `kernels_quantized` / `kernels_torchao` for INT4 models |
+| [CarScannerExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/CarScannerExample) | OpenRouter / Gemini API | iOS camera app — scans cars with remote vision APIs, tracks each inference and uploads the input image as an attachment |
+| [VoiceRecorderSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/VoiceRecorderSample) | ONNX Runtime | Records audio, runs a local ONNX voice-conversion model, tracks inference + uploads the recording as an attachment |
+| [OnnxExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/OnnxExample) | ONNX Runtime | Zero-code tracking via auto-interceptor |
+| [MLKitExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/MLKitExample) | ML Kit | Zero-code tracking via auto-interceptor |
+| [TFLiteObjcExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteObjcExample) | TensorFlow Lite (ObjC) | Zero-code tracking via `TFLInterpreter` auto-interceptor |
+| [TFLiteExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteExample) | TensorFlow Lite (Swift) | Manual tracking using the pure-Swift `Interpreter` |
+| [Benchmarks](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/Benchmarks) | — | Interactive benchmarks for BlobStore throughput, compaction, encoding formats, and gzip compression |
+| [iOSAppSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/iOSAppSample) | — | General-purpose iOS integration sample |
+| [SPMExamples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/SPMExamples) | — | Swift Package examples runnable from the terminal or Xcode, including multi-step tracing |
 
 
 ## Get a DSN from WildEdge
@@ -287,7 +287,7 @@ _ = handle.trackInference(
 )
 ```
 
-Available metadata types: `DetectionOutputMeta`, `GenerationOutputMeta`, `EmbeddingOutputMeta`, `TextInputMeta`.
+Available metadata types: `DetectionOutputMeta`, `GenerationOutputMeta`, `EmbeddingOutputMeta`, `TextInputMeta`, `GenerationConfig`.
 
 For API-hosted models, pass `ApiMeta` to surface which model checkpoint was actually used and detect silent backend updates:
 
