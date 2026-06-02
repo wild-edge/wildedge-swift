@@ -4,6 +4,7 @@ import LeapSDK
 struct AppMeasuredTextResponse {
     let text: String
     let durationMs: Int
+    let generationMetrics: BenchmarkGenerationMetrics?
 }
 
 actor LeapSpeechTranscriber {
@@ -259,6 +260,7 @@ actor LeapSpeechTranscriber {
         var generatedText = ""
         var reasoningFallback = ""
         var responseEvents: [String] = []
+        var generationMetrics: BenchmarkGenerationMetrics?
         let start = Date()
         for try await response in conversation.generateResponse(message: message, generationOptions: options) {
             switch onEnum(of: response) {
@@ -275,7 +277,10 @@ actor LeapSpeechTranscriber {
                 }.joined()
                 let finalFunctionCallJSON = completion.fullMessage.functionCalls?.first.flatMap(Self.toolCallJSON(from:))
                 if let stats = completion.stats {
-                    print("\(logPrefix) complete: tokens=\(stats.totalTokens), tps=\(stats.tokenPerSecond)")
+                    generationMetrics = BenchmarkGenerationMetrics(stats: stats)
+                    print(
+                        "\(logPrefix) complete: prompt_tokens=\(stats.promptTokens), completion_tokens=\(stats.completionTokens), total_tokens=\(stats.totalTokens), tps=\(stats.tokenPerSecond)"
+                    )
                 } else {
                     print("\(logPrefix) complete: no generation stats")
                 }
@@ -304,10 +309,18 @@ actor LeapSpeechTranscriber {
         let fallback = reasoningFallback.trimmingCharacters(in: .whitespacesAndNewlines)
         let durationMs = Int(Date().timeIntervalSince(start) * 1000)
         if trimmed.isEmpty == false {
-            return AppMeasuredTextResponse(text: trimmed, durationMs: durationMs)
+            return AppMeasuredTextResponse(
+                text: trimmed,
+                durationMs: durationMs,
+                generationMetrics: generationMetrics
+            )
         }
         if fallback.isEmpty == false {
-            return AppMeasuredTextResponse(text: fallback, durationMs: durationMs)
+            return AppMeasuredTextResponse(
+                text: fallback,
+                durationMs: durationMs,
+                generationMetrics: generationMetrics
+            )
         }
         let events = responseEvents.isEmpty
             ? "no response events"

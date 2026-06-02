@@ -9,6 +9,48 @@ enum BenchmarkToolCallInput {
     case audio(URL)
 }
 
+struct BenchmarkGenerationMetrics {
+    let tokensIn: Int?
+    let tokensOut: Int?
+    let totalTokens: Int?
+    let cachedInputTokens: Int?
+    let tokensPerSecond: Double?
+
+    init(
+        tokensIn: Int? = nil,
+        tokensOut: Int? = nil,
+        totalTokens: Int? = nil,
+        cachedInputTokens: Int? = nil,
+        tokensPerSecond: Double? = nil
+    ) {
+        self.tokensIn = tokensIn
+        self.tokensOut = tokensOut
+        self.totalTokens = totalTokens
+        self.cachedInputTokens = cachedInputTokens
+        self.tokensPerSecond = tokensPerSecond
+    }
+
+    init(stats: GenerationStats) {
+        self.init(
+            tokensIn: Self.nonNegativeInt(stats.promptTokens),
+            tokensOut: Self.nonNegativeInt(stats.completionTokens),
+            totalTokens: Self.nonNegativeInt(stats.totalTokens),
+            cachedInputTokens: Self.nonNegativeInt(stats.cachedPromptTokens),
+            tokensPerSecond: Self.finiteDouble(stats.tokenPerSecond)
+        )
+    }
+
+    private static func nonNegativeInt(_ value: Int64) -> Int? {
+        guard value >= 0 else { return nil }
+        return Int(value)
+    }
+
+    private static func finiteDouble(_ value: Float) -> Double? {
+        guard value.isFinite else { return nil }
+        return Double(value)
+    }
+}
+
 struct BenchmarkToolCallGenerationResult {
     let rawOutput: String
     let durationMs: Int
@@ -21,6 +63,7 @@ struct BenchmarkToolCallGenerationResult {
     let modelSource: String
     let modelFormat: String
     let quantization: String
+    let generationMetrics: BenchmarkGenerationMetrics?
 
     var parsedSuccessfully: Bool {
         parsedJSON != nil && errorDescription == nil
@@ -43,6 +86,7 @@ actor LeapBenchmarkToolCallModel {
         do {
             var rawOutput: String
             var measuredDurationMs: Int?
+            var generationMetrics: BenchmarkGenerationMetrics?
             let model: BenchmarkTextToToolModel
             switch input {
             case .text(let transcript):
@@ -64,6 +108,7 @@ actor LeapBenchmarkToolCallModel {
                         transcript: trimmedTranscript
                     )
                     measuredDurationMs = response.durationMs
+                    generationMetrics = response.generationMetrics
                 } else if textToToolModel.kind == .appleFoundationModels {
                     rawOutput = try await AppleFoundationModelsBenchmarkTextToToolModel.shared.toolCall(
                         fromTranscript: trimmedTranscript
@@ -124,6 +169,7 @@ actor LeapBenchmarkToolCallModel {
                     )
                     : response.text
                 measuredDurationMs = response.durationMs
+                generationMetrics = response.generationMetrics
             }
 
             let parseResult = ToolCallJSON.parseAndValidate(from: rawOutput)
@@ -132,6 +178,7 @@ actor LeapBenchmarkToolCallModel {
                 durationMs: measuredDurationMs ?? Int(Date().timeIntervalSince(start) * 1000),
                 parseResult: parseResult,
                 generationError: nil,
+                generationMetrics: generationMetrics,
                 model: model
             )
         } catch {
@@ -157,6 +204,7 @@ actor LeapBenchmarkToolCallModel {
         durationMs: Int,
         parseResult: ToolCallParseResult,
         generationError: String?,
+        generationMetrics: BenchmarkGenerationMetrics? = nil,
         model: BenchmarkTextToToolModel = .default
     ) -> BenchmarkToolCallGenerationResult {
         BenchmarkToolCallGenerationResult(
@@ -170,7 +218,8 @@ actor LeapBenchmarkToolCallModel {
             modelName: model.displayName,
             modelSource: model.modelSource,
             modelFormat: model.modelFormat,
-            quantization: model.quantization
+            quantization: model.quantization,
+            generationMetrics: generationMetrics
         )
     }
 }

@@ -933,6 +933,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         let modelSource: String
         let modelFormat: String
         let quantization: String
+        let generationMetrics: BenchmarkGenerationMetrics?
 
         var parsedSuccessfully: Bool {
             parsedJSON != nil && errorDescription == nil
@@ -2398,7 +2399,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             modelName: generation.modelName,
             modelSource: generation.modelSource,
             modelFormat: generation.modelFormat,
-            quantization: generation.quantization
+            quantization: generation.quantization,
+            generationMetrics: generation.generationMetrics
         )
     }
 
@@ -2412,7 +2414,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             && item.expectedToolCallJSON != nil
             && actualToolCall?.parsedJSON == item.expectedToolCallJSON
 
-        return [
+        var meta: [String: Any] = [
             "expected_tool_call": item.expectedToolCall ?? "",
             "expected_tool_call_json": expectedCanonical,
             "expected_tool_call_missing": item.expectedToolCall == nil,
@@ -2428,6 +2430,12 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "tool_call_duration_ms": actualToolCall?.durationMs ?? 0,
             "tool_call_exact_match": exactMatch
         ]
+        if let generationMetrics = actualToolCall?.generationMetrics {
+            for (key, value) in benchmarkGenerationMeta(generationMetrics) {
+                meta[key] = value
+            }
+        }
+        return meta
     }
 
     private nonisolated static func expectedToolCallDisplay(for item: BenchmarkDatasetItem) -> String {
@@ -2600,6 +2608,11 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "tool_call_parse_error": toolCall.parsedSuccessfully ? "" : toolCall.errorDescription ?? "",
             "duration_ms": toolCall.durationMs
         ]
+        if let generationMetrics = toolCall.generationMetrics {
+            for (key, value) in benchmarkGenerationMeta(generationMetrics) {
+                outputMeta[key] = value
+            }
+        }
         for (key, value) in additionalOutputMeta {
             outputMeta[key] = value
         }
@@ -2787,8 +2800,28 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             attributes["tool_call_model_name"] = toolCall.modelName
             attributes["tool_call_model_source"] = toolCall.modelSource
             attributes["tool_call_quantization"] = toolCall.quantization
+            if let generationMetrics = toolCall.generationMetrics {
+                for (key, value) in benchmarkGenerationMeta(generationMetrics) {
+                    attributes["tool_call_\(key)"] = value
+                }
+            }
         }
         return attributes
+    }
+
+    private nonisolated static func benchmarkGenerationMeta(
+        _ metrics: BenchmarkGenerationMetrics
+    ) -> [String: Any] {
+        var meta = GenerationOutputMeta(
+            tokensIn: metrics.tokensIn,
+            tokensOut: metrics.tokensOut,
+            cachedInputTokens: metrics.cachedInputTokens,
+            tokensPerSecond: metrics.tokensPerSecond
+        ).toMap()
+        if let totalTokens = metrics.totalTokens {
+            meta["total_tokens"] = totalTokens
+        }
+        return meta
     }
 
     private nonisolated static func benchmarkCompactInputMeta(item: BenchmarkDatasetItem) -> String {
