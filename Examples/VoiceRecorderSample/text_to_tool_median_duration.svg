@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="410" viewBox="0 0 720 410" role="img" aria-labelledby="ttt-title ttt-desc">
+  <title id="ttt-title">Text-to-tool median duration</title>
+  <desc id="ttt-desc">Bar chart comparing text-to-tool median duration for eight models. FunctionGemma is fastest at 295 ms, followed by LFM2 350M at 498 ms. Apple Foundation Models is slowest at 1931 ms.</desc>
+  <rect width="720" height="410" rx="18" fill="#ffffff"/>
+
+  <image href="wildedge-logo-text.svg" x="34" y="22" width="64" height="45" preserveAspectRatio="xMinYMin meet"/>
+  <text x="122" y="42" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#024079">Text-to-tool median duration</text>
+  <text x="122" y="65" font-family="Arial, sans-serif" font-size="12" fill="#52606d">Lower is better. Median duration for the text-to-tool stage only.</text>
+
+  <line x1="92" y1="300" x2="690" y2="300" stroke="#d9e2ec" stroke-width="1.5"/>
+  <line x1="92" y1="80" x2="92" y2="300" stroke="#d9e2ec" stroke-width="1.5"/>
+
+  <line x1="92" y1="256" x2="690" y2="256" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="260" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">400</text>
+  <line x1="92" y1="212" x2="690" y2="212" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="216" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">800</text>
+  <line x1="92" y1="168" x2="690" y2="168" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="172" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">1200</text>
+  <line x1="92" y1="124" x2="690" y2="124" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="128" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">1600</text>
+  <line x1="92" y1="80" x2="690" y2="80" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="84" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">2000</text>
+
+  <rect x="112" y="267.55" width="46" height="32.45" rx="7" fill="#024079"/>
+  <text x="135" y="260" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#024079">295</text>
+  <text x="135" y="324" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#102a43">
+    <tspan x="135" dy="0">Function</tspan>
+    <tspan x="135" dy="14">Gemma</tspan>
+  </text>
+
+  <rect x="184" y="245.22" width="46" height="54.78" rx="7" fill="#024079"/>
+  <text x="207" y="238" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#024079">498</text>
+  <text x="207" y="324" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#102a43">
+    <tspan x="207" dy="0">LFM2</tspan>
+    <tspan x="207" dy="14">350M</tspan>
+  </text>
+
+  <rect x="256" y="214.2" width="46" height="85.8" rx="7" fill="#024079"/>
+  <text x="279" y="207" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#024079">780</text>
+  <text x="279" y="324" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#102a43">
+    <tspan x="279" dy="0">Qwen3</tspan>
+    <tspan x="279" dy="14">0.6B</tspan>
+  </text>
+
+  <rect x="328" y="190.66" width="46" height="109.34" rx="7" fill="#024079"/>
+  <text x="351" y="183" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#024079">994</text>
+  <text x="351" y="324" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#102a43">
+    <tspan x="351" dy="0">Qwen3.5</tspan>
+    <tspan x="351" dy="14">0.8B</tspan>
+  </text>
+
+  <rect x="400" y="137.2" width="46" height="162.8" rx="7" fill="#024079"/>
+  <text x="423" y="130" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#024079">1480</text>
+  <text x="423" y="324" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#102a43">
+    <tspan x="423" dy="0">TinyLlama</tspan>
+    <tspan x="423" dy="14">1.1B</tspan>
+  </text>
+
+  <rect x="472" y="115.31" width="46" height="184.69" rx="7" fill="#024079"/>
+  <text x="495" y="108" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#024079">1679</text>
+  <text x="495" y="324" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#102a43">
+    <tspan x="495" dy="0">Qwen2.5</tspan>
+    <tspan x="495" dy="14">1.5B</tspan>
+  </text>
+
+  <rect x="544" y="96.78" width="46" height="203.22" rx="7" fill="#024079"/>
+  <text x="567" y="89" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#024079">1848</text>
+  <text x="567" y="324" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#102a43">
+    <tspan x="567" dy="0">Function</tspan>
+    <tspan x="567" dy="14">Gemma</tspan>
+    <tspan x="567" dy="14">MLX</tspan>
+  </text>
+
+  <rect x="616" y="87.59" width="46" height="212.41" rx="7" fill="#024079"/>
+  <text x="639" y="80" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#024079">1931</text>
+  <text x="639" y="324" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="700" fill="#102a43">
+    <tspan x="639" dy="0">Apple</tspan>
+    <tspan x="639" dy="14">FM</tspan>
+  </text>
+
+  <text x="28" y="190" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d" transform="rotate(-90 28 190)">Median duration (ms)</text>
+</svg>

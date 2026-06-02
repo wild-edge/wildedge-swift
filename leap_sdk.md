@@ -101,7 +101,18 @@ Model preparation happens before measured runs in `prepareLeapSpeechToToolBenchm
 
 ## Expected Timing
 
-On iPhone 16 Pro with `LFM2.5-Audio-1.5B Q4_0`, direct `speech_to_tool` is currently around 2,000 ms per fixture.
+On iPhone 16 Pro with `LFM2.5-Audio-1.5B Q4_0`, direct `speech_to_tool` is currently around 1,200 ms per fixture with the v2 shorter prompt.
+
+Current device comparison:
+
+| Device model | Device | Run | Median `tool_call_duration_ms` | LeapSDK token speed | Practical read |
+|---|---|---|---:|---:|---|
+| `iPhone17,1` | iPhone 16 Pro | v2 shorter prompt | 1180 ms | 14.374655856055332 tokens/s | Usable primary target |
+| `iPhone12,1` | iPhone 11 | v2 shorter prompt | 17390 ms | 1.0106046009498784 tokens/s | Too slow for short speech-to-tool interactions |
+
+The iPhone 11 result is useful as an older-device stress case, but 17.39 seconds end-to-end is not a practical latency target for this benchmark. For short speech-to-tool interactions, treat roughly 2 seconds as the practical upper target and sub-1 second as the preferred target. The current iPhone 16 Pro result is inside the practical range but still above the preferred target.
+
+The token-speed column is the SDK-reported `GenerationStats.tokenPerSecond` value. The public LeapSDK interface exposes prompt, completion, total, cached-prompt token counts, and this token-per-second value, but does not document whether `tokenPerSecond` is generated-token throughput only or includes input plus output tokens.
 
 On June 1, 2026, the forced Leap `speech_to_text` experiment processed the same audio fixtures in roughly 300-400 ms. That result strongly suggests the slower direct `speech_to_tool` path is not caused by audio file conversion, model preparation, or basic audio ingestion alone. The remaining likely causes are our app-side request shape, prompt length/content, JSON/tool-output constraints, or output parsing/comparison behavior around the direct tool prompt.
 

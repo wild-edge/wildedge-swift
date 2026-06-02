@@ -1429,8 +1429,11 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                             toolComparison["benchmark_tool_call_match_count"] = toolCallMatchCount
                             toolComparison["benchmark_tool_call_measured_count"] = toolCallMeasuredCount
                             toolComparison["benchmark_tool_call_expected_count"] = toolCallExpectedCount
-                            toolComparison["benchmark_tool_call_match_rate"] = toolCallExpectedCount > 0
-                                ? Double(toolCallMatchCount) / Double(toolCallExpectedCount)
+                            toolComparison["benchmark_tool_call_match_rate"] = toolCallMeasuredCount > 0
+                                ? Double(toolCallMatchCount) / Double(toolCallMeasuredCount)
+                                : 0
+                            toolComparison["benchmark_tool_call_progress_rate"] = toolCallExpectedCount > 0
+                                ? Double(toolCallMeasuredCount) / Double(toolCallExpectedCount)
                                 : 0
                             toolComparison["benchmark_tool_call_mismatches"] = benchmarkMismatchSummary(toolCallMismatchDetails)
                         }
@@ -2530,8 +2533,19 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         total: Int
     ) -> String {
         guard total > 0 else { return "" }
-        let percentage = Double(matched) / Double(total) * 100
-        return String(format: "%d/%d matched, %d measured, %.1f%%", matched, total, measured, percentage)
+        let accuracy = measured > 0
+            ? Double(matched) / Double(measured) * 100
+            : 0
+        let progress = Double(measured) / Double(total) * 100
+        return String(
+            format: "%d/%d matched, %d/%d measured, %.1f%% accuracy, %.1f%% progress",
+            matched,
+            measured,
+            measured,
+            total,
+            accuracy,
+            progress
+        )
     }
 
     private nonisolated static func benchmarkToolCallMismatchDetail(
@@ -2746,8 +2760,11 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "benchmark_tool_call_match_count": toolCallMatchCount,
             "benchmark_tool_call_measured_count": toolCallMeasuredCount,
             "benchmark_tool_call_expected_count": toolCallExpectedCount,
-            "benchmark_tool_call_match_rate": toolCallExpectedCount > 0
-                ? Double(toolCallMatchCount) / Double(toolCallExpectedCount)
+            "benchmark_tool_call_match_rate": toolCallMeasuredCount > 0
+                ? Double(toolCallMatchCount) / Double(toolCallMeasuredCount)
+                : 0,
+            "benchmark_tool_call_progress_rate": toolCallExpectedCount > 0
+                ? Double(toolCallMeasuredCount) / Double(toolCallExpectedCount)
                 : 0,
             "benchmark_tool_call_mismatch_count": toolCallMismatchDetails.count,
             "benchmark_tool_call_mismatches": benchmarkMismatchSummary(toolCallMismatchDetails)

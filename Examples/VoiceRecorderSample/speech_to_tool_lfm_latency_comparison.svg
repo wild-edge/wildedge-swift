@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="330" viewBox="0 0 720 330" role="img" aria-labelledby="latency-title latency-desc">
+  <title id="latency-title">Single-shot LFM speech-to-tool median latency</title>
+  <desc id="latency-desc">Bar chart comparing median latency for Leap LFM2.5 Audio 1.5B speech-to-tool: iPhone 16 Pro at 1.18 seconds and iPhone 11 at 17.39 seconds.</desc>
+  <rect width="720" height="330" rx="18" fill="#ffffff"/>
+
+  <image href="wildedge-logo-text.svg" x="42" y="24" width="76" height="53" preserveAspectRatio="xMinYMin meet"/>
+  <text x="164" y="42" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#102a43">Single-shot LFM speech-to-tool latency</text>
+  <text x="164" y="66" font-family="Arial, sans-serif" font-size="12" fill="#52606d">Leap LFM2.5 Audio 1.5B, v2 shorter prompt</text>
+
+  <line x1="92" y1="248" x2="672" y2="248" stroke="#d9e2ec" stroke-width="1.5"/>
+  <line x1="92" y1="88" x2="92" y2="248" stroke="#d9e2ec" stroke-width="1.5"/>
+
+  <line x1="92" y1="221.33" x2="672" y2="221.33" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="225.33" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">3 s</text>
+  <line x1="92" y1="194.67" x2="672" y2="194.67" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="198.67" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">6 s</text>
+  <line x1="92" y1="168" x2="672" y2="168" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="172" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">9 s</text>
+  <line x1="92" y1="141.33" x2="672" y2="141.33" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="145.33" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">12 s</text>
+  <line x1="92" y1="114.67" x2="672" y2="114.67" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="118.67" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">15 s</text>
+  <line x1="92" y1="88" x2="672" y2="88" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="92" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">18 s</text>
+
+  <line x1="320" y1="230.22" x2="672" y2="230.22" stroke="#9fb3c8" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="338" y="224" text-anchor="start" font-family="Arial, sans-serif" font-size="11" fill="#52606d">2 s target</text>
+
+  <rect x="190" y="237.51" width="120" height="10.49" rx="6" fill="#024079"/>
+  <text x="250" y="227" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#024079">1.18 s</text>
+  <text x="250" y="276" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#102a43">iPhone 16 Pro</text>
+  <text x="250" y="292" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d">iPhone17,1</text>
+
+  <rect x="430" y="93.42" width="120" height="154.58" rx="10" fill="#024079"/>
+  <text x="490" y="116" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#ffffff">17.39 s</text>
+  <text x="490" y="276" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#102a43">iPhone 11</text>
+  <text x="490" y="292" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d">iPhone12,1</text>
+
+  <text x="24" y="168" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d" transform="rotate(-90 24 168)">Median duration (seconds)</text>
+  <text x="48" y="318" font-family="Arial, sans-serif" font-size="12" fill="#52606d">Latency target: under 2 s for practical use, ideally sub-1 s.</text>
+</svg>

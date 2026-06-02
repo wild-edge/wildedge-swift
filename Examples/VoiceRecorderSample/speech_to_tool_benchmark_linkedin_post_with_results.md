@@ -1,3 +1,17 @@
+<table>
+  <tr>
+    <td style="border: 0; padding: 0 32px 0 0; vertical-align: top;">
+      <a href="https://wildedge.dev"><img src="wildedge-logo-text.svg" alt="WildEdge" width="120"></a>
+    </td>
+    <td style="border: 0; padding: 0; text-align: left; vertical-align: top;">
+      <strong>Authors:</strong><br>
+      Duda Piotr<br>
+      Kędzierski Wojciech<br>
+      Kołakowski Damian
+    </td>
+  </tr>
+</table>
+
 # Speech-to-Tool Benchmark
 
 I’m running a benchmark to compare two approaches for turning spoken user intent into tool calls:
@@ -30,6 +44,12 @@ The measurements cover:
    - Speech-to-text stage only
    - Text-to-tool stage only
    - Full two-step flow
+
+### What this benchmark does not focus on
+
+- **Accuracy:** this is not an accuracy benchmark. The test data is intentionally simple, and all evaluated models matched the expected outputs for these cases. That should not be read as broad tool-calling accuracy.
+- **Prompt engineering:** longer prompts visibly affected processing time. I shortened and optimized the direct prompt for this run, but there is still room for further prompt work.
+- **Fine-tuning:** this benchmark does not evaluate fine-tuned models. The goal is to get a practical ballpark comparison between the one-step direct speech-to-tool path and the two-step speech-to-text -> text-to-tool path.
 
 ## Hardware
 
@@ -82,17 +102,21 @@ gantt
 
 This approach may be easier to debug and inspect, but it adds another stage to the pipeline.
 
-## Speech-to-tool v1 results
+## Single-shot LFM speech-to-tool results
 
-I now have the first direct speech-to-tool result from the iPhone 16 Pro run.
+I now have the direct speech-to-tool result from the iPhone 16 Pro and iPhone 11 shorter-prompt run.
 
-This is a **v1 result** and I plan to re-run it, but it gives the first concrete baseline for the direct path.
+This is a **v2 shorter-prompt result** with LeapSDK token-speed metadata attached, so it gives the current concrete baseline for the direct path.
 
-| Model | Median duration |
-|---|---:|
-| Leap LFM2.5 Audio 1.5B Speech To Tool | 2354 ms |
+![Single-shot LFM speech-to-tool median latency comparing iPhone 16 Pro and iPhone 11](speech_to_tool_lfm_latency_comparison.svg)
 
-For this v1 run, the direct speech-to-tool path is producing a valid tool-call JSON in about **2.35 seconds median**.
+![LeapSDK-reported token throughput comparing iPhone 16 Pro and iPhone 11](speech_to_tool_lfm_token_throughput.svg)
+
+For this v2 shorter-prompt run, the direct speech-to-tool path is producing a valid tool-call JSON in about **1.18 seconds median** on iPhone 16 Pro (`iPhone17,1`). That is inside the practical target of roughly **2 seconds**, though the preferred target for this interaction is still **sub-1 second**.
+
+The iPhone 11 (`iPhone12,1`) baseline is **17.39 seconds median**, about **14.7x slower** on latency. That makes it useful as an older-device stress case, but not practical for this short voice-to-action task.
+
+For throughput, LeapSDK reports **14.37 tokens/s** on iPhone 16 Pro and **1.01 tokens/s** on iPhone 11. I’m treating this as SDK-reported token throughput because the exposed `GenerationStats.tokenPerSecond` field does not document whether it counts generated tokens only or input plus output tokens.
 
 ## Text-to-tool results
 
@@ -110,6 +134,8 @@ Current median durations:
 | 6 | Qwen2.5 1.5B Instruct Text To Tool | 1679 ms | 5.7× |
 | 7 | FunctionGemma MLX 4-bit Text To Tool | 1847.5 ms | 6.3× |
 | 8 | Apple Foundation Models Text To Tool | 1931 ms | 6.5× |
+
+![Text-to-tool median duration by model](text_to_tool_median_duration.svg)
 
 ## Observations
 
@@ -137,7 +163,7 @@ The main focus is latency:
 
 ## Next step
 
-I’ll run the benchmark across the 9 recordings on both devices and compare the end-to-end inference time for each approach.
+I’ll use this paired latency/token-speed view as the baseline, keeping iPhone 16 Pro as the primary target and iPhone 11 as an older-device stress baseline.
 
 Curious to see whether direct speech-to-tool is clearly faster in practice, or whether the classic speech-to-text → text-to-tool pipeline still wins on reliability, observability, and debugging.
 

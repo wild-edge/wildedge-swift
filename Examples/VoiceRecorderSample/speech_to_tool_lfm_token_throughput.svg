@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="330" viewBox="0 0 720 330" role="img" aria-labelledby="throughput-title throughput-desc">
+  <title id="throughput-title">LeapSDK-reported token throughput</title>
+  <desc id="throughput-desc">Bar chart comparing LeapSDK-reported token throughput for Leap LFM2.5 Audio 1.5B speech-to-tool: iPhone 16 Pro at 14.37 tokens per second and iPhone 11 at 1.01 tokens per second.</desc>
+  <rect width="720" height="330" rx="18" fill="#ffffff"/>
+
+  <image href="wildedge-logo-text.svg" x="42" y="24" width="76" height="53" preserveAspectRatio="xMinYMin meet"/>
+  <text x="164" y="42" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#102a43">LeapSDK-reported token throughput</text>
+  <text x="164" y="66" font-family="Arial, sans-serif" font-size="12" fill="#52606d">Reported as GenerationStats.tokenPerSecond</text>
+
+  <line x1="92" y1="248" x2="672" y2="248" stroke="#d9e2ec" stroke-width="1.5"/>
+  <line x1="92" y1="88" x2="92" y2="248" stroke="#d9e2ec" stroke-width="1.5"/>
+
+  <line x1="92" y1="216" x2="672" y2="216" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="220" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">3</text>
+  <line x1="92" y1="184" x2="672" y2="184" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="188" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">6</text>
+  <line x1="92" y1="152" x2="672" y2="152" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="156" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">9</text>
+  <line x1="92" y1="120" x2="672" y2="120" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="124" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">12</text>
+  <line x1="92" y1="88" x2="672" y2="88" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="92" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">15</text>
+
+  <rect x="190" y="94.72" width="120" height="153.28" rx="10" fill="#00b78b"/>
+  <text x="250" y="122" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#ffffff">14.37</text>
+  <text x="250" y="276" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#102a43">iPhone 16 Pro</text>
+  <text x="250" y="292" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d">iPhone17,1</text>
+
+  <rect x="430" y="237.23" width="120" height="10.77" rx="6" fill="#00b78b"/>
+  <text x="490" y="227" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#008f73">1.01</text>
+  <text x="490" y="276" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#102a43">iPhone 11</text>
+  <text x="490" y="292" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d">iPhone12,1</text>
+
+  <text x="24" y="168" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d" transform="rotate(-90 24 168)">Tokens per second</text>
+  <text x="48" y="318" font-family="Arial, sans-serif" font-size="12" fill="#52606d">SDK field does not document whether this counts generated tokens only or input plus output.</text>
+</svg>
