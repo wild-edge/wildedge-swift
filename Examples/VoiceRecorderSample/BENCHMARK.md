@@ -171,225 +171,105 @@ Plain Markdown tables cannot merge cells. This table uses raw HTML so the line-l
 
 ## SDK Config Selection
 
-The SDK payload controls which benchmark inputs run.
+The SDK payload is a strict overlay on top of the local app benchmark config. The app decodes JSON into typed Swift config models, merges only allowed remote sections, validates the effective config, resolves active steps to models, estimates memory use, and then starts the benchmark.
 
-Recommended structured payload:
+Remote payloads may contain only:
+
+- `config_version`
+- `benchmark_params`
+- `step_definitions`
+- `model_definitions`
+
+Remote payloads may not override local capabilities, download policy, security policy, memory policy, fallback behavior, app settings, or SDK refresh settings. A payload with forbidden or unknown top-level keys is rejected and the local benchmark config is used.
+
+Minimal flow-only payload:
 
 ```json
 {
-  "app_settings": {
-    "benchmark_mode": true
-  },
+  "config_version": 1,
   "benchmark_params": {
-    "benchmark_steps": ["speech_to_text"],
+    "benchmark_steps": ["speech_to_text", "text_to_tool"],
     "delay_seconds": 10,
     "number_of_inferences": 10,
     "recordings_match": "*"
-  },
-  "model_settings": {
-    "model_name": "whisper-tiny"
-  },
-  "sdk_settings": {
-    "config_fetch": "30s"
   }
 }
 ```
 
-Two-step speech-to-tool payload:
+Step definitions are reusable and describe only pipeline shape:
 
 ```json
 {
-  "app_settings": {
-    "benchmark_mode": true
-  },
-  "benchmark_params": {
-    "benchmark_steps": ["speech_to_text", "text_to_tool"],
-    "delay_seconds": 10,
-    "number_of_inferences": 10,
-    "recordings_match": "*",
-    "text_to_tool_model": "functiongemma"
-  },
-  "model_settings": {
-    "model_name": "whisper-tiny"
-  },
-  "sdk_settings": {
-    "config_fetch": "30s"
+  "config_version": 1,
+  "step_definitions": {
+    "text_to_tool": {
+      "input_type": "text",
+      "output_type": "json",
+      "model_name": "qwen3-4b-4bit-remote"
+    }
   }
 }
 ```
 
-Two-step with TinyLlama 1.1B 4-bit GGUF:
+Model definitions describe how to find and load the model. Remote `memory_estimate_mb` is allowed as a hint, but the app still enforces the local `memory_policy`.
 
 ```json
 {
-  "app_settings": {
-    "benchmark_mode": true
-  },
-  "benchmark_params": {
-    "benchmark_steps": ["speech_to_text", "text_to_tool"],
-    "delay_seconds": 10,
-    "number_of_inferences": 10,
-    "recordings_match": "*",
-    "text_to_tool_model": "tinyllama-1.1b-4bit"
-  },
-  "model_settings": {
-    "model_name": "whisper-tiny"
-  },
-  "sdk_settings": {
-    "config_fetch": "30s"
+  "config_version": 1,
+  "model_definitions": {
+    "qwen3-4b-4bit-remote": {
+      "enabled": true,
+      "source": "hf://REAL_OWNER/REAL_REPO_NAME/model.gguf@0123456789abcdef",
+      "loader": "llama.cpp",
+      "memory_estimate_mb": 3500,
+      "inference": {
+        "temperature": 0,
+        "max_tokens": 512
+      }
+    }
   }
 }
 ```
 
-Two-step with Qwen2.5 1.5B Instruct:
+Complete remote model suggestion:
 
 ```json
 {
-  "app_settings": {
-    "benchmark_mode": true
-  },
+  "config_version": 1,
   "benchmark_params": {
-    "benchmark_steps": ["speech_to_text", "text_to_tool"],
-    "delay_seconds": 10,
-    "number_of_inferences": 10,
-    "recordings_match": "*",
-    "text_to_tool_model": "qwen2.5-1.5b-instruct"
+    "benchmark_steps": ["speech_to_text", "text_to_tool"]
   },
-  "model_settings": {
-    "model_name": "whisper-tiny"
-  },
-  "sdk_settings": {
-    "config_fetch": "30s"
-  }
-}
-```
-
-Two-step with Qwen3 0.6B 4-bit:
-
-```json
-{
-  "app_settings": {
-    "benchmark_mode": true
-  },
-  "benchmark_params": {
-    "benchmark_steps": ["speech_to_text", "text_to_tool"],
-    "delay_seconds": 10,
-    "number_of_inferences": 10,
-    "recordings_match": "*",
-    "text_to_tool_model": "qwen3-0.6b-4bit"
-  },
-  "model_settings": {
-    "model_name": "whisper-tiny"
-  },
-  "sdk_settings": {
-    "config_fetch": "30s"
-  }
-}
-```
-
-Two-step with Qwen3-4B 4-bit:
-
-```json
-{
-  "app_settings": {
-    "benchmark_mode": true
-  },
-  "benchmark_params": {
-    "benchmark_steps": ["speech_to_text", "text_to_tool"],
-    "delay_seconds": 10,
-    "number_of_inferences": 10,
-    "recordings_match": "*",
-    "text_to_tool_model": "qwen3-4b-4bit"
-  },
-  "model_settings": {
-    "model_name": "whisper-tiny"
-  },
-  "sdk_settings": {
-    "config_fetch": "30s"
-  }
-}
-```
-
-Two-step with Apple Foundation Models:
-
-```json
-{
-  "app_settings": {
-    "benchmark_mode": true
-  },
-  "benchmark_params": {
-    "benchmark_steps": ["speech_to_text", "text_to_tool"],
-    "delay_seconds": 10,
-    "number_of_inferences": 10,
-    "recordings_match": "*",
-    "text_to_tool_model": "apple-foundation-models"
-  },
-  "model_settings": {
-    "model_name": "leap-lfm2.5-audio-1.5b"
-  },
-  "sdk_settings": {
-    "config_fetch": "30s"
-  }
-}
-```
-
-For allowlisted presets, the object form may include the exact repository metadata. The resolved model and quantization must still match a supported preset:
-
-```json
-{
-  "app_settings": {
-    "benchmark_mode": true
-  },
-  "benchmark_params": {
-    "benchmark_steps": ["speech_to_text", "text_to_tool"],
-    "delay_seconds": 10,
-    "number_of_inferences": 10,
-    "recordings_match": "*",
-    "text_to_tool_model": {
-      "preset": "apple-foundation-models",
-      "model_name": "SystemLanguageModel.default",
-      "model_source": "apple"
+  "step_definitions": {
+    "text_to_tool": {
+      "input_type": "text",
+      "output_type": "json",
+      "model_name": "qwen3-4b-4bit-remote"
     }
   },
-  "model_settings": {
-    "model_name": "whisper-tiny"
-  },
-  "sdk_settings": {
-    "config_fetch": "30s"
+  "model_definitions": {
+    "qwen3-4b-4bit-remote": {
+      "enabled": true,
+      "source": "hf://REAL_OWNER/REAL_REPO_NAME/model.gguf@0123456789abcdef",
+      "loader": "llama.cpp",
+      "memory_estimate_mb": 3500,
+      "inference": {
+        "temperature": 0,
+        "max_tokens": 512
+      }
+    }
   }
 }
 ```
 
-Leap LFM audio and text-only models are currently disabled because LeapSDK 0.10.6 aborts while loading LFM2 GGUF metadata. The confirmed audio failure is `LFM2.5-Audio-1.5B Q4_0`: the backend asks for `gpt-oss.context_length`, while the GGUF exposes `lfm2.context_length`.
-
-FunctionGemma, TinyLlama 1.1B 4-bit GGUF, Qwen2.5 1.5B, Qwen3 0.6B, and Qwen3-4B GGUF presets run through the bundled llama.cpp runtime, not through Leap SDK. The app downloads the selected GGUF file from Hugging Face on first use, or from the Settings screen:
-
-- `functiongemma`: `bartowski/google_functiongemma-270m-it-GGUF`, `Q4_K_M`, about 253 MB
-- `tinyllama-1.1b-4bit`: `TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF`, `Q4_K_M`, about 700 MB
-- `qwen2.5-1.5b-instruct`: `Qwen/Qwen2.5-1.5B-Instruct-GGUF`, `Q4_K_M`, about 1.04 GB
-- `qwen3-0.6b-4bit`: `unsloth/Qwen3-0.6B-GGUF`, `Q4_K_M`, about 397 MB
-- `qwen3-4b-4bit`: `Qwen/Qwen3-4B-GGUF`, `Q4_K_M`, about 2.5 GB
-
-ONNX Runtime is linked in the app, but there is no configured ONNX autoregressive text-generation model and tokenizer for text-to-tool yet. Remote `onnx` text-to-tool selections are parsed as a known backend but remain outside the benchmark allowlist until a concrete ONNX model package is added.
-
-Direct speech-to-tool payload, currently blocked until the LeapSDK/model metadata issue is fixed:
+Disable a model remotely:
 
 ```json
 {
-  "app_settings": {
-    "benchmark_mode": true
-  },
-  "benchmark_params": {
-    "benchmark_steps": ["speech_to_tool"],
-    "delay_seconds": 10,
-    "number_of_inferences": 10,
-    "recordings_match": "*"
-  },
-  "model_settings": {
-    "model_name": "leap-lfm2.5-audio-1.5b"
-  },
-  "sdk_settings": {
-    "config_fetch": "30s"
+  "config_version": 1,
+  "model_definitions": {
+    "leap-lfm2.5-audio-1.5b": {
+      "enabled": false
+    }
   }
 }
 ```
@@ -398,23 +278,15 @@ To focus on particular input audio files, set `recordings_match` to recording ID
 
 ```json
 {
-  "app_settings": {
-    "benchmark_mode": true
-  },
+  "config_version": 1,
   "benchmark_params": {
-    "benchmark_steps": ["speech_to_text"],
     "delay_seconds": 10,
     "number_of_inferences": 10,
+    "benchmark_steps": ["speech_to_text", "text_to_tool"],
     "recordings_match": [
       "001*",
       "^003-003-[AC]$"
     ]
-  },
-  "model_settings": {
-    "model_name": "whisper-tiny"
-  },
-  "sdk_settings": {
-    "config_fetch": "30s"
   }
 }
 ```
@@ -430,33 +302,23 @@ This runs matching bundled audio files one by one, for example:
 
 Selection rules:
 
-- `app_settings.benchmark_mode: true` starts the benchmark loop.
-- `app_settings.benchmark_mode: false` stops the loop after the current file finishes.
-- `benchmark_params.benchmark_steps` selects benchmark behavior. Missing steps default to `["speech_to_text"]`.
-- Supported step sequences are `["speech_to_text"]` and `["speech_to_text", "text_to_tool"]`. `["speech_to_tool"]` is parsed but currently rejected because the only direct audio backend is the blocked Leap LFM2.5 Audio model.
-- Unsupported step sequences, STT models, text-to-tool models, or speech-to-tool model selections stop the benchmark run. The app sleeps and waits for a supported SDK config instead of falling back to a different measured path. The front view shows that the SDK config is unsupported and that no benchmark model is running.
-- Legacy `audio_to_tool_architecture` is only used when `benchmark_steps` is absent: `2step` maps to `["speech_to_text", "text_to_tool"]`; `1step` maps to `["speech_to_tool"]`.
+- Benchmark mode is still controlled locally by the Benchmark build UI. Remote config changes the benchmark flow and model selection; it does not start or stop benchmark mode.
+- `benchmark_params.benchmark_steps` selects benchmark behavior.
+- Each active step must exist in `step_definitions`, each step must reference a model in `model_definitions`, and each active model must be enabled.
+- Step input/output types are validated as a chain. `speech_to_text` is `audio -> text`; `text_to_tool` is `text -> json`; therefore `["speech_to_text", "text_to_tool"]` is valid as `audio -> text -> json`.
+- `["speech_to_tool"]` is rejected while `leap-lfm2.5-audio-1.5b` is disabled.
 - `benchmark_params.recordings_match: "*"` runs all available WAV, MP3, and M4A files.
 - `benchmark_params.recordings_match` filters by recording ID, filename, or bundle path.
 - `recordings_match` supports wildcard patterns such as `001*`; explicit regular expressions such as `^003-003-[AC]$` are also supported.
 - `benchmark_params.delay_seconds` controls the wait between runs and defaults to 10.
 - `benchmark_params.number_of_inferences` controls how many measured benchmark runs execute for each selected audio file before advancing to the next file. It defaults to 1.
-- `model_settings.model_name` selects the STT model for STT-including runs; supported examples are `apple-speech`, `whisper-tiny`, and `whisper-base`.
-- `benchmark_params.text_to_tool_model` selects the model for the `text_to_tool` step. Supported presets are `functiongemma`, `tinyllama-1.1b-4bit`, `qwen2.5-1.5b-instruct`, `qwen3-0.6b-4bit`, `qwen3-4b-4bit`, and `apple-foundation-models`. These GGUF presets use llama.cpp with downloaded GGUF weights. Apple Foundation Models uses the on-device `SystemLanguageModel.default` and requires Apple Intelligence availability on iOS 26+. ONNX is a known backend slot, but it is not allowlisted until a concrete ONNX text-generation model/tokenizer is configured. Custom remote model identifiers are intentionally not accepted by the benchmark allowlist.
-- Direct `speech_to_tool` is a known benchmark path, but it is disabled until Leap LFM2.5 Audio loads without aborting. Two-step `text_to_tool` can use a selected text model.
-- `sdk_settings.config_fetch` controls how often the app refreshes the SDK payload; values can be seconds as a number or strings like `30s`.
+- Sources must use supported local schemes, currently `bundle` or `hf`.
+- Remote `hf://` model sources must pin a revision with `@<commit>`.
+- Loader/source compatibility is validated. `.gguf` requires `llama.cpp`, `.mlpackage` requires `coreml`, and `.onnx` requires `onnx`.
+- The memory estimator accounts for model file size, KV cache, loader overhead, temporary buffers, current available memory, and a local safety margin. `memory_estimate_mb` can only raise the estimate; it cannot bypass local policy.
 - Missing audio files are skipped.
 
-Supported remote settings:
-
-| Setting | Supported values |
-| --- | --- |
-| `model_settings.model_name` | `apple-speech`, `whisper-tiny`, `whisper-base` |
-| `benchmark_params.benchmark_steps` | `["speech_to_text"]`, `["speech_to_text", "text_to_tool"]` |
-| `benchmark_params.text_to_tool_model` | `functiongemma`, `tinyllama-1.1b-4bit`, `qwen2.5-1.5b-instruct`, `qwen3-0.6b-4bit`, `qwen3-4b-4bit`, `apple-foundation-models` |
-| `audio_to_tool_architecture` legacy fallback | `2step`, `1step` |
-
-If a downloaded SDK config explicitly selects anything outside this allowlist while benchmark mode is enabled, the benchmark run stops and sleeps until a supported config is fetched. The app does not record an Apple STT fallback benchmark because that would hide the invalid remote selection. The front view and SDK payload status show the unsupported setting and ask for the app or SDK config to be updated. When benchmark mode is disabled, normal recording still falls back to Apple Speech for safety.
+If a downloaded SDK config is invalid, the app rejects that overlay and uses the local benchmark config. The SDK payload status explains the validation failure.
 
 ## Run Behavior
 
@@ -478,7 +340,7 @@ For each selected WAV, MP3, or M4A file, the app:
 
 `["speech_to_text", "text_to_tool"]` first runs the selected STT model, then sends the actual transcript to the selected text-to-tool model with a strict text-to-tool prompt. Apple Foundation Models runs through its native SDK. FunctionGemma, TinyLlama, and Qwen presets run through llama.cpp with GGUF weights downloaded from Hugging Face. It compares the resulting JSON object with the expected `<line_id>.json` fixture.
 
-`["speech_to_tool"]` would send audio directly to Leap LFM2.5 Audio with a speech-to-tool prompt, but the app currently rejects this config before model load because LeapSDK 0.10.6 aborts on the audio model metadata.
+`["speech_to_tool"]` is resolved against the Leap LFM2.5 Audio model, but the model is disabled in the local config for this build. Any active flow using it is rejected before model load.
 
 Benchmark runs do not upload benchmark WAV/MP3/M4A files, transcript `.txt` files, or tool-call `.json` files as attachments. The event metadata refers to the bundled dataset files by name instead.
 

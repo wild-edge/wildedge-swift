@@ -384,6 +384,9 @@ enum ToolCallPromptBuilder {
     Command: hey, it's too loud
     Output: {"tool_name":"change_volume","arguments":{"direction":"down"}}
 
+    Command: its too loud, volume down
+    Output: {"tool_name":"change_volume","arguments":{"direction":"down"}}
+
     Command: I can't hear it
     Output: {"tool_name":"change_volume","arguments":{"direction":"up"}}
 
@@ -403,11 +406,11 @@ enum ToolCallPromptBuilder {
     Output: {"tool_name":"navigate","arguments":{"destination":"work"}}
     """
 
-    static let systemPrompt = """
-    \(outputContract)
-
-    \(examples)
+    static let compactSystemPrompt = """
+    Return one valid JSON object, then stop after }. No transcript, prose, Markdown, code fence, or extra keys. Shape: {"tool_name":"set_temperature|change_volume|navigate|unknown","arguments":{}}. Quote keys/strings. set_temperature {"temperature":number}: temperature, warmer/cooler, AC; use spoken number. change_volume {"direction":"up"|"down"}: volume/sound; too loud/quieter/down=>down; too quiet/louder/can't hear=>up. navigate {"destination":"lowercase place"}: go/drive/navigate/directions; strip please/now. unknown {}.
     """
+
+    static let systemPrompt = compactSystemPrompt
 
     static let speechToToolSystemPrompt = """
     Perform ASR.
@@ -415,15 +418,11 @@ enum ToolCallPromptBuilder {
 
     static func textToToolUserPrompt(transcript: String) -> String {
         """
-        \(outputContract)
-
-        \(examples)
-
-        Convert this transcript into one tool-call JSON object.
-        Return only the JSON object.
-
-        Transcript:
+        Command:
         \(transcript)
+
+        Output exactly one JSON object and stop after its closing brace.
+        JSON:
         """
     }
 
@@ -439,30 +438,18 @@ enum ToolCallPromptBuilder {
 
     static func localTextToToolPrompt(transcript: String) -> String {
         """
-        You are a deterministic function-calling classifier.
-        Read the command transcript and output exactly one JSON object.
-        Do not explain your answer.
+        \(compactSystemPrompt)
 
-        \(outputContract)
-
-        \(examples)
-
-        Command transcript:
+        Command:
         \(transcript)
 
-        JSON:
+        Output exactly one JSON object and stop after its closing brace.
         """
     }
 
     static func speechToToolUserPrompt() -> String {
         """
-        \(outputContract)
-
-        \(examples)
-
-        Transcribe this audio. Do not return the transcript.
-        Convert the recognized command into the JSON action object instead.
-        Return only the JSON object.
+        \(compactSystemPrompt)
         """
     }
 }

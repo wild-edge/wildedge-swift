@@ -1,0 +1,3 @@
+run,device_model,device,model_name,median_duration_ms,tokens_per_second,usable_for_short_voice_tool_calls,notes
+v2 shorter prompt,"iPhone17,1",iPhone 16 Pro,Leap LFM2.5 Audio 1.5B Speech To Tool,1180,14.374655856055332,yes,Usable primary target for short speech-to-tool interactions.
+v2 shorter prompt,"iPhone12,1",iPhone 11,Leap LFM2.5 Audio 1.5B Speech To Tool,17390,1.0106046009498784,no,Too slow for short speech-to-tool interactions; useful as an older-device stress baseline.
