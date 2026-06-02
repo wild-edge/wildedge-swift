@@ -20,7 +20,6 @@
 		AA2222222222222222222222 /* onnxruntime in Frameworks */ = {isa = PBXBuildFile; productRef = EE1111111111111111111111 /* onnxruntime */; };
 		BB1111111111111111111111 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = BB3333333333333333333333 /* WhisperKit */; };
 		CC2222222222222222222222 /* LeapSDK in Frameworks */ = {isa = PBXBuildFile; productRef = CC4444444444444444444444 /* LeapSDK */; };
-		DD5555555555555555555555 /* LlamaSwift in Frameworks */ = {isa = PBXBuildFile; productRef = DD6666666666666666666666 /* LlamaSwift */; };
 		EE7777777777777777777771 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = EE7777777777777777777772 /* MLXLLM */; };
 		EE7777777777777777777773 /* MLXLMCommon in Frameworks */ = {isa = PBXBuildFile; productRef = EE7777777777777777777774 /* MLXLMCommon */; };
 		EE7777777777777777777775 /* Hub in Frameworks */ = {isa = PBXBuildFile; productRef = EE7777777777777777777776 /* Hub */; };
@@ -66,7 +65,6 @@
 				AA2222222222222222222222 /* onnxruntime in Frameworks */,
 				BB1111111111111111111111 /* WhisperKit in Frameworks */,
 				CC2222222222222222222222 /* LeapSDK in Frameworks */,
-				DD5555555555555555555555 /* LlamaSwift in Frameworks */,
 				EE7777777777777777777771 /* MLXLLM in Frameworks */,
 				EE7777777777777777777773 /* MLXLMCommon in Frameworks */,
 				EE7777777777777777777775 /* Hub in Frameworks */,
@@ -148,7 +146,6 @@
 				EE1111111111111111111111 /* onnxruntime */,
 				BB3333333333333333333333 /* WhisperKit */,
 				CC4444444444444444444444 /* LeapSDK */,
-				DD6666666666666666666666 /* LlamaSwift */,
 				EE7777777777777777777772 /* MLXLLM */,
 				EE7777777777777777777774 /* MLXLMCommon */,
 				EE7777777777777777777776 /* Hub */,
@@ -180,7 +177,6 @@
 				DD1111111111111111111111 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */,
 				BB2222222222222222222222 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
 				CC3333333333333333333333 /* XCRemoteSwiftPackageReference "leap-sdk" */,
-				DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */,
 				EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				EE7777777777777777777778 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 			);
@@ -238,7 +234,7 @@
 				4A7D2D1B3E5B4D4D9D2C8A11 /* SettingsStore.swift in Sources */,
 				F2B3E01B0D4C4E6CA61C2B11 /* SettingsView.swift in Sources */,
 				E8B9C61C1A4F4F46A92D4D11 /* SpeechTranscriber.swift in Sources */,
-				F6A7B8C9D0E1F20304050607 /* WhisperSpeechTranscriber.swift in Sources */,
+					F6A7B8C9D0E1F20304050607 /* WhisperSpeechTranscriber.swift in Sources */,
 					B7C8D9E0F102030405060708 /* LeapSpeechTranscriber.swift in Sources */,
 					7B1122334455667788990009 /* VoiceRecorderModelManager.swift in Sources */,
 					7B1122334455667788990001 /* ToolCallSupport.swift in Sources */,
@@ -380,6 +376,69 @@
 			};
 			name = Benchmark;
 		};
+		ABCD00000000000000000005 /* BenchmarkLeapSDK */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG BENCHMARK_BUILD LEAP_SDK_SPEECH_TO_TOOL_ONLY";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = BenchmarkLeapSDK;
+		};
 		8E1AB10F165BD2DDF35B232B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -397,6 +456,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VOICE_RECORDER_DISPLAY_NAME = "Voice Recorder";
 			};
 			name = Debug;
 		};
@@ -417,8 +477,30 @@
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VOICE_RECORDER_DISPLAY_NAME = "Voice Recorder";
 			};
 			name = Benchmark;
+		};
+		ABCD00000000000000000006 /* BenchmarkLeapSDK */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 8G3P36PD72;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Sources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.wildedge.sample.voice-leapsdk";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.9;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VOICE_RECORDER_DISPLAY_NAME = "Voice Recorder LeapSDK";
+			};
+			name = BenchmarkLeapSDK;
 		};
 		D77E091C14EB17BD184D9E2C /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -493,6 +575,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = "1,2";
+				VOICE_RECORDER_DISPLAY_NAME = "Voice Recorder";
 			};
 			name = Release;
 		};
@@ -504,6 +587,7 @@
 			buildConfigurations = (
 				2625F3AE6F3B5D18F9C45BA3 /* Debug */,
 				ABCD00000000000000000003 /* Benchmark */,
+				ABCD00000000000000000005 /* BenchmarkLeapSDK */,
 				D77E091C14EB17BD184D9E2C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -514,6 +598,7 @@
 			buildConfigurations = (
 				8E1AB10F165BD2DDF35B232B /* Debug */,
 				ABCD00000000000000000004 /* Benchmark */,
+				ABCD00000000000000000006 /* BenchmarkLeapSDK */,
 				E71BC71BA4A3BA381F931738 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
@@ -550,15 +635,7 @@
 			repositoryURL = "https://github.com/Liquid4All/leap-sdk.git";
 			requirement = {
 				kind = exactVersion;
-				version = 0.10.6;
-			};
-		};
-		DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/mattt/llama.swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.9334.0;
+				version = 0.10.7;
 			};
 		};
 		EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
@@ -598,11 +675,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CC3333333333333333333333 /* XCRemoteSwiftPackageReference "leap-sdk" */;
 			productName = LeapSDK;
-		};
-		DD6666666666666666666666 /* LlamaSwift */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */;
-			productName = LlamaSwift;
 		};
 		EE7777777777777777777772 /* MLXLLM */ = {
 			isa = XCSwiftPackageProductDependency;

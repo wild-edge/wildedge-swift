@@ -6,8 +6,13 @@ actor LeapSpeechTranscriber {
     static let quantization = "Q4_0"
     static let approximateDownloadSize = "about 1.1 GB"
     static let statusMessage = "Model downloads automatically when Leap is used."
+    #if LEAP_SDK_SPEECH_TO_TOOL_ONLY
+    static let isLoadTemporarilyDisabled = false
+    static let loadDisabledReason = "Leap model loading is enabled in this build."
+    #else
     static let isLoadTemporarilyDisabled = true
     static let loadDisabledReason = "LeapSDK 0.10.6 aborts while loading LFM2.5-Audio-1.5B Q4_0: the backend expects gpt-oss.context_length, but the GGUF provides lfm2.context_length."
+    #endif
     private static let instanceStore = LeapSpeechTranscriberStore()
     private static let loadFailureCooldownSeconds: TimeInterval = 60
 

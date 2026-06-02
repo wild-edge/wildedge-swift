@@ -785,19 +785,30 @@ final class SettingsStore: ObservableObject {
         let sdkPayload = sdkPayload ?? [:]
         let sdkBenchmarkEnabled = Self.benchmarkEnabled(from: sdkPayload) ?? false
         guard useSDKPayloadSettings || sdkBenchmarkEnabled else {
+            #if LEAP_SDK_SPEECH_TO_TOOL_ONLY
+            let localVoiceToTextMode: VoiceToTextMode = .leap
+            let localAudioToToolArchitecture: AudioToToolArchitecture = .oneStep
+            let localBenchmarkSteps: [BenchmarkStep] = [.speechToTool]
+            let localBenchmarkTextToToolModel: BenchmarkTextToToolModel = .leapLFM25Audio
+            #else
+            let localVoiceToTextMode = voiceToTextMode
+            let localAudioToToolArchitecture = audioToToolArchitecture
+            let localBenchmarkSteps = Self.defaultBenchmarkSteps
+            let localBenchmarkTextToToolModel = BenchmarkTextToToolModel.default
+            #endif
             return VoiceRecorderEffectiveSettings(
-                voiceToTextMode: voiceToTextMode,
+                voiceToTextMode: localVoiceToTextMode,
                 whisperModelSize: whisperModelSize,
-                audioToToolArchitecture: audioToToolArchitecture,
+                audioToToolArchitecture: localAudioToToolArchitecture,
                 includeSpectrogramAttachment: benchmarkEnabled ? false : includeSpectrogramAttachment,
                 includeWAVAttachment: benchmarkEnabled ? false : includeWAVAttachment,
                 benchmarkEnabled: benchmarkEnabled,
                 benchmarkDelaySeconds: Self.defaultBenchmarkDelaySeconds,
                 benchmarkRecordingsMatch: ["*"],
                 benchmarkNumberOfInferences: 1,
-                benchmarkSteps: Self.defaultBenchmarkSteps,
+                benchmarkSteps: localBenchmarkSteps,
                 benchmarkStepsError: nil,
-                benchmarkTextToToolModel: .default,
+                benchmarkTextToToolModel: localBenchmarkTextToToolModel,
                 isUsingSDKPayload: false,
                 remoteConfigWarning: nil
             )
@@ -818,21 +829,31 @@ final class SettingsStore: ObservableObject {
         #endif
 
         #if BENCHMARK_BUILD
+        #if LEAP_SDK_SPEECH_TO_TOOL_ONLY
+        let benchmarkEnabled = useSDKPayloadSettings ? (sdkBenchmarkEnabled || self.benchmarkEnabled) : true
+        let forcedVoiceToTextMode: VoiceToTextMode = .leap
+        let forcedAudioToToolArchitecture: AudioToToolArchitecture = .oneStep
+        let benchmarkStepConfiguration: ([BenchmarkStep], String?) = ([.speechToTool], nil)
+        let benchmarkTextToToolModel: BenchmarkTextToToolModel = .leapLFM25Audio
+        #else
         let benchmarkEnabled = useSDKPayloadSettings ? sdkBenchmarkEnabled : true
+        let forcedVoiceToTextMode = Self.voiceToTextMode(from: sdkPayload) ?? .apple
         let sdkAudioToToolArchitecture = Self.audioToToolArchitecture(from: sdkPayload)
+        let forcedAudioToToolArchitecture = sdkAudioToToolArchitecture ?? .twoStep
         let benchmarkStepConfiguration = Self.benchmarkSteps(from: sdkPayload)
             ?? sdkAudioToToolArchitecture.map { (Self.benchmarkSteps(for: $0), nil) }
             ?? (Self.defaultBenchmarkSteps, nil)
         let benchmarkTextToToolModel = Self.benchmarkTextToToolModel(from: sdkPayload) ?? .default
+        #endif
         if let remoteConfigWarning = Self.remoteConfigUnsupportedWarning(
             from: sdkPayload,
             behavior: benchmarkEnabled ? .benchmarkStopped : .appleSTTFallback
         ) {
             if benchmarkEnabled {
                 return VoiceRecorderEffectiveSettings(
-                    voiceToTextMode: Self.voiceToTextMode(from: sdkPayload) ?? .disabled,
+                    voiceToTextMode: forcedVoiceToTextMode,
                     whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? .tiny,
-                    audioToToolArchitecture: sdkAudioToToolArchitecture ?? .twoStep,
+                    audioToToolArchitecture: forcedAudioToToolArchitecture,
                     includeSpectrogramAttachment: false,
                     includeWAVAttachment: false,
                     benchmarkEnabled: benchmarkEnabled,
@@ -874,9 +895,9 @@ final class SettingsStore: ObservableObject {
             )
         }
         return VoiceRecorderEffectiveSettings(
-            voiceToTextMode: Self.voiceToTextMode(from: sdkPayload) ?? .apple,
+            voiceToTextMode: forcedVoiceToTextMode,
             whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? .tiny,
-            audioToToolArchitecture: sdkAudioToToolArchitecture ?? .twoStep,
+            audioToToolArchitecture: forcedAudioToToolArchitecture,
             includeSpectrogramAttachment: benchmarkEnabled ? false : Self.boolValue(
                 from: sdkPayload,
                 preferredKeys: [
@@ -1054,6 +1075,10 @@ final class SettingsStore: ObservableObject {
         from config: RemoteSDKConfig,
         behavior: UnsupportedRemoteConfigBehavior = .appleSTTFallback
     ) -> String? {
+        #if BENCHMARK_BUILD && LEAP_SDK_SPEECH_TO_TOOL_ONLY
+        return nil
+        #else
+
         var unsupportedSettings: [String] = []
 
         if let value = voiceToTextModelValue(from: config),
@@ -1128,6 +1153,7 @@ final class SettingsStore: ObservableObject {
         case .benchmarkStopped:
             return "SDK config is not supported: \(settingsList)\(suffix). Benchmark run has stopped. Waiting for a supported SDK config; please update the app or SDK config."
         }
+        #endif
     }
 
     private static func voiceToTextMode(from config: RemoteSDKConfig) -> VoiceToTextMode? {
