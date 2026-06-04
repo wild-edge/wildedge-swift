@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="330" viewBox="0 0 720 330" role="img" aria-labelledby="direct-compare-title direct-compare-desc">
+  <title id="direct-compare-title">Direct speech-to-tool versus Whisper two-step estimates</title>
+  <desc id="direct-compare-desc">Horizontal bar chart comparing Whisper Tiny plus LFM2 at 341.5 milliseconds, Whisper Tiny plus FunctionGemma at 1352.5 milliseconds, and direct single-shot LFM speech-to-tool on iPhone 16 Pro at 1359.5 milliseconds.</desc>
+  <rect width="720" height="330" rx="18" fill="#ffffff"/>
+
+  <image href="wildedge-logo-text.svg" x="34" y="22" width="64" height="45" preserveAspectRatio="xMinYMin meet"/>
+  <text x="122" y="42" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#102a43">Direct LFM vs Whisper two-step</text>
+  <text x="122" y="65" font-family="Arial, sans-serif" font-size="12" fill="#52606d">Main benchmark device: iPhone 16 Pro. Two-step values are summed stage medians.</text>
+
+  <rect x="506" y="31" width="12" height="12" rx="2" fill="#024079"/>
+  <text x="524" y="41" font-family="Arial, sans-serif" font-size="12" fill="#52606d">STT</text>
+  <rect x="568" y="31" width="12" height="12" rx="2" fill="#00b78b"/>
+  <text x="586" y="41" font-family="Arial, sans-serif" font-size="12" fill="#52606d">LLM / direct LFM</text>
+
+  <line x1="214" y1="260" x2="634" y2="260" stroke="#d9e2ec" stroke-width="1.5"/>
+  <line x1="214" y1="92" x2="214" y2="260" stroke="#d9e2ec" stroke-width="1.5"/>
+  <line x1="354" y1="92" x2="354" y2="260" stroke="#f0f4f8" stroke-width="1"/>
+  <line x1="494" y1="92" x2="494" y2="260" stroke="#f0f4f8" stroke-width="1"/>
+  <line x1="634" y1="92" x2="634" y2="260" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="214" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">0</text>
+  <text x="354" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">500</text>
+  <text x="494" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">1000</text>
+  <text x="634" y="280" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">1500 ms</text>
+
+  <text x="198" y="122" text-anchor="end" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#102a43">Whisper + LFM2</text>
+  <rect x="214" y="108" width="24.36" height="24" rx="5" fill="#024079"/>
+  <rect x="238.36" y="108" width="71.26" height="24" rx="5" fill="#00b78b"/>
+  <text x="324" y="125" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#102a43">341.5 ms</text>
+
+  <text x="198" y="172" text-anchor="end" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#102a43">Whisper + FunctionGemma</text>
+  <rect x="214" y="158" width="24.36" height="24" rx="5" fill="#024079"/>
+  <rect x="238.36" y="158" width="354.34" height="24" rx="5" fill="#00b78b"/>
+  <text x="606" y="175" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#102a43">1352.5 ms</text>
+
+  <text x="198" y="222" text-anchor="end" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#102a43">Single-shot LFM</text>
+  <rect x="214" y="208" width="380.66" height="24" rx="5" fill="#00b78b"/>
+  <text x="606" y="225" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#102a43">1359.5 ms</text>
+
+  <text x="424" y="310" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d">Median duration (ms)</text>
+</svg>

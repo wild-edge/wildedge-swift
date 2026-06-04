@@ -1,9 +1,5 @@
 model_name,median_duration_ms
-FunctionGemma Text To Tool,295
-LFM2 350M Text To Tool,498
-Qwen3 0.6B 4-bit Text To Tool,780
-Qwen3.5 0.8B OptiQ MLX 4-bit Text To Tool,994
-TinyLlama 1.1B 4-bit GGUF Text To Tool,1480
-Qwen2.5 1.5B Instruct Text To Tool,1679
-FunctionGemma MLX 4-bit Text To Tool,1847.5
-Apple Foundation Models Text To Tool,1931
+LFM2 350M Text To Tool,254.5
+Qwen3 0.6B 4-bit Text To Tool,490
+TinyLlama 1.1B 4-bit GGUF Text To Tool,946
+FunctionGemma Text To Tool,1265.5
