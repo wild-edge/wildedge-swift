@@ -642,7 +642,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     payload: .file(result.outputURL, mimeType: "audio/wav")
                 )
                 let inferenceId = modelHandle.trackInference(
-                    durationMs: Int(finalDuration * 1000),
+                    durationMs: Int(Date().timeIntervalSince(processStart) * 1000),
                     inputModality: .audio,
                     outputModality: .generation,
                     success: true,
@@ -706,7 +706,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
                 let fileSize = attrs?[.size] as? Int64 ?? 0
                 let inferenceId = modelHandle.trackInference(
-                    durationMs: Int(finalDuration * 1000),
+                    durationMs: Int(Date().timeIntervalSince(processStart) * 1000),
                     inputModality: .audio,
                     outputModality: .generation,
                     success: false,
