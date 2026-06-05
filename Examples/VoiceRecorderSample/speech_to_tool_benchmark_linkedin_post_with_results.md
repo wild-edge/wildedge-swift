@@ -71,7 +71,11 @@ The other devices are control devices used to verify the performance trend acros
 
 The benchmark uses:
 
-- 9 `.m4a` voice recordings across two voices: A and B
+- 18 `.m4a` voice recordings across two voices: A and B
+- 9 cases structured across 3 use cases
+- Each case has one speaker A recording and one speaker B recording, so the benchmark uses 9 samples per voice
+- File names encode the use case, sample, and speaker, for example `001-001-A`
+- The expected transcript is shared by speaker variants, and the expected JSON tool call is shared by samples in the same use case
 - Short commands
 - English language input from non-native English speakers
 - Tool-oriented user intents, with JSON tool-call output as the expected final result
