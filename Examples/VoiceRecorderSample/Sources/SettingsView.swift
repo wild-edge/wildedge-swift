@@ -11,6 +11,9 @@ struct SettingsView: View {
     @State private var leapModelStatus = LeapSpeechTranscriber.statusMessage
     @State private var leapDownloadProgress: Double?
     @State private var leapDownloadSpeedBytesPerSecond: Int64 = 0
+    @State private var modelDownloadStatuses: [String: ModelAssetStatus] = [:]
+    @State private var isRefreshingModelDownloads = false
+    @State private var clearingModelDownloadID: String?
     #if BENCHMARK_BUILD
     @State private var isDownloadingTextToToolModel = false
     #if canImport(LlamaSwift) || (canImport(MLXLLM) && canImport(MLXLMCommon))
@@ -130,6 +133,7 @@ struct SettingsView: View {
                         .leapLFM2512BInstruct,
                         .functionGemma,
                         .tinyLlamaOnePointOneB,
+                        .qwen2ZeroPointFiveBInstruct,
                         .qwen25OnePointFiveBInstruct,
                         .qwen3ZeroPointSixB4Bit,
                         .qwen3FourB4Bit
@@ -188,6 +192,28 @@ struct SettingsView: View {
                 }
                 #endif
 
+                Section("Model Downloads") {
+                    HStack {
+                        Text("Cached model assets")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if isRefreshingModelDownloads {
+                            ProgressView()
+                        }
+                    }
+
+                    Button {
+                        refreshModelDownloads()
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(isRefreshingModelDownloads)
+
+                    ForEach(managedModelDownloads) { download in
+                        modelDownloadRow(download)
+                    }
+                }
+
                 Section("Attachments") {
                     Toggle("WAV", isOn: includeWAVAttachmentBinding)
                         .disabled(settingsStore.effectiveSettings.isUsingSDKPayload)
@@ -229,6 +255,9 @@ struct SettingsView: View {
                         dismiss()
                     }
                 }
+            }
+            .task {
+                refreshModelDownloads()
             }
         }
     }
@@ -371,6 +400,165 @@ struct SettingsView: View {
         }
     }
 
+    private var managedModelDownloads: [ManagedModelDownload] {
+        var downloads: [ManagedModelDownload] = [
+            ManagedModelDownload(
+                id: "whisper-\(WhisperModelSize.tiny.rawValue)",
+                title: "Whisper Tiny",
+                subtitle: "speech_to_text",
+                kind: .managed(.whisper(.tiny))
+            ),
+            ManagedModelDownload(
+                id: "whisper-\(WhisperModelSize.base.rawValue)",
+                title: "Whisper Base",
+                subtitle: "speech_to_text",
+                kind: .managed(.whisper(.base))
+            ),
+            ManagedModelDownload(
+                id: "leap-audio-\(LeapSpeechTranscriber.quantization)",
+                title: "Leap LFM2.5 Audio",
+                subtitle: LeapSpeechTranscriber.quantization,
+                kind: .managed(
+                    .leapAudio(
+                        modelName: LeapSpeechTranscriber.modelName,
+                        quantization: LeapSpeechTranscriber.quantization
+                    )
+                )
+            )
+        ]
+
+        #if BENCHMARK_BUILD
+        #if canImport(LlamaSwift)
+        downloads.append(contentsOf: [
+            .textToTool(.leapLFM25350M),
+            .textToTool(.leapLFM2512BInstruct),
+            .textToTool(.functionGemma),
+            .textToTool(.tinyLlamaOnePointOneB),
+            .textToTool(.qwen25OnePointFiveBInstruct),
+            .textToTool(.qwen3ZeroPointSixB4Bit),
+            .textToTool(.qwen3FourB4Bit)
+        ])
+        #endif
+
+        #if canImport(MLXLLM) && canImport(MLXLMCommon)
+        downloads.append(contentsOf: [
+            .mlxTextToTool(.functionGemmaMLX),
+            .mlxTextToTool(.qwen35ZeroPointEightBOptiQMLX)
+        ])
+        #endif
+        #endif
+
+        return downloads
+    }
+
+    private func modelDownloadRow(_ download: ManagedModelDownload) -> some View {
+        let status = modelDownloadStatuses[download.id]
+        let isClearing = clearingModelDownloadID == download.id
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(download.title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(download.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(modelDownloadStatusText(status))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(modelDownloadStatusColor(status))
+                }
+
+                Spacer()
+
+                Button(role: .destructive) {
+                    clearModelDownload(download)
+                } label: {
+                    if isClearing {
+                        ProgressView()
+                    } else {
+                        Image(systemName: "trash")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(isClearing || status?.state == .missing || status == nil)
+                .accessibilityLabel("Clear \(download.title)")
+            }
+
+            if let message = status?.message, message.isEmpty == false {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func refreshModelDownloads() {
+        let downloads = managedModelDownloads
+        isRefreshingModelDownloads = true
+        Task {
+            var statuses: [String: ModelAssetStatus] = [:]
+            for download in downloads {
+                statuses[download.id] = await modelDownloadStatus(for: download)
+            }
+            await MainActor.run {
+                modelDownloadStatuses = statuses
+                isRefreshingModelDownloads = false
+            }
+        }
+    }
+
+    private func clearModelDownload(_ download: ManagedModelDownload) {
+        clearingModelDownloadID = download.id
+        Task {
+            switch download.kind {
+            case .managed(let asset):
+                await VoiceRecorderModelManager.shared.invalidate(asset)
+            case .mlx(let model):
+                await MlxBenchmarkTextToToolModel.shared.invalidateModel(model)
+            }
+            let status = await modelDownloadStatus(for: download)
+            await MainActor.run {
+                modelDownloadStatuses[download.id] = status
+                clearingModelDownloadID = nil
+            }
+        }
+    }
+
+    private func modelDownloadStatus(for download: ManagedModelDownload) async -> ModelAssetStatus {
+        switch download.kind {
+        case .managed(let asset):
+            return await VoiceRecorderModelManager.shared.status(for: asset)
+        case .mlx(let model):
+            return await MlxBenchmarkTextToToolModel.shared.modelStatus(model)
+        }
+    }
+
+    private func modelDownloadStatusText(_ status: ModelAssetStatus?) -> String {
+        guard let status else { return "Checking..." }
+        let size = formattedBytes(status.bytes)
+        switch status.state {
+        case .missing:
+            return "Missing"
+        case .partial:
+            return "Partial \(size)"
+        case .cached:
+            return "Cached \(size)"
+        case .blocked:
+            return status.bytes > 0 ? "Blocked, cached \(size)" : "Blocked"
+        }
+    }
+
+    private func modelDownloadStatusColor(_ status: ModelAssetStatus?) -> Color {
+        guard let status else { return .secondary }
+        switch status.state {
+        case .cached:
+            return .green
+        case .partial, .blocked:
+            return .orange
+        case .missing:
+            return .secondary
+        }
+    }
+
     #if BENCHMARK_BUILD
     private func textToToolDownloadRow(_ model: BenchmarkTextToToolModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -477,4 +665,49 @@ struct SettingsView: View {
         }
         return "\(bytesPerSecond) B/s"
     }
+
+    private func formattedBytes(_ bytes: Int64) -> String {
+        guard bytes > 0 else { return "0 B" }
+        let value = Double(bytes)
+        if value >= 1_000_000_000 {
+            return String(format: "%.2f GB", value / 1_000_000_000)
+        }
+        if value >= 1_000_000 {
+            return String(format: "%.1f MB", value / 1_000_000)
+        }
+        if value >= 1_000 {
+            return String(format: "%.0f KB", value / 1_000)
+        }
+        return "\(bytes) B"
+    }
+}
+
+private struct ManagedModelDownload: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let kind: ManagedModelDownloadKind
+
+    static func textToTool(_ model: BenchmarkTextToToolModel) -> ManagedModelDownload {
+        ManagedModelDownload(
+            id: "text-to-tool-\(model.id)",
+            title: model.displayName,
+            subtitle: [model.provider, model.quantization].filter { !$0.isEmpty }.joined(separator: " - "),
+            kind: .managed(.gguf(model))
+        )
+    }
+
+    static func mlxTextToTool(_ model: BenchmarkTextToToolModel) -> ManagedModelDownload {
+        ManagedModelDownload(
+            id: "mlx-text-to-tool-\(model.id)",
+            title: model.displayName,
+            subtitle: [model.provider, model.quantization].filter { !$0.isEmpty }.joined(separator: " - "),
+            kind: .mlx(model)
+        )
+    }
+}
+
+private enum ManagedModelDownloadKind {
+    case managed(VoiceRecorderModelAsset)
+    case mlx(BenchmarkTextToToolModel)
 }

@@ -32,7 +32,9 @@ struct RecordingView: View {
                                 actualToolCall: viewModel.benchmarkActualToolCall,
                                 latencyText: viewModel.benchmarkLatencyText,
                                 transcriptMatchText: viewModel.benchmarkTranscriptMatchText,
-                                toolCallMatchText: viewModel.benchmarkToolCallMatchText
+                                toolCallMatchText: viewModel.benchmarkToolCallMatchText,
+                                toolCallMatchSummary: viewModel.benchmarkToolCallMatchSummary,
+                                toolCallMismatchDetails: viewModel.benchmarkToolCallMismatchDetails
                             )
                             .transition(.move(edge: .top).combined(with: .opacity))
                         }
@@ -260,6 +262,9 @@ private struct BenchmarkStatusCard: View {
     let latencyText: String
     let transcriptMatchText: String
     let toolCallMatchText: String
+    let toolCallMatchSummary: String
+    let toolCallMismatchDetails: [String]
+    @State private var isShowingToolMismatchDetails = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -295,20 +300,29 @@ private struct BenchmarkStatusCard: View {
             stableRow("Measuring inference time", value: runProgress)
             stableRow("Benchmark steps", value: stepsText)
             stableRow("Sleep countdown", value: sleepCountdown)
-            stableRow("Expected transcript", value: expectedTranscript)
-            stableRow(
-                "Actual transcript",
-                value: transcript,
-                processingWhenEmpty: isRunning && includesTranscriptStep
-            )
-            stableBlock("Expected tool call", value: expectedToolCall)
-            stableBlock(
-                "Actual tool call",
-                value: actualToolCall,
-                processingWhenEmpty: isRunning && includesToolStep
-            )
-            resultRow(label: "Transcript result", value: transcriptMatchText)
-            resultRow(label: "Tool-call result", value: toolCallMatchText)
+            if includesTranscriptStep {
+                Divider()
+                compactTextRow("Expected speech_to_text", value: expectedTranscript)
+                compactTextRow(
+                    "Actual speech_to_text",
+                    value: transcript,
+                    processingWhenEmpty: isRunning
+                )
+                resultRow(label: "Speech-to-text result", value: transcriptMatchText)
+            }
+
+            if includesToolStep {
+                Divider()
+                stableBlock("Expected tool JSON", value: expectedToolCall)
+                stableBlock(
+                    actualToolCallLabel,
+                    value: actualToolCall,
+                    processingWhenEmpty: isRunning
+                )
+                resultRow(label: "Tool JSON result", value: toolCallMatchText)
+                resultRow(label: "Tool JSON matches", value: toolCallMatchSummary)
+                toolMismatchDisclosure
+            }
         }
         .padding(14)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
@@ -328,6 +342,28 @@ private struct BenchmarkStatusCard: View {
                 .foregroundStyle(value.isEmpty ? .secondary : .primary)
                 .multilineTextAlignment(.trailing)
                 .lineLimit(2, reservesSpace: true)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .textSelection(.enabled)
+        }
+        .font(.caption)
+    }
+
+    private func compactTextRow(
+        _ label: String,
+        value: String,
+        processingWhenEmpty: Bool = false
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 150, alignment: .leading)
+            Spacer(minLength: 4)
+            Text(displayValue(value, processingWhenEmpty: processingWhenEmpty))
+                .font(.caption2.monospaced())
+                .foregroundStyle(value.isEmpty ? .secondary : .primary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .textSelection(.enabled)
         }
@@ -364,6 +400,27 @@ private struct BenchmarkStatusCard: View {
         .font(.caption)
     }
 
+    @ViewBuilder
+    private var toolMismatchDisclosure: some View {
+        if toolCallMismatchDetails.isEmpty == false {
+            DisclosureGroup(isExpanded: $isShowingToolMismatchDetails) {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(toolCallMismatchDetails, id: \.self) { detail in
+                        Text(detail)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.orange)
+                            .textSelection(.enabled)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+            } label: {
+                Text("show details")
+                    .font(.caption.weight(.semibold))
+            }
+        }
+    }
+
     private func displayValue(_ value: String, processingWhenEmpty: Bool = false) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty {
@@ -386,6 +443,12 @@ private struct BenchmarkStatusCard: View {
 
     private var includesToolStep: Bool {
         stepsText.contains("text_to_tool") || stepsText.contains("speech_to_tool")
+    }
+
+    private var actualToolCallLabel: String {
+        stepsText.contains("speech_to_tool")
+            ? "Actual speech_to_tool JSON"
+            : "Actual text_to_tool JSON"
     }
 }
 #endif

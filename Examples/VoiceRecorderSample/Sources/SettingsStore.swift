@@ -109,6 +109,7 @@ enum BenchmarkTextToToolModelKind: String, Sendable {
     case functionGemmaMLX
     case qwen35ZeroPointEightBOptiQMLX
     case tinyLlamaOnePointOneB
+    case qwen2ZeroPointFiveBInstruct
     case qwen25OnePointFiveBInstruct
     case qwen3ZeroPointSixB
     case qwen3FourB
@@ -265,6 +266,22 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         maxGenerationTokens: 128
     )
 
+    static let qwen2ZeroPointFiveBInstruct = BenchmarkTextToToolModel(
+        kind: .qwen2ZeroPointFiveBInstruct,
+        id: "qwen2-0.5b-instruct-4bit",
+        displayName: "Qwen2 0.5B Instruct 4-bit GGUF",
+        modelName: "Qwen/Qwen2-0.5B-Instruct-GGUF",
+        quantization: "Q4_K_M",
+        provider: "llama_cpp",
+        modelSource: "huggingface",
+        modelFormat: "gguf",
+        downloadURLString: "https://huggingface.co/Qwen/Qwen2-0.5B-Instruct-GGUF/resolve/main/qwen2-0_5b-instruct-q4_k_m.gguf",
+        downloadFilename: "qwen2-0_5b-instruct-q4_k_m.gguf",
+        approximateDownloadSize: "398 MB",
+        contextSize: 1024,
+        maxGenerationTokens: 128
+    )
+
     static let qwen25OnePointFiveBInstruct = BenchmarkTextToToolModel(
         kind: .qwen25OnePointFiveBInstruct,
         id: "qwen2.5-1.5b-instruct",
@@ -335,7 +352,7 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         modelFormat: "foundationmodels"
     )
 
-    static let `default` = functionGemma
+    static let `default` = qwen3ZeroPointSixB4Bit
 
     var modelId: String {
         if quantization.isEmpty {
@@ -458,6 +475,8 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
             return .qwen35ZeroPointEightBOptiQMLX
         case "tinyllama", "tinyllama11b", "tinyllama11b4bit", "tinyllama11bgguf", "tinyllama11b4bitgguf", "tinyllama11bq4km", "tinyllama11bchat", "tinyllama11bchatv10", "tinyllama1b":
             return .tinyLlamaOnePointOneB
+        case "qwen205b", "qwen205binstruct", "qwen205binstruct4bit", "qwen205binstructgguf", "qwen205binstructq4km", "qwen20point5b", "qwen20point5binstruct", "qwen2small":
+            return .qwen2ZeroPointFiveBInstruct
         case "qwen15b", "qwen15binstruct", "qwen2515b", "qwen2515binstruct", "qwen25small":
             return .qwen25OnePointFiveBInstruct
         case "qwen306b", "qwen306b4bit", "qwen306bq4km", "qwen306bgguf", "qwen3600m", "qwen3600m4bit", "qwen3600mq4km", "qwen3small":
@@ -465,7 +484,7 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         case "qwen34b", "qwen34b4bit", "qwen34bq40", "qwen34bq4":
             return .qwen3FourB4Bit
         case "qwen3":
-            return .functionGemma
+            return .qwen3ZeroPointSixB4Bit
         case "onnx", "onnxruntime", "onnxtexttotool":
             return .onnxRuntime
         case "applefoundationmodels", "foundationmodels", "appleintelligence", "systemlanguagemodel", "apple":
@@ -484,6 +503,9 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
             }
             if normalized.contains("tinyllama") {
                 return .tinyLlamaOnePointOneB
+            }
+            if normalized.contains("qwen2"), (normalized.contains("05b") || normalized.contains("0.5b") || normalized.contains("500m")) {
+                return .qwen2ZeroPointFiveBInstruct
             }
             if normalized.contains("qwen"), normalized.contains("15b") || normalized.contains("1b5") {
                 return .qwen25OnePointFiveBInstruct
@@ -658,8 +680,11 @@ final class SettingsStore: ObservableObject {
     private static let useSDKPayloadSettingsKey = "VoiceRecorderSample.useSDKPayloadSettings"
     #if BENCHMARK_BUILD
     private static let benchmarkEnabledKey = "VoiceRecorderSample.benchmarkEnabled"
+    private static let defaultBenchmarkVoiceToTextMode: VoiceToTextMode = .whisper
+    private static let defaultBenchmarkWhisperModelSize: WhisperModelSize = .tiny
+    private static let defaultBenchmarkAudioToToolArchitecture: AudioToToolArchitecture = .twoStep
     private static let defaultBenchmarkDelaySeconds: TimeInterval = 10
-    private static let defaultBenchmarkSteps: [BenchmarkStep] = [.speechToText]
+    private static let defaultBenchmarkSteps: [BenchmarkStep] = [.speechToText, .textToTool]
     #endif
     private static let sdkConfigRefreshInterval: TimeInterval = 30
 
@@ -786,9 +811,9 @@ final class SettingsStore: ObservableObject {
         let sdkBenchmarkEnabled = Self.benchmarkEnabled(from: sdkPayload) ?? false
         guard useSDKPayloadSettings || sdkBenchmarkEnabled else {
             return VoiceRecorderEffectiveSettings(
-                voiceToTextMode: voiceToTextMode,
-                whisperModelSize: whisperModelSize,
-                audioToToolArchitecture: audioToToolArchitecture,
+                voiceToTextMode: Self.defaultBenchmarkVoiceToTextMode,
+                whisperModelSize: Self.defaultBenchmarkWhisperModelSize,
+                audioToToolArchitecture: Self.defaultBenchmarkAudioToToolArchitecture,
                 includeSpectrogramAttachment: benchmarkEnabled ? false : includeSpectrogramAttachment,
                 includeWAVAttachment: benchmarkEnabled ? false : includeWAVAttachment,
                 benchmarkEnabled: benchmarkEnabled,
@@ -857,9 +882,9 @@ final class SettingsStore: ObservableObject {
                 )
             }
             return VoiceRecorderEffectiveSettings(
-                voiceToTextMode: .apple,
-                whisperModelSize: .tiny,
-                audioToToolArchitecture: .twoStep,
+                voiceToTextMode: Self.defaultBenchmarkVoiceToTextMode,
+                whisperModelSize: Self.defaultBenchmarkWhisperModelSize,
+                audioToToolArchitecture: Self.defaultBenchmarkAudioToToolArchitecture,
                 includeSpectrogramAttachment: false,
                 includeWAVAttachment: false,
                 benchmarkEnabled: benchmarkEnabled,
@@ -874,9 +899,9 @@ final class SettingsStore: ObservableObject {
             )
         }
         return VoiceRecorderEffectiveSettings(
-            voiceToTextMode: Self.voiceToTextMode(from: sdkPayload) ?? .apple,
-            whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? .tiny,
-            audioToToolArchitecture: sdkAudioToToolArchitecture ?? .twoStep,
+            voiceToTextMode: Self.voiceToTextMode(from: sdkPayload) ?? Self.defaultBenchmarkVoiceToTextMode,
+            whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? Self.defaultBenchmarkWhisperModelSize,
+            audioToToolArchitecture: sdkAudioToToolArchitecture ?? Self.defaultBenchmarkAudioToToolArchitecture,
             includeSpectrogramAttachment: benchmarkEnabled ? false : Self.boolValue(
                 from: sdkPayload,
                 preferredKeys: [
@@ -1500,6 +1525,9 @@ final class SettingsStore: ObservableObject {
     private static func benchmarkTextToToolModel(from value: JSONValue) -> BenchmarkTextToToolModel? {
         switch value {
         case .string(let model):
+            if isDefaultTextToToolModelValue(model) {
+                return .default
+            }
             return BenchmarkTextToToolModel.from(remoteValue: model)
         case .object(let object):
             let presetValue = firstString(
@@ -1548,7 +1576,9 @@ final class SettingsStore: ObservableObject {
             )
 
             if let presetValue,
-               let preset = BenchmarkTextToToolModel.preset(remoteValue: presetValue) {
+               let preset = isDefaultTextToToolModelValue(presetValue)
+                    ? BenchmarkTextToToolModel.default
+                    : BenchmarkTextToToolModel.preset(remoteValue: presetValue) {
                 return preset.withOverrides(
                     displayName: displayName,
                     modelName: modelName,
@@ -1564,8 +1594,24 @@ final class SettingsStore: ObservableObject {
             }
 
             if let modelName,
-               modelName.contains("/") == false,
-               let preset = BenchmarkTextToToolModel.preset(remoteValue: modelName) {
+               modelName.contains("/") == false {
+                let preset = isDefaultTextToToolModelValue(modelName)
+                    ? BenchmarkTextToToolModel.default
+                    : BenchmarkTextToToolModel.preset(remoteValue: modelName)
+                guard let preset else {
+                    return BenchmarkTextToToolModel.custom(
+                        modelName: modelName,
+                        displayName: displayName,
+                        quantization: quantization,
+                        provider: provider,
+                        modelSource: modelSource,
+                        modelFormat: modelFormat,
+                        downloadURLString: downloadURLString,
+                        downloadFilename: downloadFilename,
+                        contextSize: contextSize,
+                        maxGenerationTokens: maxGenerationTokens
+                    )
+                }
                 return preset.withOverrides(
                     displayName: displayName,
                     quantization: quantization,
@@ -1604,6 +1650,14 @@ final class SettingsStore: ObservableObject {
         default:
             return nil
         }
+    }
+
+    private static func isDefaultTextToToolModelValue(_ value: String) -> Bool {
+        let normalized = value
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .filter { $0.isLetter || $0.isNumber }
+        return normalized.isEmpty || normalized == "default"
     }
 
     private static func isSupportedRemoteTextToToolModel(_ model: BenchmarkTextToToolModel) -> Bool {
@@ -1645,6 +1699,12 @@ final class SettingsStore: ObservableObject {
         case .tinyLlamaOnePointOneB:
             #if canImport(LlamaSwift)
             return model.matchesRemoteAllowlistPreset(.tinyLlamaOnePointOneB)
+            #else
+            return false
+            #endif
+        case .qwen2ZeroPointFiveBInstruct:
+            #if canImport(LlamaSwift)
+            return model.matchesRemoteAllowlistPreset(.qwen2ZeroPointFiveBInstruct)
             #else
             return false
             #endif

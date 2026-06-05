@@ -65,6 +65,7 @@ actor LeapBenchmarkToolCallModel {
                     || textToToolModel.kind == .leapLFM25350M
                     || textToToolModel.kind == .leapLFM2512BInstruct
                     || textToToolModel.kind == .tinyLlamaOnePointOneB
+                    || textToToolModel.kind == .qwen2ZeroPointFiveBInstruct
                     || textToToolModel.kind == .qwen25OnePointFiveBInstruct
                     || textToToolModel.kind == .qwen3ZeroPointSixB
                     || textToToolModel.kind == .qwen3FourB {

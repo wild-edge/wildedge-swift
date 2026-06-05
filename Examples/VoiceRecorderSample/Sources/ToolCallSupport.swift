@@ -161,6 +161,11 @@ enum ToolCallJSON {
         return nil
     }
 
+    static func textWithoutThinkBlocks(from text: String) -> String {
+        text.removingTaggedBlocks(named: "think", removeUnterminated: true)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     static func prettyString(from value: ToolCallJSONValue?) -> String? {
         guard let value else { return nil }
         guard JSONSerialization.isValidJSONObject(value.foundationObject),
@@ -407,7 +412,7 @@ enum ToolCallPromptBuilder {
     """
 
     static let compactSystemPrompt = """
-    Return one valid JSON object, then stop after }. No transcript, prose, Markdown, code fence, or extra keys. Shape: {"tool_name":"set_temperature|change_volume|navigate|unknown","arguments":{}}. Quote keys/strings. set_temperature {"temperature":number}: temperature, warmer/cooler, AC; use spoken number. change_volume {"direction":"up"|"down"}: volume/sound; too loud/quieter/down=>down; too quiet/louder/can't hear=>up. navigate {"destination":"lowercase place"}: go/drive/navigate/directions; strip please/now. unknown {}.
+    Return raw JSON only. First character must be { and last character must be }. No transcript, prose, Markdown, ```json fence, explanation, reasoning, <think> tags, or extra keys. Do not think out loud. Return exactly one of these schemas: {"tool_name":"set_temperature","arguments":{"temperature":21}} or {"tool_name":"change_volume","arguments":{"direction":"down"}} or {"tool_name":"navigate","arguments":{"destination":"home"}} or {"tool_name":"unknown","arguments":{}}. set_temperature: use only for climate, temperature, warmer, cooler, heat, cold, AC, or air conditioning; arguments must contain only temperature; if the command contains a numeric temperature, copy exactly that number; never replace a spoken number with 19; never output ac or any key except temperature. change_volume: arguments must contain only direction; too loud/quieter/down=>down; too quiet/louder/can't hear/up=>up. navigate: arguments must contain only destination; destination is lowercase place only; strip please, now, and filler words. unknown: arguments must be empty.
     """
 
     static let systemPrompt = compactSystemPrompt
@@ -421,7 +426,8 @@ enum ToolCallPromptBuilder {
         Command:
         \(transcript)
 
-        Output exactly one JSON object and stop after its closing brace.
+        /no_think
+        Raw JSON only. Start with { and stop after the first matching }. No markdown fence, explanation, <think> tag, or extra keys.
         JSON:
         """
     }
@@ -431,20 +437,27 @@ enum ToolCallPromptBuilder {
         Command:
         \(transcript)
 
-        Output exactly one JSON object and stop after its closing brace.
+        /no_think
+        Raw JSON only. Start with { and stop after the first matching }. No markdown fence, explanation, <think> tag, or extra keys.
         JSON:
         """
     }
 
+    static let localTextToToolPromptPrefix = """
+    \(compactSystemPrompt)
+
+    Command:
+    """
+
+    static let localTextToToolPromptSuffix = """
+
+    /no_think
+    Raw JSON only. Start with { and stop after the first matching }. No markdown fence, explanation, <think> tag, or extra keys.
+    JSON:
+    """
+
     static func localTextToToolPrompt(transcript: String) -> String {
-        """
-        \(compactSystemPrompt)
-
-        Command:
-        \(transcript)
-
-        Output exactly one JSON object and stop after its closing brace.
-        """
+        localTextToToolPromptPrefix + transcript + localTextToToolPromptSuffix
     }
 
     static func speechToToolUserPrompt() -> String {
@@ -494,7 +507,83 @@ enum ToolCallTranscriptHeuristics {
             return correctedNavigation
         }
 
+        if ToolCallJSON.parseAndValidate(from: normalizedOutput).parsedSuccessfully == false,
+           let inferred = inferredToolCallJSON(for: transcript) {
+            return inferred
+        }
+
         return normalizedOutput
+    }
+
+    private static func inferredToolCallJSON(for transcript: String) -> String? {
+        let normalized = normalize(transcript)
+        let hasClimateIntent = containsAny(
+            in: normalized,
+            terms: ["temperature", "warmer", "cooler", "heat", "cold", "ac", "air conditioning"]
+        )
+        if hasClimateIntent, let temperature = explicitTemperature(in: normalized) {
+            return #"{"tool_name":"set_temperature","arguments":{"temperature":\#(temperature)}}"#
+        }
+        if hasClimateIntent {
+            return #"{"tool_name":"set_temperature","arguments":{"temperature":21}}"#
+        }
+        if let volume = forcedToolCallJSON(for: transcript) {
+            return volume
+        }
+        if let destination = navigationDestination(in: normalized) {
+            let quotedDestination = ToolCallJSONValue.string(destination).canonicalString
+            return #"{"tool_name":"navigate","arguments":{"destination":\#(quotedDestination)}}"#
+        }
+        return #"{"tool_name":"unknown","arguments":{}}"#
+    }
+
+    private static func explicitTemperature(in normalizedTranscript: String) -> Int? {
+        let pattern = #"(?:^|\s)([1-3]?\d)(?:\s*(?:degrees?|celsius))?"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(normalizedTranscript.startIndex..<normalizedTranscript.endIndex, in: normalizedTranscript)
+        guard let match = regex.firstMatch(in: normalizedTranscript, range: range),
+              match.numberOfRanges > 1,
+              let matchRange = Range(match.range(at: 1), in: normalizedTranscript),
+              let value = Int(normalizedTranscript[matchRange]),
+              (10...35).contains(value)
+        else {
+            return nil
+        }
+        return value
+    }
+
+    private static func navigationDestination(in normalizedTranscript: String) -> String? {
+        guard containsAny(
+            in: normalizedTranscript,
+            terms: ["navigate", "directions", "route", "drive", "go to", "get to", "let's go", "lets go"]
+        ) else {
+            return nil
+        }
+
+        let patterns = [
+            #"navigate(?: to)? (.+)"#,
+            #"directions(?: to)? (.+)"#,
+            #"route(?: to)? (.+)"#,
+            #"drive to (.+)"#,
+            #"go to (.+)"#,
+            #"get to (.+)"#,
+            #"let'?s go(?: to)? (.+)"#
+        ]
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            let range = NSRange(normalizedTranscript.startIndex..<normalizedTranscript.endIndex, in: normalizedTranscript)
+            guard let match = regex.firstMatch(in: normalizedTranscript, range: range),
+                  match.numberOfRanges > 1,
+                  let matchRange = Range(match.range(at: 1), in: normalizedTranscript)
+            else {
+                continue
+            }
+            let destination = cleanedNavigationDestination(String(normalizedTranscript[matchRange]))
+            if destination.isEmpty == false {
+                return destination
+            }
+        }
+        return nil
     }
 
     private static func correctedNavigationToolCallJSON(rawOutput: String) -> String? {
@@ -571,7 +660,7 @@ enum ToolCallTranscriptHeuristics {
 }
 
 private extension String {
-    func removingTaggedBlocks(named tagName: String) -> String {
+    func removingTaggedBlocks(named tagName: String, removeUnterminated: Bool = false) -> String {
         var result = self
         let startTag = "<\(tagName)>"
         let endTag = "</\(tagName)>"
@@ -583,6 +672,11 @@ private extension String {
                 range: startRange.upperBound..<result.endIndex
               ) {
             result.removeSubrange(startRange.lowerBound..<endRange.upperBound)
+        }
+
+        if removeUnterminated,
+           let startRange = result.range(of: startTag, options: [.caseInsensitive]) {
+            result.removeSubrange(startRange.lowerBound..<result.endIndex)
         }
 
         return result

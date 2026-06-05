@@ -421,6 +421,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
                 status: context.status,
                 name: name,
                 durationMs: durationMs,
+                timestamp: isoString(start),
                 attributes: context.attributesSnapshot()
             )
             publish(event: event)
@@ -466,6 +467,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
                 status: context.status,
                 name: name,
                 durationMs: durationMs,
+                timestamp: isoString(start),
                 attributes: context.attributesSnapshot()
             )
             publish(event: event)
@@ -481,6 +483,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
                 status: context.status,
                 name: name,
                 durationMs: durationMs,
+                timestamp: isoString(start),
                 attributes: context.attributesSnapshot()
             )
             publish(event: event)

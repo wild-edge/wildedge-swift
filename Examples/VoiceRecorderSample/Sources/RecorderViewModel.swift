@@ -60,6 +60,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     @Published var benchmarkLatencyText = ""
     @Published var benchmarkTranscriptMatchText = ""
     @Published var benchmarkToolCallMatchText = ""
+    @Published var benchmarkToolCallMatchSummary = ""
+    @Published var benchmarkToolCallMismatchDetails: [String] = []
     #endif
 
     private var audioRecorder: AVAudioRecorder?
@@ -79,6 +81,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     private let functionGemmaMLXTextToolModelHandle: ModelHandle
     private let qwen35SmallMLXTextToolModelHandle: ModelHandle
     private let tinyLlamaTextToolModelHandle: ModelHandle
+    private let qwen2SmallTextToolModelHandle: ModelHandle
     private let qwen25TextToolModelHandle: ModelHandle
     private let qwen3SmallTextToolModelHandle: ModelHandle
     private let qwen3TextToolModelHandle: ModelHandle
@@ -215,6 +218,15 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 modelFamily: "tool-calling"
             )
         )
+        qwen2SmallTextToolModelHandle = WildEdge.shared.registerModel(
+            modelId: BenchmarkTextToToolModel.qwen2ZeroPointFiveBInstruct.logicalModelId,
+            info: ModelInfo(
+                modelName: "Qwen2 0.5B Instruct 4-bit Text To Tool",
+                modelSource: "huggingface",
+                modelFormat: "gguf",
+                modelFamily: "tool-calling"
+            )
+        )
         qwen25TextToolModelHandle = WildEdge.shared.registerModel(
             modelId: BenchmarkTextToToolModel.qwen25OnePointFiveBInstruct.logicalModelId,
             info: ModelInfo(
@@ -320,6 +332,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             benchmarkLatencyText = ""
             benchmarkTranscriptMatchText = ""
             benchmarkToolCallMatchText = ""
+            benchmarkToolCallMatchSummary = ""
+            benchmarkToolCallMismatchDetails = []
         }
     }
 
@@ -342,6 +356,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         benchmarkLatencyText = ""
         benchmarkTranscriptMatchText = ""
         benchmarkToolCallMatchText = ""
+        benchmarkToolCallMatchSummary = ""
+        benchmarkToolCallMismatchDetails = []
 
         benchmarkTask = Task.detached(priority: .utility) { [
             weak self,
@@ -356,6 +372,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             functionGemmaMLXTextToolModelHandle = self.functionGemmaMLXTextToolModelHandle,
             qwen35SmallMLXTextToolModelHandle = self.qwen35SmallMLXTextToolModelHandle,
             tinyLlamaTextToolModelHandle = self.tinyLlamaTextToolModelHandle,
+            qwen2SmallTextToolModelHandle = self.qwen2SmallTextToolModelHandle,
             qwen25TextToolModelHandle = self.qwen25TextToolModelHandle,
             qwen3SmallTextToolModelHandle = self.qwen3SmallTextToolModelHandle,
             qwen3TextToolModelHandle = self.qwen3TextToolModelHandle,
@@ -378,6 +395,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 functionGemmaMLXTextToolModelHandle: functionGemmaMLXTextToolModelHandle,
                 qwen35SmallMLXTextToolModelHandle: qwen35SmallMLXTextToolModelHandle,
                 tinyLlamaTextToolModelHandle: tinyLlamaTextToolModelHandle,
+                qwen2SmallTextToolModelHandle: qwen2SmallTextToolModelHandle,
                 qwen25TextToolModelHandle: qwen25TextToolModelHandle,
                 qwen3SmallTextToolModelHandle: qwen3SmallTextToolModelHandle,
                 qwen3TextToolModelHandle: qwen3TextToolModelHandle,
@@ -993,6 +1011,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         functionGemmaMLXTextToolModelHandle: ModelHandle,
         qwen35SmallMLXTextToolModelHandle: ModelHandle,
         tinyLlamaTextToolModelHandle: ModelHandle,
+        qwen2SmallTextToolModelHandle: ModelHandle,
         qwen25TextToolModelHandle: ModelHandle,
         qwen3SmallTextToolModelHandle: ModelHandle,
         qwen3TextToolModelHandle: ModelHandle,
@@ -1051,6 +1070,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 viewModel?.benchmarkLatencyText = ""
                 viewModel?.benchmarkTranscriptMatchText = ""
                 viewModel?.benchmarkToolCallMatchText = ""
+                viewModel?.benchmarkToolCallMatchSummary = ""
+                viewModel?.benchmarkToolCallMismatchDetails = []
             }
             return
         }
@@ -1069,6 +1090,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             viewModel?.benchmarkLatencyText = ""
             viewModel?.benchmarkTranscriptMatchText = ""
             viewModel?.benchmarkToolCallMatchText = ""
+            viewModel?.benchmarkToolCallMatchSummary = ""
+            viewModel?.benchmarkToolCallMismatchDetails = []
         }
         let allItems = await prepareBenchmarkDataset(loadedItems, viewModel: viewModel)
         guard !allItems.isEmpty else {
@@ -1090,6 +1113,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 viewModel?.benchmarkLatencyText = ""
                 viewModel?.benchmarkTranscriptMatchText = ""
                 viewModel?.benchmarkToolCallMatchText = ""
+                viewModel?.benchmarkToolCallMatchSummary = ""
+                viewModel?.benchmarkToolCallMismatchDetails = []
             }
             return
         }
@@ -1098,6 +1123,10 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         var iteration = 1
         var preparedWhisperModels = Set<WhisperModelSize>()
         var preparedTextToToolModels = Set<BenchmarkTextToToolModel>()
+        var toolCallMatchCount = 0
+        var toolCallMeasuredCount = 0
+        var toolCallExpectedCount = 0
+        var toolCallMismatchDetailsByKey: [String: String] = [:]
         benchmarkLoop: while !Task.isCancelled {
             guard await isBenchmarkRequested(viewModel) else { break }
             guard let passSettings = await benchmarkSettings(from: viewModel) else { break }
@@ -1139,6 +1168,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     viewModel?.benchmarkLatencyText = ""
                     viewModel?.benchmarkTranscriptMatchText = ""
                     viewModel?.benchmarkToolCallMatchText = ""
+                    viewModel?.benchmarkToolCallMatchSummary = ""
+                    viewModel?.benchmarkToolCallMismatchDetails = []
                 }
                 guard await sleepBenchmarkDelay(seconds: passSettings.benchmarkDelaySeconds, viewModel: viewModel) else {
                     break
@@ -1165,11 +1196,33 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     viewModel?.benchmarkLatencyText = ""
                     viewModel?.benchmarkTranscriptMatchText = ""
                     viewModel?.benchmarkToolCallMatchText = ""
+                    viewModel?.benchmarkToolCallMatchSummary = ""
+                    viewModel?.benchmarkToolCallMismatchDetails = []
                 }
                 guard await sleepBenchmarkDelay(seconds: passSettings.benchmarkDelaySeconds, viewModel: viewModel) else {
                     break
                 }
                 continue
+            }
+
+            let passInferenceCount = max(1, passSettings.benchmarkNumberOfInferences)
+            let passHasToolStep = passSettings.benchmarkSteps.contains(.textToTool)
+                || passSettings.benchmarkSteps.contains(.speechToTool)
+            toolCallMatchCount = 0
+            toolCallMeasuredCount = 0
+            toolCallExpectedCount = passHasToolStep ? items.count * passInferenceCount : 0
+            toolCallMismatchDetailsByKey = [:]
+            await MainActor.run {
+                viewModel?.benchmarkToolCallMatchSummary = passHasToolStep
+                    ? benchmarkToolCallMatchProgressText(
+                        matched: toolCallMatchCount,
+                        measured: toolCallMeasuredCount,
+                        total: toolCallExpectedCount
+                    )
+                    : ""
+                viewModel?.benchmarkToolCallMismatchDetails = passHasToolStep
+                    ? benchmarkMismatchDetails(from: toolCallMismatchDetailsByKey)
+                    : []
             }
 
             for (offset, item) in items.enumerated() {
@@ -1288,42 +1341,165 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     ) { span in
                         let totalStart = Date()
                         if needsSpeechToText {
-                            transcription = await transcribeIfNeeded(
-                                url: item.processingAudioURL,
-                                voiceToTextMode: settings.voiceToTextMode,
-                                whisperModelSize: settings.whisperModelSize,
-                                progressHandler: { progress, speed in
-                                    guard settings.voiceToTextMode == .leap else { return }
-                                    Task { @MainActor [weak viewModel] in
-                                        guard viewModel?.benchmarkRequested == true else { return }
-                                        viewModel?.benchmarkStatus = leapDownloadMessage(progress: progress, speed: speed)
+                            var speechStepAttributes = inputMeta
+                            speechStepAttributes["benchmark_step"] = BenchmarkStep.speechToText.rawValue
+                            await span.span(
+                                BenchmarkStep.speechToText.rawValue,
+                                kind: .agentStep,
+                                attributes: speechStepAttributes
+                            ) { speechSpan in
+                                transcription = await transcribeIfNeeded(
+                                    url: item.processingAudioURL,
+                                    voiceToTextMode: settings.voiceToTextMode,
+                                    whisperModelSize: settings.whisperModelSize,
+                                    progressHandler: { progress, speed in
+                                        guard settings.voiceToTextMode == .leap else { return }
+                                        Task { @MainActor [weak viewModel] in
+                                            guard viewModel?.benchmarkRequested == true else { return }
+                                            viewModel?.benchmarkStatus = leapDownloadMessage(progress: progress, speed: speed)
+                                        }
                                     }
+                                )
+                                comparison = benchmarkComparisonMeta(
+                                    actualTranscript: transcription?.transcript,
+                                    expectedTranscript: item.expectedTranscript
+                                )
+                                speechSpan.setAttributes([
+                                    "benchmark_step": BenchmarkStep.speechToText.rawValue,
+                                    "speech_to_text_model": transcription?.modelId ?? "",
+                                    "speech_to_text_duration_ms": transcription?.durationMs ?? 0,
+                                    "transcript_exact_match": comparison["normalized_exact_match"] as? Bool ?? false,
+                                    "transcript_match_evaluated": comparison["normalized_exact_match"] != nil
+                                ])
+                                speechInferenceId = trackSpeechInferenceIfNeeded(
+                                    transcription: transcription,
+                                    audioToToolArchitecture: settings.audioToToolArchitecture,
+                                    appleSpeechModelHandle: appleSpeechModelHandle,
+                                    whisperTinySpeechModelHandle: whisperTinySpeechModelHandle,
+                                    whisperBaseSpeechModelHandle: whisperBaseSpeechModelHandle,
+                                    leapSpeechModelHandle: leapSpeechModelHandle,
+                                    attachments: [],
+                                    additionalInputMeta: inputMeta,
+                                    additionalOutputMeta: comparison,
+                                    runId: runId,
+                                    traceId: speechSpan.traceId,
+                                    parentSpanId: speechSpan.spanId
+                                )
+                            }
+                        } else {
+                            comparison = benchmarkComparisonMeta(
+                                actualTranscript: nil,
+                                expectedTranscript: nil
+                            )
+                        }
+
+                        if hasToolStep {
+                            let toolStep: BenchmarkStep = needsTextToTool ? .textToTool : .speechToTool
+                            var toolStepAttributes = inputMeta
+                            toolStepAttributes["benchmark_step"] = toolStep.rawValue
+                            await span.span(
+                                toolStep.rawValue,
+                                kind: .agentStep,
+                                attributes: toolStepAttributes
+                            ) { toolSpan in
+                                if needsTextToTool {
+                                    toolResult = await generateTextToolCall(
+                                        transcript: transcription?.transcript,
+                                        model: settings.benchmarkTextToToolModel,
+                                        viewModel: viewModel
+                                    )
+                                } else {
+                                    toolResult = await generateSpeechToolCall(
+                                        url: item.processingAudioURL,
+                                        viewModel: viewModel
+                                    )
                                 }
-                            )
+
+                                toolComparison = benchmarkToolCallComparisonMeta(
+                                    actualToolCall: toolResult,
+                                    expectedItem: item
+                                )
+                                let toolMatched = toolComparison["tool_call_exact_match"] as? Bool
+                                toolCallMeasuredCount += 1
+                                if toolMatched == true {
+                                    toolCallMatchCount += 1
+                                } else {
+                                    print(
+                                        """
+                                        Benchmark tool-call mismatch: file=\(item.audioURL.lastPathComponent); expected=\(toolComparison["expected_tool_call_json"] as? String ?? ""); actual=\(toolComparison["actual_tool_call_json"] as? String ?? ""); raw=\(toolComparison["actual_tool_call"] as? String ?? "")
+                                        """
+                                    )
+                                    let mismatchKey = benchmarkToolCallMismatchKey(
+                                        item: item,
+                                        settings: settings,
+                                        inferenceIndex: inferenceIndex,
+                                        inferenceCount: inferenceCount
+                                    )
+                                    toolCallMismatchDetailsByKey[mismatchKey] = benchmarkToolCallMismatchDetail(
+                                        item: item,
+                                        inferenceIndex: inferenceIndex,
+                                        inferenceCount: inferenceCount,
+                                        toolCall: toolResult
+                                    )
+                                }
+                                toolComparison["benchmark_tool_call_match_count"] = toolCallMatchCount
+                                toolComparison["benchmark_tool_call_measured_count"] = toolCallMeasuredCount
+                                toolComparison["benchmark_tool_call_expected_count"] = toolCallExpectedCount
+                                toolComparison["benchmark_tool_call_match_rate"] = toolCallMeasuredCount > 0
+                                    ? Double(toolCallMatchCount) / Double(toolCallMeasuredCount)
+                                    : 0
+                                toolComparison["benchmark_tool_call_progress_rate"] = toolCallExpectedCount > 0
+                                    ? Double(toolCallMeasuredCount) / Double(toolCallExpectedCount)
+                                    : 0
+                                toolComparison["benchmark_tool_call_mismatches"] = benchmarkMismatchSummary(
+                                    benchmarkMismatchDetails(from: toolCallMismatchDetailsByKey)
+                                )
+
+                                toolSpan.setAttributes([
+                                    "benchmark_step": toolStep.rawValue,
+                                    "tool_call_model": toolResult?.modelId ?? "",
+                                    "tool_call_duration_ms": toolResult?.durationMs ?? 0,
+                                    "tool_call_exact_match": toolMatched ?? false,
+                                    "tool_call_match_evaluated": toolMatched != nil
+                                ])
+
+                                if let toolResult {
+                                    let toolHandle = toolResult.step == .textToTool
+                                        ? textToToolModelHandle(
+                                            for: settings.benchmarkTextToToolModel,
+                                            leapAudioTextToolModelHandle: leapAudioTextToolModelHandle,
+                                            leapSmallTextToolModelHandle: leapSmallTextToolModelHandle,
+                                            leapInstructTextToolModelHandle: leapInstructTextToolModelHandle,
+                                            functionGemmaTextToolModelHandle: functionGemmaTextToolModelHandle,
+                                            functionGemmaMLXTextToolModelHandle: functionGemmaMLXTextToolModelHandle,
+                                            qwen35SmallMLXTextToolModelHandle: qwen35SmallMLXTextToolModelHandle,
+                                            tinyLlamaTextToolModelHandle: tinyLlamaTextToolModelHandle,
+                                            qwen2SmallTextToolModelHandle: qwen2SmallTextToolModelHandle,
+                                            qwen25TextToolModelHandle: qwen25TextToolModelHandle,
+                                            qwen3SmallTextToolModelHandle: qwen3SmallTextToolModelHandle,
+                                            qwen3TextToolModelHandle: qwen3TextToolModelHandle,
+                                            onnxTextToolModelHandle: onnxTextToolModelHandle,
+                                            appleFoundationTextToolModelHandle: appleFoundationTextToolModelHandle,
+                                            customTextToolModelHandle: customTextToolModelHandle
+                                        )
+                                        : leapSpeechToolModelHandle
+                                    toolInferenceId = trackToolCallInference(
+                                        toolCall: toolResult,
+                                        modelHandle: toolHandle,
+                                        inputModality: toolResult.step == .textToTool ? .text : .audio,
+                                        additionalInputMeta: inputMeta,
+                                        additionalOutputMeta: toolComparison,
+                                        runId: runId,
+                                        inputText: toolResult.step == .textToTool ? transcription?.transcript : nil,
+                                        traceId: toolSpan.traceId,
+                                        parentSpanId: toolSpan.spanId
+                                    )
+                                }
+                            }
                         }
-
-                        comparison = benchmarkComparisonMeta(
-                            actualTranscript: transcription?.transcript,
-                            expectedTranscript: needsSpeechToText ? item.expectedTranscript : nil
-                        )
-
-                        if needsTextToTool {
-                            toolResult = await generateTextToolCall(
-                                transcript: transcription?.transcript,
-                                model: settings.benchmarkTextToToolModel,
-                                viewModel: viewModel
-                            )
-                        } else if needsSpeechToTool {
-                            toolResult = await generateSpeechToolCall(
-                                url: item.processingAudioURL,
-                                viewModel: viewModel
-                            )
-                        }
-
-                        toolComparison = benchmarkToolCallComparisonMeta(
-                            actualToolCall: toolResult,
-                            expectedItem: item
-                        )
+                        let toolCallMismatchDetails = hasToolStep
+                            ? benchmarkMismatchDetails(from: toolCallMismatchDetailsByKey)
+                            : []
                         totalDurationMs = Int(Date().timeIntervalSince(totalStart) * 1000)
                         span.setAttributes(
                             benchmarkSpanAttributes(
@@ -1333,52 +1509,15 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                                 settings: settings,
                                 inferenceIndex: inferenceIndex,
                                 inferenceCount: inferenceCount,
-                                totalDurationMs: totalDurationMs
+                                totalDurationMs: totalDurationMs,
+                                transcriptMatched: comparison["normalized_exact_match"] as? Bool,
+                                toolCallMatched: toolComparison["tool_call_exact_match"] as? Bool,
+                                toolCallMatchCount: toolCallMatchCount,
+                                toolCallMeasuredCount: toolCallMeasuredCount,
+                                toolCallExpectedCount: toolCallExpectedCount,
+                                toolCallMismatchDetails: toolCallMismatchDetails
                             )
                         )
-
-                        if needsSpeechToText {
-                            speechInferenceId = trackSpeechInferenceIfNeeded(
-                                transcription: transcription,
-                                audioToToolArchitecture: settings.audioToToolArchitecture,
-                                appleSpeechModelHandle: appleSpeechModelHandle,
-                                whisperTinySpeechModelHandle: whisperTinySpeechModelHandle,
-                                whisperBaseSpeechModelHandle: whisperBaseSpeechModelHandle,
-                                leapSpeechModelHandle: leapSpeechModelHandle,
-                                attachments: [],
-                                additionalInputMeta: inputMeta,
-                                additionalOutputMeta: comparison,
-                                runId: runId
-                            )
-                        }
-                        if let toolResult {
-                            let toolHandle = toolResult.step == .textToTool
-                                ? textToToolModelHandle(
-                                    for: settings.benchmarkTextToToolModel,
-                                    leapAudioTextToolModelHandle: leapAudioTextToolModelHandle,
-                                    leapSmallTextToolModelHandle: leapSmallTextToolModelHandle,
-                                    leapInstructTextToolModelHandle: leapInstructTextToolModelHandle,
-                                    functionGemmaTextToolModelHandle: functionGemmaTextToolModelHandle,
-                                    functionGemmaMLXTextToolModelHandle: functionGemmaMLXTextToolModelHandle,
-                                    qwen35SmallMLXTextToolModelHandle: qwen35SmallMLXTextToolModelHandle,
-                                    tinyLlamaTextToolModelHandle: tinyLlamaTextToolModelHandle,
-                                    qwen25TextToolModelHandle: qwen25TextToolModelHandle,
-                                    qwen3SmallTextToolModelHandle: qwen3SmallTextToolModelHandle,
-                                    qwen3TextToolModelHandle: qwen3TextToolModelHandle,
-                                    onnxTextToolModelHandle: onnxTextToolModelHandle,
-                                    appleFoundationTextToolModelHandle: appleFoundationTextToolModelHandle,
-                                    customTextToolModelHandle: customTextToolModelHandle
-                                )
-                                : leapSpeechToolModelHandle
-                            toolInferenceId = trackToolCallInference(
-                                toolCall: toolResult,
-                                modelHandle: toolHandle,
-                                inputModality: toolResult.step == .textToTool ? .text : .audio,
-                                additionalInputMeta: inputMeta,
-                                additionalOutputMeta: toolComparison,
-                                runId: runId
-                            )
-                        }
                         return toolInferenceId ?? speechInferenceId
                     }
                     if inferenceId != nil {
@@ -1388,6 +1527,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     await MainActor.run {
                         let transcriptMatched = comparison["normalized_exact_match"] as? Bool
                         let toolMatched = toolComparison["tool_call_exact_match"] as? Bool
+                        let toolCallMismatchDetails = benchmarkMismatchDetails(from: toolCallMismatchDetailsByKey)
                         let transcriptText = benchmarkTranscriptText(from: transcription)
                         let result = benchmarkResultText(
                             needsSpeechToText: needsSpeechToText,
@@ -1420,6 +1560,16 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                         viewModel?.benchmarkToolCallMatchText = hasToolStep
                             ? toolCallResultText(toolCall: toolResult, matched: toolMatched)
                             : ""
+                        viewModel?.benchmarkToolCallMatchSummary = hasToolStep
+                            ? benchmarkToolCallMatchProgressText(
+                                matched: toolCallMatchCount,
+                                measured: toolCallMeasuredCount,
+                                total: toolCallExpectedCount
+                            )
+                            : ""
+                        viewModel?.benchmarkToolCallMismatchDetails = hasToolStep
+                            ? toolCallMismatchDetails
+                            : []
                     }
 
                     if let runtimeStopStatus = benchmarkRuntimeStopStatus(
@@ -1432,6 +1582,17 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                             viewModel?.benchmarkRunProgress = "Stopped"
                         }
                         break benchmarkLoop
+                    }
+
+                    let isLastSelectedItem = offset == items.indices.last
+                    let isLastInferenceForItem = inferenceIndex == inferenceCount
+                    if isLastSelectedItem && isLastInferenceForItem {
+                        let passCompleteStatus = "Benchmark pass \(iteration) complete. Restarting..."
+                        await MainActor.run {
+                            viewModel?.benchmarkStatus = passCompleteStatus
+                            viewModel?.benchmarkSleepCountdown = ""
+                        }
+                        continue
                     }
 
                     guard await sleepBenchmarkDelay(seconds: settings.benchmarkDelaySeconds, viewModel: viewModel) else {
@@ -1454,18 +1615,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             Self.setBenchmarkIdleTimerDisabled(false)
             viewModel?.benchmarkStatus = status
             viewModel?.benchmarkTask = nil
-            viewModel?.benchmarkCurrentInput = ""
-            viewModel?.benchmarkPreprocessingFile = ""
-            viewModel?.benchmarkRunProgress = ""
+            viewModel?.benchmarkRunProgress = "Completed"
             viewModel?.benchmarkSleepCountdown = ""
-            viewModel?.benchmarkTranscript = ""
-            viewModel?.benchmarkExpectedTranscript = ""
-            viewModel?.benchmarkStepsText = ""
-            viewModel?.benchmarkExpectedToolCall = ""
-            viewModel?.benchmarkActualToolCall = ""
-            viewModel?.benchmarkLatencyText = ""
-            viewModel?.benchmarkTranscriptMatchText = ""
-            viewModel?.benchmarkToolCallMatchText = ""
         }
     }
 
@@ -2141,6 +2292,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         functionGemmaMLXTextToolModelHandle: ModelHandle,
         qwen35SmallMLXTextToolModelHandle: ModelHandle,
         tinyLlamaTextToolModelHandle: ModelHandle,
+        qwen2SmallTextToolModelHandle: ModelHandle,
         qwen25TextToolModelHandle: ModelHandle,
         qwen3SmallTextToolModelHandle: ModelHandle,
         qwen3TextToolModelHandle: ModelHandle,
@@ -2163,6 +2315,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             return qwen35SmallMLXTextToolModelHandle
         case .tinyLlamaOnePointOneB:
             return tinyLlamaTextToolModelHandle
+        case .qwen2ZeroPointFiveBInstruct:
+            return qwen2SmallTextToolModelHandle
         case .qwen25OnePointFiveBInstruct:
             return qwen25TextToolModelHandle
         case .qwen3ZeroPointSixB:
@@ -2323,13 +2477,89 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         return matched == true ? "match" : "no match"
     }
 
+    private nonisolated static func benchmarkToolCallMatchProgressText(
+        matched: Int,
+        measured: Int,
+        total: Int
+    ) -> String {
+        guard total > 0 else { return "" }
+        let accuracy = measured > 0
+            ? Double(matched) / Double(measured) * 100
+            : 0
+        let progress = Double(measured) / Double(total) * 100
+        return String(
+            format: "%d/%d matched, %d/%d measured, %.1f%% accuracy, %.1f%% progress",
+            matched,
+            measured,
+            measured,
+            total,
+            accuracy,
+            progress
+        )
+    }
+
+    private nonisolated static func benchmarkToolCallMismatchDetail(
+        item: BenchmarkDatasetItem,
+        inferenceIndex: Int,
+        inferenceCount: Int,
+        toolCall: BenchmarkToolCallResult?
+    ) -> String {
+        var parts = [item.audioURL.lastPathComponent]
+        if inferenceCount > 1 {
+            parts.append("run \(inferenceIndex)/\(inferenceCount)")
+        }
+        if let error = toolCall?.errorDescription?.trimmingCharacters(in: .whitespacesAndNewlines),
+           error.isEmpty == false {
+            parts.append(error)
+        } else if toolCall?.parsedJSON == nil {
+            parts.append("actual JSON parse failed")
+        } else if item.expectedToolCallJSON == nil {
+            parts.append("expected JSON parse failed")
+        } else {
+            parts.append("actual JSON differed")
+        }
+        return parts.joined(separator: " - ")
+    }
+
+    private nonisolated static func benchmarkToolCallMismatchKey(
+        item: BenchmarkDatasetItem,
+        settings: VoiceRecorderEffectiveSettings,
+        inferenceIndex: Int,
+        inferenceCount: Int
+    ) -> String {
+        var parts = [
+            settings.benchmarkSteps.map(\.rawValue).joined(separator: "+"),
+            settings.benchmarkTextToToolModel.modelId,
+            item.audioBundlePath
+        ]
+        if inferenceCount > 1 {
+            parts.append(String(inferenceIndex))
+        }
+        return parts.joined(separator: "|")
+    }
+
+    private nonisolated static func benchmarkMismatchDetails(from detailsByKey: [String: String]) -> [String] {
+        detailsByKey.keys.sorted().compactMap { detailsByKey[$0] }
+    }
+
+    private nonisolated static func benchmarkMismatchSummary(_ details: [String]) -> String {
+        guard !details.isEmpty else { return "" }
+        let prefix = details.prefix(5).joined(separator: "\n")
+        let remaining = details.count - min(details.count, 5)
+        guard remaining > 0 else { return prefix }
+        return "\(prefix)\n... \(remaining) more mismatch(es)"
+    }
+
     private nonisolated static func trackToolCallInference(
         toolCall: BenchmarkToolCallResult,
         modelHandle: ModelHandle,
         inputModality: InputModality,
         additionalInputMeta: [String: Any],
         additionalOutputMeta: [String: Any],
-        runId: String
+        runId: String,
+        inputText: String? = nil,
+        traceId: String? = nil,
+        parentSpanId: String? = nil
     ) -> String {
         var inputMeta: [String: Any] = [
             "source": "VoiceRecorderSample",
@@ -2342,16 +2572,32 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "logical_model_id": modelHandle.modelId,
             "benchmark_tool_step": toolCall.step.rawValue
         ]
+        if let inputText = nonEmptyText(inputText) {
+            inputMeta["input_text"] = inputText
+            mergeTextInputMeta(
+                into: &inputMeta,
+                text: inputText,
+                promptType: toolCall.step.rawValue
+            )
+        }
         for (key, value) in additionalInputMeta {
             inputMeta[key] = value
         }
 
+        let outputText = nonEmptyText(toolCall.rawOutput) ?? toolCall.canonicalJSON ?? ""
         var outputMeta: [String: Any] = [
             "raw_tool_call": toolCall.rawOutput,
+            "output_text": outputText,
             "tool_call_json": toolCall.canonicalJSON ?? "",
             "tool_call_parse_error": toolCall.parsedSuccessfully ? "" : toolCall.errorDescription ?? "",
             "duration_ms": toolCall.durationMs
         ]
+        let outputTokenCount = estimatedTokenCount(outputText)
+        outputMeta["tokens_out"] = outputTokenCount
+        outputMeta["token_count"] = outputTokenCount
+        if let inputText = nonEmptyText(inputText) {
+            outputMeta["tokens_in"] = estimatedTokenCount(inputText)
+        }
         for (key, value) in additionalOutputMeta {
             outputMeta[key] = value
         }
@@ -2371,6 +2617,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             inputMeta: inputMeta,
             outputMeta: outputMeta,
             attachments: [],
+            traceId: traceId,
+            parentSpanId: parentSpanId,
             runId: runId
         )
     }
@@ -2444,8 +2692,26 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         settings: VoiceRecorderEffectiveSettings,
         inferenceIndex: Int,
         inferenceCount: Int,
-        totalDurationMs: Int
+        totalDurationMs: Int,
+        transcriptMatched: Bool?,
+        toolCallMatched: Bool?,
+        toolCallMatchCount: Int,
+        toolCallMeasuredCount: Int,
+        toolCallExpectedCount: Int,
+        toolCallMismatchDetails: [String]
     ) -> [String: Any] {
+        let hasSpeechToTextStep = settings.benchmarkSteps.contains(.speechToText)
+        let hasToolStep = settings.benchmarkSteps.contains(.textToTool)
+            || settings.benchmarkSteps.contains(.speechToTool)
+        let matchedExpected: Bool?
+        if hasToolStep {
+            matchedExpected = toolCallMatched
+        } else if hasSpeechToTextStep {
+            matchedExpected = transcriptMatched
+        } else {
+            matchedExpected = nil
+        }
+
         var attributes: [String: Any] = [
             "source": "VoiceRecorderSample",
             "benchmark_suite": "voice_recorder",
@@ -2470,7 +2736,24 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "selected_text_to_tool_quantization": settings.benchmarkTextToToolModel.quantization,
             "tool_call_step": toolCall?.step.rawValue ?? "",
             "tool_call_duration_ms": toolCall?.durationMs ?? 0,
-            "benchmark_total_duration_ms": totalDurationMs
+            "benchmark_total_duration_ms": totalDurationMs,
+            "benchmark_matched_expected": matchedExpected ?? false,
+            "benchmark_match_evaluated": matchedExpected != nil,
+            "transcript_exact_match": transcriptMatched ?? false,
+            "transcript_match_evaluated": transcriptMatched != nil,
+            "tool_call_exact_match": toolCallMatched ?? false,
+            "tool_call_match_evaluated": toolCallMatched != nil,
+            "benchmark_tool_call_match_count": toolCallMatchCount,
+            "benchmark_tool_call_measured_count": toolCallMeasuredCount,
+            "benchmark_tool_call_expected_count": toolCallExpectedCount,
+            "benchmark_tool_call_match_rate": toolCallMeasuredCount > 0
+                ? Double(toolCallMatchCount) / Double(toolCallMeasuredCount)
+                : 0,
+            "benchmark_tool_call_progress_rate": toolCallExpectedCount > 0
+                ? Double(toolCallMeasuredCount) / Double(toolCallExpectedCount)
+                : 0,
+            "benchmark_tool_call_mismatch_count": toolCallMismatchDetails.count,
+            "benchmark_tool_call_mismatches": benchmarkMismatchSummary(toolCallMismatchDetails)
         ]
         if let expectedToolCallBundlePath = item.expectedToolCallBundlePath {
             attributes["expected_tool_call_file"] = expectedToolCallBundlePath
@@ -2676,6 +2959,27 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         return "\(bytesPerSecond) B/s"
     }
 
+    private nonisolated static func nonEmptyText(_ text: String?) -> String? {
+        let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private nonisolated static func estimatedTokenCount(_ text: String) -> Int {
+        guard nonEmptyText(text) != nil else { return 0 }
+        return WildEdge.analyzeText(text).tokenCount ?? 0
+    }
+
+    private nonisolated static func mergeTextInputMeta(
+        into meta: inout [String: Any],
+        text: String,
+        promptType: String
+    ) {
+        let textMeta = WildEdge.analyzeText(text, promptType: promptType).toMap()
+        for (key, value) in textMeta {
+            meta[key] = value
+        }
+    }
+
     private nonisolated static func trackSpeechInferenceIfNeeded(
         transcription: SpeechTranscriptionResult?,
         audioToToolArchitecture: AudioToToolArchitecture,
@@ -2687,7 +2991,9 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         attachments: [InferenceAttachment],
         additionalInputMeta: [String: Any] = [:],
         additionalOutputMeta: [String: Any] = [:],
-        runId: String? = nil
+        runId: String? = nil,
+        traceId: String? = nil,
+        parentSpanId: String? = nil
     ) -> String? {
         guard let transcription else { return nil }
         let speechModelHandle: ModelHandle
@@ -2719,12 +3025,17 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             inputMeta[key] = value
         }
 
+        let transcriptText = transcription.transcript ?? ""
         var outputMeta: [String: Any] = [
-            "transcript": transcription.transcript ?? "",
+            "transcript": transcriptText,
+            "output_text": transcriptText,
             "error": transcription.errorDescription ?? "",
             "duration_ms": transcription.durationMs,
             "audio_to_tool_architecture": audioToToolArchitecture.rawValue
         ]
+        let outputTokenCount = estimatedTokenCount(transcriptText)
+        outputMeta["tokens_out"] = outputTokenCount
+        outputMeta["token_count"] = outputTokenCount
         for (key, value) in additionalOutputMeta {
             outputMeta[key] = value
         }
@@ -2740,6 +3051,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             inputMeta: inputMeta,
             outputMeta: outputMeta,
             attachments: attachments,
+            traceId: traceId,
+            parentSpanId: parentSpanId,
             runId: runId
         )
     }
