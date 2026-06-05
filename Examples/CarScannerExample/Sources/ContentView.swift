@@ -7,6 +7,7 @@ struct ContentView: View {
     @State private var isPinching: Bool = false
     @State private var selectedJobID: UUID?
     @State private var selectedPickerItem: PhotosPickerItem?
+    @State private var showSettings = false
     @State private var triviaText = ""
     @State private var triviaReady = false
     @State private var delayElapsed = false
@@ -88,6 +89,12 @@ struct ContentView: View {
                 ZStack {
                     ScanButton(action: viewModel.scan)
                     HStack {
+                        Button { showSettings = true } label: {
+                            ZStack {
+                                Circle().fill(Color.white.opacity(0.2)).frame(width: 50, height: 50)
+                                Image(systemName: "gearshape").font(.system(size: 18)).foregroundColor(.white)
+                            }
+                        }
                         Spacer()
                         PhotosPicker(selection: $selectedPickerItem, matching: .images) {
                             ZStack {
@@ -164,6 +171,13 @@ struct ContentView: View {
                     )
                 )
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            ScanSettingsView(
+                imageSize: $viewModel.uploadImageSize,
+                compression: $viewModel.compressionQuality,
+                sourceImage: viewModel.lastCapturedImage
+            )
         }
         .simultaneousGesture(
             MagnificationGesture()

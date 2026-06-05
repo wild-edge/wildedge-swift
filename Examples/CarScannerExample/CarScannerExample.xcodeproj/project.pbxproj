@@ -17,6 +17,7 @@
 		B0AA9821DCA4B35DF432EA11 /* ScanJobDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB25ECAD442486B42C1D20C2 /* ScanJobDetailView.swift */; };
 		BAEE43C75C70404EE994F645 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3529C13102FB506EA48D74C /* ContentView.swift */; };
 		BB0B59FBC21D794C8D919502 /* OpenRouterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5DD09CF54A0F81DC02AE3B1 /* OpenRouterClient.swift */; };
+		C882663E2FCEB44000AF9AE8 /* ScanSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C882663D2FCEB44000AF9AE8 /* ScanSettingsView.swift */; };
 		CF3044DF76303B6156BE44DF /* CarScannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4145A0D128AC5B28BD398C87 /* CarScannerApp.swift */; };
 		E0E5841DD0BFBE16A7E505C6 /* MarqueeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7FBEC0CC0C0BAF85152200 /* MarqueeText.swift */; };
 		E152C9C514E0F36F55A46321 /* ScanJobCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BEEAC05723C7F580B785E92 /* ScanJobCell.swift */; };
@@ -33,6 +34,7 @@
 		A342C548D42486C99AFC4A17 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AF5841ED8926579898D78F71 /* GeminiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiClient.swift; sourceTree = "<group>"; };
 		B5DD09CF54A0F81DC02AE3B1 /* OpenRouterClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterClient.swift; sourceTree = "<group>"; };
+		C882663D2FCEB44000AF9AE8 /* ScanSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanSettingsView.swift; sourceTree = "<group>"; };
 		DB25ECAD442486B42C1D20C2 /* ScanJobDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanJobDetailView.swift; sourceTree = "<group>"; };
 		DF7FBEC0CC0C0BAF85152200 /* MarqueeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarqueeText.swift; sourceTree = "<group>"; };
 		E27F9095CD5552A2A9DBC787 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -67,6 +69,7 @@
 				E2DD7E291FB82275CD71220E /* RecognitionHelpers.swift */,
 				84FDE02FAF253090DE93A7CC /* ScanButton.swift */,
 				8BEEAC05723C7F580B785E92 /* ScanJobCell.swift */,
+				C882663D2FCEB44000AF9AE8 /* ScanSettingsView.swift */,
 				DB25ECAD442486B42C1D20C2 /* ScanJobDetailView.swift */,
 			);
 			path = Sources;
@@ -173,6 +176,7 @@
 				BAEE43C75C70404EE994F645 /* ContentView.swift in Sources */,
 				53CBF52199F526A6D5DC7879 /* GeminiClient.swift in Sources */,
 				E0E5841DD0BFBE16A7E505C6 /* MarqueeText.swift in Sources */,
+				C882663E2FCEB44000AF9AE8 /* ScanSettingsView.swift in Sources */,
 				BB0B59FBC21D794C8D919502 /* OpenRouterClient.swift in Sources */,
 				403C6486F5BC47AC091DBEA5 /* RecognitionHelpers.swift in Sources */,
 				61C638888A9ED7D43100790C /* ScanButton.swift in Sources */,
@@ -191,6 +195,7 @@
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
@@ -199,6 +204,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.36;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.wildedge.example.carscanner;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
@@ -218,6 +224,7 @@
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 7;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
@@ -226,6 +233,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = 1.36;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.wildedge.example.carscanner;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;

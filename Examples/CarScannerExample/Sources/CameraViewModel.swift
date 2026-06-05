@@ -3,6 +3,10 @@ import WildEdge
 import Combine
 import UIKit
 
+private extension Int {
+    var nonZero: Int? { self == 0 ? nil : self }
+}
+
 struct BoundingBox: Decodable {
     var x: Double
     var y: Double
@@ -92,6 +96,13 @@ final class CameraViewModel: NSObject, ObservableObject {
     @Published var jobs: [ScanJob] = []
     @Published var errorMessage: String?
     @Published var provider: RecognitionProvider = .openRouter
+    @Published var uploadImageSize: Int = UserDefaults.standard.integer(forKey: "uploadImageSize").nonZero ?? 512 {
+        didSet { UserDefaults.standard.set(uploadImageSize, forKey: "uploadImageSize") }
+    }
+    @Published var compressionQuality: Double = UserDefaults.standard.object(forKey: "compressionQuality") as? Double ?? 0.7 {
+        didSet { UserDefaults.standard.set(compressionQuality, forKey: "compressionQuality") }
+    }
+    @Published var lastCapturedImage: UIImage?
 
     let session = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
@@ -158,9 +169,11 @@ final class CameraViewModel: NSObject, ObservableObject {
         jobs.insert(ScanJob(id: jobID, date: Date(), provider: captureProvider), at: 0)
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
-            let thumbnail = UIImage(data: imageData)?.preparingThumbnail(of: CGSize(width: 400, height: 400))
+            let fullImage = UIImage(data: imageData)
+            let thumbnail = fullImage?.preparingThumbnail(of: CGSize(width: 400, height: 400))
             let (uploadData, meta) = self.makeUploadDataAndMeta(imageData)
             await MainActor.run {
+                self.lastCapturedImage = fullImage
                 self.updateThumbnail(id: jobID, image: thumbnail)
                 self.updatePhotoMetadata(id: jobID, meta: meta)
             }
@@ -216,12 +229,13 @@ final class CameraViewModel: NSObject, ObservableObject {
     }
 
     private func makeUploadDataAndMeta(_ imageData: Data) -> (Data, PhotoMetadata) {
-        let uploadData = resizedImageData(imageData)
+        let targetWidth = CGFloat(uploadImageSize)
+        let uploadData = resizedImageData(imageData, targetWidth: targetWidth)
         let dims: CGSize? = UIImage(data: imageData).map { img in
             let w = img.size.width * img.scale
             let h = img.size.height * img.scale
-            guard w > 512 else { return CGSize(width: w, height: h) }
-            return CGSize(width: 512, height: (h * 512 / w).rounded())
+            guard w > targetWidth else { return CGSize(width: w, height: h) }
+            return CGSize(width: targetWidth, height: (h * targetWidth / w).rounded())
         }
         return (uploadData, PhotoMetadata(fileSize: uploadData.count, dimensions: dims))
     }
@@ -254,14 +268,14 @@ final class CameraViewModel: NSObject, ObservableObject {
         guard let image = UIImage(data: data) else { return data }
         let pixelW = image.size.width * image.scale
         let pixelH = image.size.height * image.scale
-        guard pixelW > targetWidth else { return data }
-        let ratio = targetWidth / pixelW
-        let newSize = CGSize(width: targetWidth, height: (pixelH * ratio).rounded())
+        let drawSize: CGSize = pixelW > targetWidth
+            ? CGSize(width: targetWidth, height: (pixelH * targetWidth / pixelW).rounded())
+            : CGSize(width: pixelW, height: pixelH)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1.0
-        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
-        let resized = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
-        return resized.jpegData(compressionQuality: 0.7) ?? data
+        let renderer = UIGraphicsImageRenderer(size: drawSize, format: format)
+        let rendered = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: drawSize)) }
+        return rendered.jpegData(compressionQuality: compressionQuality) ?? data
     }
 
     private func analyzeWithBoth(_ imageData: Data, photo: PhotoMetadata) async throws -> [ScanResult] {
@@ -308,9 +322,11 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
 
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
-            let thumbnail = UIImage(data: data)?.preparingThumbnail(of: CGSize(width: 400, height: 400))
+            let fullImage = UIImage(data: data)
+            let thumbnail = fullImage?.preparingThumbnail(of: CGSize(width: 400, height: 400))
             let (uploadData, meta) = self.makeUploadDataAndMeta(data)
             await MainActor.run {
+                self.lastCapturedImage = fullImage
                 self.updateThumbnail(id: jobID, image: thumbnail)
                 self.updatePhotoMetadata(id: jobID, meta: meta)
             }
