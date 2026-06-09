@@ -42,7 +42,7 @@ Add the dependency to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/wild-edge/wildedge-swift.git", from: "1.0.11")
+    .package(url: "https://github.com/wild-edge/wildedge-swift.git", from: "1.1.0")
 ],
 targets: [
     .target(
@@ -64,7 +64,7 @@ https://github.com/wild-edge/wildedge-swift.git
 Add the pod to your `Podfile`:
 
 ```ruby
-pod 'WildEdge', '1.0.11'
+pod 'WildEdge', '1.1.0'
 ```
 
 Then run:
