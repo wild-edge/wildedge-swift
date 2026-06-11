@@ -804,16 +804,13 @@ final class SettingsStore: ObservableObject {
     private static let benchmarkEnabledKey = "VoiceRecorderSample.benchmarkEnabled"
     private static let benchmarkTextToToolModelKey = "VoiceRecorderSample.benchmarkTextToToolModel"
     private static let benchmarkSpeechToToolModelKey = "VoiceRecorderSample.benchmarkSpeechToToolModel"
-    private static let forceQwen3ASRFullBenchmark = false
-    private static let forceUltravoxQ4KMSpeechToToolBenchmark = false
-    private static let forceLiquidLFM25SpeechToToolManual = false
-    private static let defaultBenchmarkVoiceToTextMode: VoiceToTextMode = .disabled
+    private static let defaultBenchmarkVoiceToTextMode: VoiceToTextMode = .whisper
     private static let defaultBenchmarkWhisperModelSize: WhisperModelSize = .tiny
-    private static let defaultBenchmarkAudioToToolArchitecture: AudioToToolArchitecture = .oneStep
-    private static let minimumBenchmarkDelaySeconds: TimeInterval = 1
-    private static let defaultBenchmarkDelaySeconds: TimeInterval = minimumBenchmarkDelaySeconds
+    private static let defaultBenchmarkAudioToToolArchitecture: AudioToToolArchitecture = .twoStep
+    private static let minimumBenchmarkDelaySeconds: TimeInterval = 0
+    private static let defaultBenchmarkDelaySeconds: TimeInterval = 10
     private static let defaultBenchmarkNumberOfInferences = 5
-    private static let defaultBenchmarkSteps: [BenchmarkStep] = [.speechToTool]
+    private static let defaultBenchmarkSteps: [BenchmarkStep] = [.speechToText, .textToTool]
     private static let defaultBenchmarkTextToToolModel: BenchmarkTextToToolModel = .ultravoxLlama32OneB
     private static let defaultBenchmarkSpeechToToolModel: BenchmarkTextToToolModel = .ultravoxLlama32OneB
     static let selectableBenchmarkTextToToolModels: [BenchmarkTextToToolModel] = [
@@ -963,66 +960,6 @@ final class SettingsStore: ObservableObject {
 
     var effectiveSettings: VoiceRecorderEffectiveSettings {
         #if BENCHMARK_BUILD
-        if Self.forceLiquidLFM25SpeechToToolManual {
-            return VoiceRecorderEffectiveSettings(
-                voiceToTextMode: .disabled,
-                whisperModelSize: Self.defaultBenchmarkWhisperModelSize,
-                audioToToolArchitecture: .oneStep,
-                includeSpectrogramAttachment: false,
-                includeWAVAttachment: true,
-                benchmarkEnabled: false,
-                benchmarkDelaySeconds: Self.defaultBenchmarkDelaySeconds,
-                benchmarkRecordingsMatch: ["*"],
-                benchmarkNumberOfInferences: 1,
-                benchmarkSteps: Self.defaultBenchmarkSteps,
-                benchmarkStepsError: nil,
-                benchmarkTextToToolModel: Self.defaultBenchmarkTextToToolModel,
-                benchmarkSpeechToToolModel: Self.defaultBenchmarkSpeechToToolModel,
-                isUsingSDKPayload: false,
-                remoteConfigWarning: nil
-            )
-        }
-
-        if Self.forceQwen3ASRFullBenchmark {
-            return VoiceRecorderEffectiveSettings(
-                voiceToTextMode: .disabled,
-                whisperModelSize: Self.defaultBenchmarkWhisperModelSize,
-                audioToToolArchitecture: .oneStep,
-                includeSpectrogramAttachment: false,
-                includeWAVAttachment: false,
-                benchmarkEnabled: true,
-                benchmarkDelaySeconds: Self.defaultBenchmarkDelaySeconds,
-                benchmarkRecordingsMatch: ["*.m4a"],
-                benchmarkNumberOfInferences: 1,
-                benchmarkSteps: [.speechToTool],
-                benchmarkStepsError: nil,
-                benchmarkTextToToolModel: .qwen3ASRZeroPointSixB,
-                benchmarkSpeechToToolModel: .qwen3ASRZeroPointSixB,
-                isUsingSDKPayload: false,
-                remoteConfigWarning: nil
-            )
-        }
-
-        if Self.forceUltravoxQ4KMSpeechToToolBenchmark {
-            return VoiceRecorderEffectiveSettings(
-                voiceToTextMode: Self.defaultBenchmarkVoiceToTextMode,
-                whisperModelSize: Self.defaultBenchmarkWhisperModelSize,
-                audioToToolArchitecture: Self.defaultBenchmarkAudioToToolArchitecture,
-                includeSpectrogramAttachment: false,
-                includeWAVAttachment: false,
-                benchmarkEnabled: true,
-                benchmarkDelaySeconds: Self.defaultBenchmarkDelaySeconds,
-                benchmarkRecordingsMatch: ["*"],
-                benchmarkNumberOfInferences: Self.defaultBenchmarkNumberOfInferences,
-                benchmarkSteps: Self.defaultBenchmarkSteps,
-                benchmarkStepsError: nil,
-                benchmarkTextToToolModel: .ultravoxLlama32OneB,
-                benchmarkSpeechToToolModel: .ultravoxLlama32OneB,
-                isUsingSDKPayload: false,
-                remoteConfigWarning: nil
-            )
-        }
-
         let sdkPayload = sdkPayload ?? [:]
         let sdkBenchmarkEnabled = Self.benchmarkEnabled(from: sdkPayload) ?? false
         guard useSDKPayloadSettings || sdkBenchmarkEnabled else {
@@ -1062,29 +999,21 @@ final class SettingsStore: ObservableObject {
         #if BENCHMARK_BUILD
         let benchmarkEnabled = useSDKPayloadSettings ? sdkBenchmarkEnabled : true
         let sdkAudioToToolArchitecture = Self.audioToToolArchitecture(from: sdkPayload)
-        let benchmarkStepConfiguration = Self.forceUltravoxQ4KMSpeechToToolBenchmark
-            ? (Self.defaultBenchmarkSteps, nil)
-            : Self.benchmarkSteps(from: sdkPayload)
-                ?? sdkAudioToToolArchitecture.map { (Self.benchmarkSteps(for: $0), nil) }
-                ?? (Self.defaultBenchmarkSteps, nil)
+        let benchmarkStepConfiguration = Self.benchmarkSteps(from: sdkPayload)
+            ?? sdkAudioToToolArchitecture.map { (Self.benchmarkSteps(for: $0), nil) }
+            ?? (Self.defaultBenchmarkSteps, nil)
         let benchmarkTextToToolModel = Self.benchmarkTextToToolModel(from: sdkPayload) ?? .default
-        let benchmarkSpeechToToolModel = Self.forceUltravoxQ4KMSpeechToToolBenchmark
-            ? Self.defaultBenchmarkSpeechToToolModel
-            : Self.benchmarkSpeechToToolModel(from: sdkPayload)
-                ?? Self.defaultBenchmarkSpeechToToolModel
+        let benchmarkSpeechToToolModel = Self.benchmarkSpeechToToolModel(from: sdkPayload)
+            ?? Self.defaultBenchmarkSpeechToToolModel
         if let remoteConfigWarning = Self.remoteConfigUnsupportedWarning(
             from: sdkPayload,
             behavior: benchmarkEnabled ? .benchmarkStopped : .appleSTTFallback
         ) {
             if benchmarkEnabled {
                 return VoiceRecorderEffectiveSettings(
-                    voiceToTextMode: Self.forceUltravoxQ4KMSpeechToToolBenchmark
-                        ? .disabled
-                        : Self.voiceToTextMode(from: sdkPayload) ?? .disabled,
+                    voiceToTextMode: Self.voiceToTextMode(from: sdkPayload) ?? .disabled,
                     whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? .tiny,
-                    audioToToolArchitecture: Self.forceUltravoxQ4KMSpeechToToolBenchmark
-                        ? .oneStep
-                        : sdkAudioToToolArchitecture ?? .twoStep,
+                    audioToToolArchitecture: sdkAudioToToolArchitecture ?? .twoStep,
                     includeSpectrogramAttachment: false,
                     includeWAVAttachment: false,
                     benchmarkEnabled: benchmarkEnabled,
@@ -1128,13 +1057,9 @@ final class SettingsStore: ObservableObject {
             )
         }
         return VoiceRecorderEffectiveSettings(
-            voiceToTextMode: Self.forceUltravoxQ4KMSpeechToToolBenchmark
-                ? .disabled
-                : Self.voiceToTextMode(from: sdkPayload) ?? Self.defaultBenchmarkVoiceToTextMode,
+            voiceToTextMode: Self.voiceToTextMode(from: sdkPayload) ?? Self.defaultBenchmarkVoiceToTextMode,
             whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? Self.defaultBenchmarkWhisperModelSize,
-            audioToToolArchitecture: Self.forceUltravoxQ4KMSpeechToToolBenchmark
-                ? .oneStep
-                : sdkAudioToToolArchitecture ?? Self.defaultBenchmarkAudioToToolArchitecture,
+            audioToToolArchitecture: sdkAudioToToolArchitecture ?? Self.defaultBenchmarkAudioToToolArchitecture,
             includeSpectrogramAttachment: benchmarkEnabled ? false : Self.boolValue(
                 from: sdkPayload,
                 preferredKeys: [
@@ -1334,12 +1259,6 @@ final class SettingsStore: ObservableObject {
         from config: RemoteSDKConfig,
         behavior: UnsupportedRemoteConfigBehavior = .appleSTTFallback
     ) -> String? {
-        #if BENCHMARK_BUILD
-        if forceUltravoxQ4KMSpeechToToolBenchmark {
-            return nil
-        }
-        #endif
-
         var unsupportedSettings: [String] = []
 
         if let value = voiceToTextModelValue(from: config),
