@@ -8,7 +8,11 @@ private let _isoFormatter: ISO8601DateFormatter = {
 }()
 
 internal func isoNow() -> String {
-    _isoFormatter.string(from: Date())
+    isoString(Date())
+}
+
+internal func isoString(_ date: Date) -> String {
+    _isoFormatter.string(from: date)
 }
 
 internal func newEventId() -> String {
@@ -257,6 +261,7 @@ internal func buildSpanEvent(
     status: SpanStatus,
     name: String,
     durationMs: Int64,
+    timestamp: String = isoNow(),
     attributes: [String: Any]? = nil
 ) -> [String: Any] {
     var span: [String: Any] = [
@@ -272,7 +277,7 @@ internal func buildSpanEvent(
     var event: [String: Any] = [
         "event_id": newEventId(),
         "event_type": "span",
-        "timestamp": isoNow(),
+        "timestamp": timestamp,
         "trace_id": traceId,
         "span_id": spanId,
         "span": span,

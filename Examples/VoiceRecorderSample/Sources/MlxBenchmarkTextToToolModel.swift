@@ -110,6 +110,23 @@ actor MlxBenchmarkTextToToolModel {
         #endif
     }
 
+    func invalidateModel(_ model: BenchmarkTextToToolModel) async {
+        guard model.provider == "mlx", model.modelFormat == "safetensors" else { return }
+        #if canImport(Hub) && canImport(MLXLLM) && canImport(MLXLMCommon)
+        if loadedConfiguration == model {
+            loadedContainer = nil
+            loadedConfiguration = nil
+        }
+        #endif
+        do {
+            if let directory = try cachedModelDirectory(for: model) {
+                try? fileManager.removeItem(at: directory)
+            }
+        } catch {
+            return
+        }
+    }
+
     func toolCall(
         fromTranscript transcript: String,
         model: BenchmarkTextToToolModel,
@@ -151,8 +168,9 @@ actor MlxBenchmarkTextToToolModel {
         guard trimmed.isEmpty == false else {
             throw SpeechTranscriptionError.transcriptionFailed("\(model.displayName) returned no text output.")
         }
+        let cleaned = ToolCallJSON.textWithoutThinkBlocks(from: trimmed)
         return ToolCallJSON.firstValidToolCallJSONString(from: trimmed)
-            ?? Self.unknownToolCallJSON
+            ?? cleaned
         #else
         throw SpeechTranscriptionError.transcriptionFailed(
             "MLX is not linked in this build. Cannot run \(model.displayName)."

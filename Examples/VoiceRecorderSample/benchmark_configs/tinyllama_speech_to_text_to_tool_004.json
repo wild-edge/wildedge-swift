@@ -1,0 +1,12 @@
+{
+  "config_version": 1,
+  "benchmark_enabled": true,
+  "voice_to_text_model": "whisper",
+  "whisper_model_size": "tiny",
+  "audio_to_tool_architecture": "two_step",
+  "benchmark_steps": ["speech_to_text", "text_to_tool"],
+  "text_to_tool_model": "tinyllama-1.1b-4bit",
+  "delay_seconds": 10,
+  "number_of_inferences": 1,
+  "recordings_match": ["004-*"]
+}

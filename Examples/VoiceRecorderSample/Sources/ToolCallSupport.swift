@@ -168,6 +168,43 @@ enum ToolCallJSON {
         return nil
     }
 
+    static func rootJSONObjectString(from text: String) -> String? {
+        for searchText in uniqueSearchTexts(from: text) {
+            let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.first == "{" else { continue }
+            if let endIndex = endOfJSONObject(startingAt: trimmed.startIndex, in: trimmed) {
+                return String(trimmed[trimmed.startIndex..<endIndex])
+            }
+        }
+        return nil
+    }
+
+    static func completedValidRootToolCallJSONString(from text: String) -> String? {
+        for searchText in uniqueSearchTexts(from: text) {
+            let trimmed = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.first == "{" else { continue }
+
+            if let rootJSONObject = rootJSONObjectString(from: trimmed),
+               let value = try? parseAndValidateJSONObject(rootJSONObject) {
+                return value.canonicalString
+            }
+
+            guard let completionSuffix = rootJSONObjectCompletionSuffix(from: trimmed) else {
+                continue
+            }
+            let completed = trimmed + completionSuffix
+            if let value = try? parseAndValidateJSONObject(completed) {
+                return value.canonicalString
+            }
+        }
+        return nil
+    }
+
+    static func textWithoutThinkBlocks(from text: String) -> String {
+        text.removingTaggedBlocks(named: "think")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     static func prettyString(from value: ToolCallJSONValue?) -> String? {
         guard let value else { return nil }
         guard JSONSerialization.isValidJSONObject(value.foundationObject),
@@ -255,6 +292,42 @@ enum ToolCallJSON {
         }
 
         return nil
+    }
+
+    private static func rootJSONObjectCompletionSuffix(from text: String) -> String? {
+        var depth = 0
+        var isInString = false
+        var isEscaped = false
+        var index = text.startIndex
+
+        while index < text.endIndex {
+            let character = text[index]
+            if isInString {
+                if isEscaped {
+                    isEscaped = false
+                } else if character == "\\" {
+                    isEscaped = true
+                } else if character == "\"" {
+                    isInString = false
+                }
+            } else if character == "\"" {
+                isInString = true
+            } else if character == "{" {
+                depth += 1
+            } else if character == "}" {
+                depth -= 1
+                if depth <= 0 {
+                    return nil
+                }
+            }
+
+            index = text.index(after: index)
+        }
+
+        guard isInString == false, depth > 0 else {
+            return nil
+        }
+        return String(repeating: "}", count: depth)
     }
 
     private static func normalizedToolCallValue(from value: ToolCallJSONValue) throws -> ToolCallJSONValue {
@@ -891,6 +964,19 @@ enum ToolCallPromptBuilder {
 
     static let speechToToolSystemPrompt = "Perform ASR."
 
+    static let qwenASRSpeechToToolSystemPrompt = """
+    Convert the spoken audio command into exactly one JSON tool call.
+    Output JSON only: no transcript, language tag, prose, Markdown, code fence, reasoning, or extra keys.
+    Schema: {"tool_name":"<tool_name>","arguments":{...}}
+    Valid tool_name values: set_temperature, change_volume, navigate, unknown.
+    Argument schemas:
+    set_temperature: {"temperature": number}
+    change_volume: {"direction": "up" | "down"}
+    navigate: {"destination": string}
+    unknown: {}
+    If the request is unsupported, unclear, or missing a required argument, use unknown.
+    """
+
     static let toolCallJSONSchema = """
     {
       "type": "object",
@@ -961,6 +1047,12 @@ enum ToolCallPromptBuilder {
         "it's too loud, volume down" -> {"tool_name":"change_volume","arguments":{"direction":"down"}}
         "I can't hear it" -> {"tool_name":"change_volume","arguments":{"direction":"up"}}
         "let's go home" -> {"tool_name":"navigate","arguments":{"destination":"home"}}
+        """
+    }
+
+    static func qwenASRSpeechToToolUserPrompt() -> String {
+        """
+        Audio command:
         """
     }
 }

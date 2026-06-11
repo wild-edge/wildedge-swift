@@ -16,6 +16,7 @@ actor LlamaCppBenchmarkTextToToolModel {
     private var didInitializeBackend = false
     private var loadedModel: OpaquePointer?
     private var loadedVocab: OpaquePointer?
+    private var loadedPromptEnvelope: PromptEnvelope?
     #endif
 
     private init() {
@@ -33,7 +34,7 @@ actor LlamaCppBenchmarkTextToToolModel {
         _ model: BenchmarkTextToToolModel,
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
     ) async throws -> URL {
-        guard model.provider == "llama_cpp", model.modelFormat == "gguf" else {
+        guard Self.supportsTextInference(model) else {
             throw SpeechTranscriptionError.transcriptionFailed("\(model.displayName) is not a llama.cpp GGUF model.")
         }
         guard let url = try await modelManager.prepare(
@@ -81,6 +82,11 @@ actor LlamaCppBenchmarkTextToToolModel {
         #endif
     }
 
+    private nonisolated static func supportsTextInference(_ model: BenchmarkTextToToolModel) -> Bool {
+        (model.provider == "llama_cpp" || model.provider == "llama_cpp_mtmd")
+            && model.modelFormat == "gguf"
+    }
+
     #if canImport(LlamaSwift)
     private func loadModelIfNeeded(
         _ model: BenchmarkTextToToolModel,
@@ -100,6 +106,7 @@ actor LlamaCppBenchmarkTextToToolModel {
         }
         loadedModel = nil
         loadedVocab = nil
+        loadedPromptEnvelope = nil
         loadedConfiguration = nil
 
         var modelParams = llama_model_default_params()
@@ -149,6 +156,9 @@ actor LlamaCppBenchmarkTextToToolModel {
                 "llama.cpp could not create a context for \(model.displayName)."
             )
         }
+        if let memory = llama_get_memory(context) {
+            llama_memory_clear(memory, true)
+        }
         defer {
             llama_free(context)
         }
@@ -165,7 +175,7 @@ actor LlamaCppBenchmarkTextToToolModel {
             llama_sampler_free(sampler)
         }
 
-        let prompt = Self.prompt(transcript: transcript)
+        let prompt = prompt(transcript: transcript, loadedModel: loadedModel) + Self.jsonObjectPrefill
         let promptTokens = try tokenize(prompt, vocab: loadedVocab)
         guard promptTokens.count < Int(contextParams.n_ctx) else {
             throw SpeechTranscriptionError.transcriptionFailed(
@@ -175,7 +185,7 @@ actor LlamaCppBenchmarkTextToToolModel {
 
         try decode(promptTokens, context: context)
 
-        var generated = ""
+        var generated = Self.jsonObjectPrefill
         for _ in 0..<max(1, model.maxGenerationTokens) {
             let token = llama_sampler_sample(sampler, context, -1)
             if llama_vocab_is_eog(loadedVocab, token) {
@@ -194,11 +204,100 @@ actor LlamaCppBenchmarkTextToToolModel {
         guard trimmed.isEmpty == false else {
             throw SpeechTranscriptionError.transcriptionFailed("\(model.displayName) returned no text output.")
         }
-        return trimmed
+        let cleaned = ToolCallJSON.textWithoutThinkBlocks(from: trimmed)
+        return ToolCallJSON.firstValidToolCallJSONString(from: trimmed)
+            ?? cleaned
     }
 
-    private nonisolated static func prompt(transcript: String) -> String {
-        ToolCallPromptBuilder.localTextToToolPrompt(transcript: transcript)
+    private func prompt(
+        transcript: String,
+        loadedModel: OpaquePointer
+    ) -> String {
+        let envelope: PromptEnvelope
+        if let cachedEnvelope = loadedPromptEnvelope {
+            envelope = cachedEnvelope
+        } else {
+            envelope = Self.makePromptEnvelope(loadedModel: loadedModel)
+            loadedPromptEnvelope = envelope
+        }
+        return envelope.prompt(transcript: transcript)
+    }
+
+    private nonisolated static func makePromptEnvelope(
+        loadedModel: OpaquePointer
+    ) -> PromptEnvelope {
+        let userPrompt = ToolCallPromptBuilder.localTextToToolPrompt(transcript: transcriptPlaceholder)
+        let renderedPrompt: String
+        guard let template = llama_model_chat_template(loadedModel, nil),
+              let chatPrompt = chatPrompt(userPrompt: userPrompt, template: template)
+        else {
+            renderedPrompt = userPrompt
+            return PromptEnvelope(renderedPrompt: renderedPrompt, placeholder: transcriptPlaceholder)
+        }
+        renderedPrompt = chatPrompt
+        return PromptEnvelope(renderedPrompt: renderedPrompt, placeholder: transcriptPlaceholder)
+    }
+
+    private nonisolated static func chatPrompt(
+        userPrompt: String,
+        template: UnsafePointer<CChar>
+    ) -> String? {
+        let role = "user"
+        return role.withCString { rolePointer in
+            userPrompt.withCString { contentPointer in
+                var message = llama_chat_message(role: rolePointer, content: contentPointer)
+                let requiredLength = llama_chat_apply_template(
+                    template,
+                    &message,
+                    1,
+                    true,
+                    nil,
+                    0
+                )
+                guard requiredLength > 0 else {
+                    return nil
+                }
+
+                var buffer = [CChar](repeating: 0, count: Int(requiredLength) + 1)
+                let writtenLength = llama_chat_apply_template(
+                    template,
+                    &message,
+                    1,
+                    true,
+                    &buffer,
+                    Int32(buffer.count)
+                )
+                guard writtenLength > 0 else {
+                    return nil
+                }
+                return String(cString: buffer)
+            }
+        }
+    }
+
+    private nonisolated static let transcriptPlaceholder = "__WILDEDGE_CURRENT_TRANSCRIPT__"
+    private nonisolated static let jsonObjectPrefill = "{"
+
+    private struct PromptEnvelope {
+        let prefix: String?
+        let suffix: String?
+
+        init(renderedPrompt: String, placeholder: String) {
+            guard let range = renderedPrompt.range(of: placeholder) else {
+                prefix = nil
+                suffix = nil
+                return
+            }
+            prefix = String(renderedPrompt[..<range.lowerBound])
+            suffix = String(renderedPrompt[range.upperBound...])
+        }
+
+        func prompt(transcript: String) -> String {
+            guard let prefix, let suffix else {
+                return ToolCallPromptBuilder.localTextToToolPrompt(transcript: transcript)
+            }
+            return prefix + transcript + suffix
+        }
     }
 
     private nonisolated func tokenize(

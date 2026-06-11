@@ -385,6 +385,7 @@ struct BenchmarkConfigRuntime {
                     benchmarkStepsError: nil,
                     benchmarkTextToToolModel: .default,
                     benchmarkSpeechToToolPrompt: nil,
+                    benchmarkSpeechToToolModel: .leapLFM25Audio,
                     isUsingSDKPayload: false,
                     remoteConfigWarning: nil
                 ),
@@ -415,6 +416,7 @@ struct BenchmarkConfigRuntime {
                     benchmarkStepsError: nil,
                     benchmarkTextToToolModel: .default,
                     benchmarkSpeechToToolPrompt: nil,
+                    benchmarkSpeechToToolModel: .leapLFM25Audio,
                     isUsingSDKPayload: false,
                     remoteConfigWarning: "Local benchmark config is invalid: \(message)"
                 ),
@@ -490,6 +492,7 @@ struct BenchmarkConfigRuntime {
                     benchmarkStepsError: nil,
                     benchmarkTextToToolModel: .default,
                     benchmarkSpeechToToolPrompt: nil,
+                    benchmarkSpeechToToolModel: .leapLFM25Audio,
                     isUsingSDKPayload: isUsingRemote,
                     remoteConfigWarning: "Benchmark config is invalid: \(error.localizedDescription)"
                 ),
@@ -521,6 +524,7 @@ struct BenchmarkConfigRuntime {
                 benchmarkStepsError: nil,
                 benchmarkTextToToolModel: resolved.textToToolModel ?? .default,
                 benchmarkSpeechToToolPrompt: rawSpeechToToolPrompt ?? resolved.speechToToolPrompt,
+                benchmarkSpeechToToolModel: .leapLFM25Audio,
                 isUsingSDKPayload: isUsingRemote,
                 remoteConfigWarning: nil
             ),

@@ -101,16 +101,20 @@ Model preparation happens before measured runs in `prepareLeapSpeechToToolBenchm
 
 ## Expected Timing
 
-On iPhone 16 Pro with `LFM2.5-Audio-1.5B Q4_0`, direct `speech_to_tool` is currently around 1,200 ms per fixture with the v2 shorter prompt.
+On iPhone 16 Pro with `LFM2.5-Audio-1.5B Q4_0`, direct `speech_to_tool` is currently around 1,360 ms per fixture with the v2 shorter prompt.
 
 Current device comparison:
 
 | Device model | Device | Run | Median `tool_call_duration_ms` | LeapSDK token speed | Practical read |
 |---|---|---|---:|---:|---|
-| `iPhone17,1` | iPhone 16 Pro | v2 shorter prompt | 1180 ms | 14.374655856055332 tokens/s | Usable primary target |
-| `iPhone12,1` | iPhone 11 | v2 shorter prompt | 17390 ms | 1.0106046009498784 tokens/s | Too slow for short speech-to-tool interactions |
+| `iPhone12,1` | iPhone 11 | v2 shorter prompt | 17390 ms | 0.943 tokens/s | Too slow for short speech-to-tool interactions |
+| `iPhone14,4` | iPhone 13 mini | v2 shorter prompt | 2658 ms | 6.817 tokens/s | Above the arbitrary 1.5-second target, but much closer |
+| `iPhone14,3` | iPhone 13 Pro Max | v2 shorter prompt | 1462.5 ms | 11.911999999999999 tokens/s | Inside the practical target |
+| `iPhone17,1` | iPhone 16 Pro | v2 shorter prompt | 1359.5 ms | 15.208 tokens/s | Usable primary target |
 
-The iPhone 11 result is useful as an older-device stress case, but 17.39 seconds end-to-end is not a practical latency target for this benchmark. For short speech-to-tool interactions, treat roughly 2 seconds as the practical upper target and sub-1 second as the preferred target. The current iPhone 16 Pro result is inside the practical range but still above the preferred target.
+The iPhone 11 result is useful as an older-device stress case, but 17.39 seconds end-to-end is not a practical latency target for this benchmark. For short speech-to-tool interactions, this benchmark uses an arbitrary 1.5-second practical target and treats sub-1 second as the preferred target. The current iPhone 13 Pro Max and iPhone 16 Pro results are inside that practical range but still above the preferred target, while iPhone 13 mini is close enough to show the generation-to-generation hardware jump.
+
+The device spread now makes the Apple hardware story much more visible: iPhone 16 Pro is about 12.8x faster than iPhone 11 on median latency and about 16.1x higher on SDK-reported token throughput. That is a strong signal that newer Apple Neural Engine generations materially change what is practical for local speech-to-tool inference.
 
 The token-speed column is the SDK-reported `GenerationStats.tokenPerSecond` value. The public LeapSDK interface exposes prompt, completion, total, cached-prompt token counts, and this token-per-second value, but does not document whether `tokenPerSecond` is generated-token throughput only or includes input plus output tokens.
 

@@ -196,6 +196,38 @@ Minimal flow-only payload:
 }
 ```
 
+One-step speech-to-tool can run Liquid LFM2.5 Audio fully on-device through the local
+`llama.cpp` multimodal runtime. The app uses a `LlamaSwiftMultimodal` package
+whose generated `llama.xcframework` includes `libmtmd`, `mtmd.h`, and
+`mtmd-helper.h`; plain `llama.swift`/`libllama` text inference is not enough for
+audio input.
+
+Build or refresh the multimodal XCFramework with:
+
+```sh
+Examples/VoiceRecorderSample/Scripts/build_llama_multimodal_xcframework.sh
+```
+
+Then select the model in the SDK payload. The preset downloads both the
+Q4_0 GGUF and the Q4_0 `mmproj` projector from Hugging Face:
+
+```json
+{
+  "config_version": 1,
+  "benchmark_params": {
+    "benchmark_steps": ["speech_to_tool"],
+    "speech_to_tool_model": {
+      "preset": "liquid-lfm2.5-audio-1.5b-gguf",
+      "provider": "llama_cpp_mtmd"
+    }
+  }
+}
+```
+
+The old `llama-server` path can still be used explicitly with
+`"provider": "llama_server"` and a `server_url`, but it is not the default
+offline path.
+
 Step definitions are reusable and describe only pipeline shape:
 
 ```json
@@ -306,7 +338,7 @@ Selection rules:
 - `benchmark_params.benchmark_steps` selects benchmark behavior.
 - Each active step must exist in `step_definitions`, each step must reference a model in `model_definitions`, and each active model must be enabled.
 - Step input/output types are validated as a chain. `speech_to_text` is `audio -> text`; `text_to_tool` is `text -> json`; therefore `["speech_to_text", "text_to_tool"]` is valid as `audio -> text -> json`.
-- `["speech_to_tool"]` is rejected while `leap-lfm2.5-audio-1.5b` is disabled.
+- `["speech_to_tool"]` runs the selected direct audio-to-tool model. Leap uses LeapSDK audio; Liquid LFM2.5 Audio and Qwen3-ASR use local llama.cpp `libmtmd`.
 - `benchmark_params.recordings_match: "*"` runs all available WAV, MP3, and M4A files.
 - `benchmark_params.recordings_match` filters by recording ID, filename, or bundle path.
 - `recordings_match` supports wildcard patterns such as `001*`; explicit regular expressions such as `^003-003-[AC]$` are also supported.
@@ -340,7 +372,11 @@ For each selected WAV, MP3, or M4A file, the app:
 
 `["speech_to_text", "text_to_tool"]` first runs the selected STT model, then sends the actual transcript to the selected text-to-tool model with a strict text-to-tool prompt. Apple Foundation Models runs through its native SDK. FunctionGemma, TinyLlama, and Qwen presets run through llama.cpp with GGUF weights downloaded from Hugging Face. It compares the resulting JSON object with the expected `<line_id>.json` fixture.
 
-`["speech_to_tool"]` is resolved against the Leap LFM2.5 Audio model, but the model is disabled in the local config for this build. Any active flow using it is rejected before model load.
+`["speech_to_tool"]` sends audio directly to the selected audio-to-tool model.
+Leap uses the LeapSDK audio adapter. Liquid LFM2.5 Audio and Qwen3-ASR use local
+llama.cpp `libmtmd`, load the main GGUF plus `mmproj`, convert the input audio
+to float PCM, and evaluate an audio marker in the multimodal prompt before
+generating the tool JSON.
 
 Benchmark runs do not upload benchmark WAV/MP3/M4A files, transcript `.txt` files, or tool-call `.json` files as attachments. The event metadata refers to the bundled dataset files by name instead.
 

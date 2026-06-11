@@ -30,6 +30,7 @@ struct RecordingView: View {
                                 stepsText: viewModel.benchmarkStepsText,
                                 expectedToolCall: viewModel.benchmarkExpectedToolCall,
                                 actualToolCall: viewModel.benchmarkActualToolCall,
+                                rawModelText: viewModel.benchmarkRawModelText,
                                 latencyText: viewModel.benchmarkLatencyText,
                                 transcriptMatchText: viewModel.benchmarkTranscriptMatchText,
                                 toolCallMatchText: viewModel.benchmarkToolCallMatchText,
@@ -265,6 +266,7 @@ private struct BenchmarkStatusCard: View {
     let stepsText: String
     let expectedToolCall: String
     let actualToolCall: String
+    let rawModelText: String
     let latencyText: String
     let transcriptMatchText: String
     let toolCallMatchText: String
@@ -308,8 +310,8 @@ private struct BenchmarkStatusCard: View {
             stableRow("Sleep countdown", value: sleepCountdown)
             if includesTranscriptStep {
                 Divider()
-                stableBlock("Expected speech_to_text", value: expectedTranscript)
-                stableBlock(
+                compactTextRow("Expected speech_to_text", value: expectedTranscript)
+                compactTextRow(
                     "Actual speech_to_text",
                     value: transcript,
                     processingWhenEmpty: isRunning
@@ -323,6 +325,11 @@ private struct BenchmarkStatusCard: View {
                 stableBlock(
                     actualToolCallLabel,
                     value: actualToolCall,
+                    processingWhenEmpty: isRunning
+                )
+                stableBlock(
+                    rawModelTextLabel,
+                    value: rawModelText,
                     processingWhenEmpty: isRunning
                 )
                 resultRow(label: "Tool JSON result", value: toolCallMatchText)
@@ -348,6 +355,28 @@ private struct BenchmarkStatusCard: View {
                 .foregroundStyle(value.isEmpty ? .secondary : .primary)
                 .multilineTextAlignment(.trailing)
                 .lineLimit(2, reservesSpace: true)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .textSelection(.enabled)
+        }
+        .font(.caption)
+    }
+
+    private func compactTextRow(
+        _ label: String,
+        value: String,
+        processingWhenEmpty: Bool = false
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label)
+                .foregroundStyle(.secondary)
+                .frame(width: 150, alignment: .leading)
+            Spacer(minLength: 4)
+            Text(displayValue(value, processingWhenEmpty: processingWhenEmpty))
+                .font(.caption2.monospaced())
+                .foregroundStyle(value.isEmpty ? .secondary : .primary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .trailing)
                 .textSelection(.enabled)
         }
@@ -433,6 +462,12 @@ private struct BenchmarkStatusCard: View {
         stepsText.contains("speech_to_tool")
             ? "Actual speech_to_tool JSON"
             : "Actual text_to_tool JSON"
+    }
+
+    private var rawModelTextLabel: String {
+        stepsText.contains("speech_to_tool")
+            ? "Raw speech_to_tool text"
+            : "Raw text_to_tool text"
     }
 }
 #endif
@@ -566,6 +601,10 @@ private struct RecordingResultCard: View {
                 row(label: "STT ID", value: String(speechInferenceId.prefix(16)) + "…")
             }
 
+            if let toolCallDurationMs = result.toolCallDurationMs {
+                row(label: "Tool", value: "\(result.toolCallModelName ?? "Speech to tool") - \(toolCallDurationMs) ms")
+            }
+
             if let transcript = result.transcript, !transcript.isEmpty {
                 Divider()
 
@@ -574,6 +613,34 @@ private struct RecordingResultCard: View {
                     .foregroundStyle(.secondary)
                 Text(transcript)
                     .font(.caption)
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if let toolCall = result.toolCall, !toolCall.isEmpty {
+                Divider()
+
+                Text("Tool JSON")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(toolCall)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(.primary)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if let rawText = result.toolRawText,
+               !rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               rawText != result.toolCall {
+                Divider()
+
+                Text("Raw model text")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(rawText)
+                    .font(.caption.monospaced())
                     .foregroundStyle(.primary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
