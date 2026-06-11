@@ -811,7 +811,7 @@ final class SettingsStore: ObservableObject {
     private static let defaultBenchmarkDelaySeconds: TimeInterval = 10
     private static let defaultBenchmarkNumberOfInferences = 5
     private static let defaultBenchmarkSteps: [BenchmarkStep] = [.speechToText, .textToTool]
-    private static let defaultBenchmarkTextToToolModel: BenchmarkTextToToolModel = .ultravoxLlama32OneB
+    private static let defaultBenchmarkTextToToolModel: BenchmarkTextToToolModel = .default
     private static let defaultBenchmarkSpeechToToolModel: BenchmarkTextToToolModel = .ultravoxLlama32OneB
     static let selectableBenchmarkTextToToolModels: [BenchmarkTextToToolModel] = [
         .leapLFM25350M,
