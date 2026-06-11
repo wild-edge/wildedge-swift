@@ -31,9 +31,6 @@ targets:
       - path: benchmark_data
         type: folder
         buildPhase: resources
-      - path: ModelAssets
-        type: folder
-        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.wildedge.sample.voice
