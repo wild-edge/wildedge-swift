@@ -13,6 +13,10 @@ struct RecordingResult {
     let transcript: String?
     let transcriptionDurationMs: Int?
     let transcriptionModelName: String?
+    let toolCall: String?
+    let toolRawText: String?
+    let toolCallDurationMs: Int?
+    let toolCallModelName: String?
     let spectrogramURL: URL?
 
     var formattedDuration: String {
@@ -57,6 +61,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     @Published var benchmarkStepsText = ""
     @Published var benchmarkExpectedToolCall = ""
     @Published var benchmarkActualToolCall = ""
+    @Published var benchmarkRawModelText = ""
     @Published var benchmarkLatencyText = ""
     @Published var benchmarkTranscriptMatchText = ""
     @Published var benchmarkToolCallMatchText = ""
@@ -89,6 +94,9 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     private let appleFoundationTextToolModelHandle: ModelHandle
     private let customTextToolModelHandle: ModelHandle
     private let leapSpeechToolModelHandle: ModelHandle
+    private let localMultimodalSpeechToolModelHandle: ModelHandle
+    private let ultravoxSpeechToolModelHandle: ModelHandle
+    private let qwen3ASRSpeechToolModelHandle: ModelHandle
     private let localOnnxProcessor: LocalOnnxVoiceProcessingClient?
     #if BENCHMARK_BUILD
     private var benchmarkTask: Task<Void, Never>?
@@ -290,6 +298,34 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 modelFamily: "tool-calling"
             )
         )
+        localMultimodalSpeechToolModelHandle = WildEdge.shared.registerModel(
+            modelId: BenchmarkTextToToolModel.liquidLFM25AudioOnePointFiveB.modelId,
+            info: ModelInfo(
+                modelName: "\(BenchmarkTextToToolModel.liquidLFM25AudioOnePointFiveB.displayName) Speech To Tool",
+                modelSource: "huggingface",
+                modelFormat: "gguf",
+                modelFamily: "tool-calling"
+            )
+        )
+        ultravoxSpeechToolModelHandle = WildEdge.shared.registerModel(
+            modelId: BenchmarkTextToToolModel.ultravoxLlama32OneB.modelId,
+            info: ModelInfo(
+                modelName: "\(BenchmarkTextToToolModel.ultravoxLlama32OneB.displayName) Speech To Tool",
+                modelSource: "huggingface",
+                modelFormat: "gguf",
+                modelFamily: "tool-calling"
+            )
+        )
+        ultravoxSpeechToolModelHandle.acceleratorActual = .gpu
+        qwen3ASRSpeechToolModelHandle = WildEdge.shared.registerModel(
+            modelId: BenchmarkTextToToolModel.qwen3ASRZeroPointSixB.modelId,
+            info: ModelInfo(
+                modelName: "\(BenchmarkTextToToolModel.qwen3ASRZeroPointSixB.displayName) Speech To Tool",
+                modelSource: "huggingface",
+                modelFormat: "gguf",
+                modelFamily: "tool-calling"
+            )
+        )
 
         if let modelURL = Bundle.main.url(forResource: "TPain", withExtension: "onnx") {
             do {
@@ -311,6 +347,9 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     func syncBenchmark(settings: VoiceRecorderEffectiveSettings) {
         benchmarkSettings = settings
         benchmarkRequested = settings.benchmarkEnabled
+        print(
+            "Benchmark effective settings: enabled=\(settings.benchmarkEnabled), steps=\(settings.benchmarkSteps.map(\.rawValue).joined(separator: ",")), voice_to_text=\(settings.voiceToTextMode.rawValue), audio_to_tool=\(settings.audioToToolArchitecture.rawValue), speech_to_tool_model=\(settings.benchmarkSpeechToToolModel.modelId)"
+        )
 
         if settings.benchmarkEnabled {
             startBenchmarkLoopIfNeeded()
@@ -329,6 +368,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             benchmarkStepsText = ""
             benchmarkExpectedToolCall = ""
             benchmarkActualToolCall = ""
+            benchmarkRawModelText = ""
             benchmarkLatencyText = ""
             benchmarkTranscriptMatchText = ""
             benchmarkToolCallMatchText = ""
@@ -353,6 +393,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         benchmarkStepsText = ""
         benchmarkExpectedToolCall = ""
         benchmarkActualToolCall = ""
+        benchmarkRawModelText = ""
         benchmarkLatencyText = ""
         benchmarkTranscriptMatchText = ""
         benchmarkToolCallMatchText = ""
@@ -379,7 +420,10 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             onnxTextToolModelHandle = self.onnxTextToolModelHandle,
             appleFoundationTextToolModelHandle = self.appleFoundationTextToolModelHandle,
             customTextToolModelHandle = self.customTextToolModelHandle,
-            leapSpeechToolModelHandle = self.leapSpeechToolModelHandle
+            leapSpeechToolModelHandle = self.leapSpeechToolModelHandle,
+            localMultimodalSpeechToolModelHandle = self.localMultimodalSpeechToolModelHandle,
+            ultravoxSpeechToolModelHandle = self.ultravoxSpeechToolModelHandle,
+            qwen3ASRSpeechToolModelHandle = self.qwen3ASRSpeechToolModelHandle
         ] in
             await Self.runBenchmarkLoop(
                 viewModel: self,
@@ -402,7 +446,10 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 onnxTextToolModelHandle: onnxTextToolModelHandle,
                 appleFoundationTextToolModelHandle: appleFoundationTextToolModelHandle,
                 customTextToolModelHandle: customTextToolModelHandle,
-                leapSpeechToolModelHandle: leapSpeechToolModelHandle
+                leapSpeechToolModelHandle: leapSpeechToolModelHandle,
+                localMultimodalSpeechToolModelHandle: localMultimodalSpeechToolModelHandle,
+                ultravoxSpeechToolModelHandle: ultravoxSpeechToolModelHandle,
+                qwen3ASRSpeechToolModelHandle: qwen3ASRSpeechToolModelHandle
             )
         }
     }
@@ -515,6 +562,8 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             ? "Transcribing with Whisper \(whisperModelSize.displayName)..."
             : voiceToTextMode == .leap
             ? "Transcribing with Leap LFM2.5 Audio..."
+            : audioToToolArchitecture == .oneStep
+            ? "Generating tool call with \(BenchmarkTextToToolModel.liquidLFM25AudioOnePointFiveB.displayName)..."
             : localOnnxProcessor == nil
             ? "TPain.onnx is missing in app bundle."
             : "Running local ONNX inference..."
@@ -527,6 +576,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             whisperTinySpeechModelHandle = self.whisperTinySpeechModelHandle,
             whisperBaseSpeechModelHandle = self.whisperBaseSpeechModelHandle,
             leapSpeechModelHandle = self.leapSpeechModelHandle,
+            localMultimodalSpeechToolModelHandle = self.localMultimodalSpeechToolModelHandle,
             localOnnxProcessor = self.localOnnxProcessor
         ] in
             try? AVAudioSession.sharedInstance().setActive(false)
@@ -579,6 +629,84 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 WildEdge.shared.flush(timeoutMs: 5_000)
             }
 
+            if audioToToolArchitecture == .oneStep {
+                await MainActor.run {
+                    self?.processingProgress = nil
+                    self?.processingMessage = "Generating tool call with \(BenchmarkTextToToolModel.liquidLFM25AudioOnePointFiveB.displayName)..."
+                }
+                let toolCall = await Self.generateManualSpeechToolCall(
+                    url: url,
+                    progressHandler: { progress, speed in
+                        Task { @MainActor [weak self] in
+                            self?.processingProgress = progress
+                            self?.processingMessage = Self.modelDownloadMessage(
+                                modelName: BenchmarkTextToToolModel.liquidLFM25AudioOnePointFiveB.displayName,
+                                progress: progress,
+                                speed: speed
+                            )
+                        }
+                    }
+                )
+                let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+                let fileSize = attrs?[.size] as? Int64 ?? 0
+                let inferenceId = localMultimodalSpeechToolModelHandle.trackInference(
+                    durationMs: toolCall.durationMs,
+                    inputModality: .audio,
+                    outputModality: .generation,
+                    success: toolCall.parsedSuccessfully,
+                    errorCode: toolCall.errorDescription,
+                    inputMeta: [
+                        "source": "VoiceRecorderSample",
+                        "model_id": toolCall.modelId,
+                        "recording_duration_seconds": finalDuration,
+                        "input_audio_duration_seconds": finalDuration,
+                        "voice_to_text_mode": voiceToTextMode.rawValue,
+                        "audio_to_tool_architecture": audioToToolArchitecture.rawValue
+                    ],
+                    outputMeta: [
+                        "provider": toolCall.provider,
+                        "model_id": toolCall.modelId,
+                        "model_name": toolCall.modelName,
+                        "model_source": toolCall.modelSource,
+                        "model_format": toolCall.modelFormat,
+                        "quantization": toolCall.quantization,
+                        "raw_output": toolCall.rawOutput,
+                        "raw_model_text": toolCall.rawText,
+                        "tool_call_json": toolCall.canonicalJSON ?? "",
+                        "tool_call_parse_error": toolCall.errorDescription ?? ""
+                    ],
+                    attachments: inputAttachmentBundle.attachments
+                )
+                WildEdge.shared.flush(timeoutMs: 5_000)
+
+                let recording = RecordingResult(
+                    duration: finalDuration,
+                    fileURL: url,
+                    fileSizeBytes: fileSize,
+                    inferenceId: inferenceId,
+                    speechInferenceId: speechInferenceId,
+                    transcript: transcription?.transcript,
+                    transcriptionDurationMs: transcription?.durationMs,
+                    transcriptionModelName: transcription?.modelName,
+                    toolCall: toolCall.canonicalJSON ?? toolCall.rawOutput,
+                    toolRawText: toolCall.rawText,
+                    toolCallDurationMs: toolCall.durationMs,
+                    toolCallModelName: toolCall.modelName,
+                    spectrogramURL: inputAttachmentBundle.spectrogramURL
+                )
+
+                await MainActor.run {
+                    self?.isFinishing = false
+                    self?.isProcessing = false
+                    self?.processingProgress = nil
+                    self?.processingMessage = toolCall.parsedSuccessfully
+                        ? "Tool call generated in \(toolCall.durationMs) ms."
+                        : toolCall.errorDescription ?? "Tool call generation failed."
+                    self?.lastRecording = recording
+                }
+                return
+            }
+
             guard let localOnnxProcessor else {
                 let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
                 let fileSize = attrs?[.size] as? Int64 ?? 0
@@ -624,6 +752,10 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                         transcript: transcription?.transcript,
                         transcriptionDurationMs: transcription?.durationMs,
                         transcriptionModelName: transcription?.modelName,
+                        toolCall: nil,
+                        toolRawText: nil,
+                        toolCallDurationMs: nil,
+                        toolCallModelName: nil,
                         spectrogramURL: inputAttachmentBundle.spectrogramURL
                     )
                 }
@@ -682,6 +814,10 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     transcript: transcription?.transcript,
                     transcriptionDurationMs: transcription?.durationMs,
                     transcriptionModelName: transcription?.modelName,
+                    toolCall: nil,
+                    toolRawText: nil,
+                    toolCallDurationMs: nil,
+                    toolCallModelName: nil,
                     spectrogramURL: inputAttachmentBundle.spectrogramURL
                 )
 
@@ -736,6 +872,10 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     transcript: transcription?.transcript,
                     transcriptionDurationMs: transcription?.durationMs,
                     transcriptionModelName: transcription?.modelName,
+                    toolCall: nil,
+                    toolRawText: nil,
+                    toolCallDurationMs: nil,
+                    toolCallModelName: nil,
                     spectrogramURL: inputAttachmentBundle.spectrogramURL
                 )
 
@@ -907,10 +1047,23 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         }
     }
 
+    private nonisolated static func generateManualSpeechToolCall(
+        url: URL,
+        progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
+    ) async -> BenchmarkToolCallGenerationResult {
+        print("Manual speech_to_tool starting: model=\(BenchmarkTextToToolModel.liquidLFM25AudioOnePointFiveB.modelId), file=\(url.lastPathComponent)")
+        return await LeapBenchmarkToolCallModel.shared.generate(
+            input: .audio(url),
+            speechToToolModel: .liquidLFM25AudioOnePointFiveB,
+            progressHandler: progressHandler
+        )
+    }
+
     #if BENCHMARK_BUILD
     private struct BenchmarkToolCallResult {
         let step: BenchmarkStep
         let rawOutput: String
+        let rawText: String
         let durationMs: Int
         let parsedJSON: ToolCallJSONValue?
         let canonicalJSON: String?
@@ -925,6 +1078,11 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         var parsedSuccessfully: Bool {
             parsedJSON != nil && errorDescription == nil
         }
+    }
+
+    private struct BenchmarkWarmupResult {
+        let completed: Bool
+        let runtimeStopStatus: String?
     }
 
     private struct BenchmarkDatasetItem {
@@ -1018,7 +1176,10 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         onnxTextToolModelHandle: ModelHandle,
         appleFoundationTextToolModelHandle: ModelHandle,
         customTextToolModelHandle: ModelHandle,
-        leapSpeechToolModelHandle: ModelHandle
+        leapSpeechToolModelHandle: ModelHandle,
+        localMultimodalSpeechToolModelHandle: ModelHandle,
+        ultravoxSpeechToolModelHandle: ModelHandle,
+        qwen3ASRSpeechToolModelHandle: ModelHandle
     ) async {
         while !Task.isCancelled {
             guard await isBenchmarkRequested(viewModel),
@@ -1067,6 +1228,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 viewModel?.benchmarkStepsText = ""
                 viewModel?.benchmarkExpectedToolCall = ""
                 viewModel?.benchmarkActualToolCall = ""
+                viewModel?.benchmarkRawModelText = ""
                 viewModel?.benchmarkLatencyText = ""
                 viewModel?.benchmarkTranscriptMatchText = ""
                 viewModel?.benchmarkToolCallMatchText = ""
@@ -1087,6 +1249,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             viewModel?.benchmarkStepsText = ""
             viewModel?.benchmarkExpectedToolCall = ""
             viewModel?.benchmarkActualToolCall = ""
+            viewModel?.benchmarkRawModelText = ""
             viewModel?.benchmarkLatencyText = ""
             viewModel?.benchmarkTranscriptMatchText = ""
             viewModel?.benchmarkToolCallMatchText = ""
@@ -1110,6 +1273,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 viewModel?.benchmarkStepsText = ""
                 viewModel?.benchmarkExpectedToolCall = ""
                 viewModel?.benchmarkActualToolCall = ""
+                viewModel?.benchmarkRawModelText = ""
                 viewModel?.benchmarkLatencyText = ""
                 viewModel?.benchmarkTranscriptMatchText = ""
                 viewModel?.benchmarkToolCallMatchText = ""
@@ -1123,6 +1287,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         var iteration = 1
         var preparedWhisperModels = Set<WhisperModelSize>()
         var preparedTextToToolModels = Set<BenchmarkTextToToolModel>()
+        var warmedBenchmarkKeys = Set<String>()
         var toolCallMatchCount = 0
         var toolCallMeasuredCount = 0
         var toolCallExpectedCount = 0
@@ -1130,6 +1295,9 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         benchmarkLoop: while !Task.isCancelled {
             guard await isBenchmarkRequested(viewModel) else { break }
             guard let passSettings = await benchmarkSettings(from: viewModel) else { break }
+            print(
+                "Benchmark pass settings: steps=\(passSettings.benchmarkSteps.map(\.rawValue).joined(separator: ",")), voice_to_text=\(passSettings.voiceToTextMode.rawValue), audio_to_tool=\(passSettings.audioToToolArchitecture.rawValue), speech_to_tool_model=\(passSettings.benchmarkSpeechToToolModel.modelId)"
+            )
             if let remoteConfigWarning = passSettings.remoteConfigWarning {
                 await displayUnsupportedBenchmarkConfig(
                     settings: passSettings,
@@ -1161,10 +1329,12 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     viewModel?.benchmarkExpectedTranscript = ""
                     viewModel?.benchmarkStepsText = benchmarkStepsDescription(
                         passSettings.benchmarkSteps,
-                        textToToolModel: passSettings.benchmarkTextToToolModel
+                        textToToolModel: passSettings.benchmarkTextToToolModel,
+                        speechToToolModel: passSettings.benchmarkSpeechToToolModel
                     )
                     viewModel?.benchmarkExpectedToolCall = ""
                     viewModel?.benchmarkActualToolCall = ""
+                    viewModel?.benchmarkRawModelText = ""
                     viewModel?.benchmarkLatencyText = ""
                     viewModel?.benchmarkTranscriptMatchText = ""
                     viewModel?.benchmarkToolCallMatchText = ""
@@ -1189,10 +1359,12 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                     viewModel?.benchmarkExpectedTranscript = ""
                     viewModel?.benchmarkStepsText = benchmarkStepsDescription(
                         passSettings.benchmarkSteps,
-                        textToToolModel: passSettings.benchmarkTextToToolModel
+                        textToToolModel: passSettings.benchmarkTextToToolModel,
+                        speechToToolModel: passSettings.benchmarkSpeechToToolModel
                     )
                     viewModel?.benchmarkExpectedToolCall = ""
                     viewModel?.benchmarkActualToolCall = ""
+                    viewModel?.benchmarkRawModelText = ""
                     viewModel?.benchmarkLatencyText = ""
                     viewModel?.benchmarkTranscriptMatchText = ""
                     viewModel?.benchmarkToolCallMatchText = ""
@@ -1223,6 +1395,36 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                 viewModel?.benchmarkToolCallMismatchDetails = passHasToolStep
                     ? benchmarkMismatchDetails(from: toolCallMismatchDetailsByKey)
                     : []
+            }
+
+            let warmupKey = benchmarkWarmupKey(settings: passSettings, item: items[0])
+            if warmedBenchmarkKeys.contains(warmupKey) == false {
+                let warmup = await runBenchmarkWarmup(
+                    item: items[0],
+                    settings: passSettings,
+                    viewModel: viewModel
+                )
+                if let runtimeStopStatus = warmup.runtimeStopStatus {
+                    finishStatus = runtimeStopStatus
+                    await MainActor.run {
+                        viewModel?.benchmarkRequested = false
+                        viewModel?.benchmarkRunProgress = "Stopped"
+                    }
+                    break benchmarkLoop
+                }
+                if warmup.completed {
+                    warmedBenchmarkKeys.insert(warmupKey)
+                    if passSettings.benchmarkSteps.contains(.speechToText),
+                       passSettings.voiceToTextMode == .whisper {
+                        preparedWhisperModels.insert(passSettings.whisperModelSize)
+                    }
+                    if passSettings.benchmarkSteps.contains(.textToTool),
+                       Self.needsLocalTextToToolPreparation(passSettings.benchmarkTextToToolModel) {
+                        preparedTextToToolModels.insert(passSettings.benchmarkTextToToolModel)
+                    }
+                }
+                guard await isBenchmarkRequested(viewModel) else { break }
+                guard !Task.isCancelled else { break }
             }
 
             for (offset, item) in items.enumerated() {
@@ -1275,10 +1477,12 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                         viewModel?.benchmarkExpectedTranscript = item.expectedTranscript ?? ""
                         viewModel?.benchmarkStepsText = benchmarkStepsDescription(
                             settings.benchmarkSteps,
-                            textToToolModel: settings.benchmarkTextToToolModel
+                            textToToolModel: settings.benchmarkTextToToolModel,
+                            speechToToolModel: settings.benchmarkSpeechToToolModel
                         )
                         viewModel?.benchmarkExpectedToolCall = ""
                         viewModel?.benchmarkActualToolCall = ""
+                        viewModel?.benchmarkRawModelText = ""
                         viewModel?.benchmarkLatencyText = ""
                         viewModel?.benchmarkTranscriptMatchText = ""
                         viewModel?.benchmarkToolCallMatchText = ""
@@ -1299,7 +1503,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
 
                     await MainActor.run {
                         viewModel?.isBenchmarking = true
-                        viewModel?.benchmarkStatus = "Measuring \(benchmarkStepsDescription(settings.benchmarkSteps, textToToolModel: settings.benchmarkTextToToolModel))..."
+                        viewModel?.benchmarkStatus = "Measuring \(benchmarkStepsDescription(settings.benchmarkSteps, textToToolModel: settings.benchmarkTextToToolModel, speechToToolModel: settings.benchmarkSpeechToToolModel))..."
                         viewModel?.benchmarkCurrentInput = item.audioURL.lastPathComponent
                         viewModel?.benchmarkPreprocessingFile = item.processingAudioURL.lastPathComponent
                         viewModel?.benchmarkRunProgress = "Run \(inferenceIndex)/\(inferenceCount)"
@@ -1308,10 +1512,12 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                         viewModel?.benchmarkExpectedTranscript = needsSpeechToText ? item.expectedTranscript ?? "" : ""
                         viewModel?.benchmarkStepsText = benchmarkStepsDescription(
                             settings.benchmarkSteps,
-                            textToToolModel: settings.benchmarkTextToToolModel
+                            textToToolModel: settings.benchmarkTextToToolModel,
+                            speechToToolModel: settings.benchmarkSpeechToToolModel
                         )
                         viewModel?.benchmarkExpectedToolCall = hasToolStep ? expectedToolCallDisplay(for: item) : ""
                         viewModel?.benchmarkActualToolCall = ""
+                        viewModel?.benchmarkRawModelText = ""
                         viewModel?.benchmarkLatencyText = ""
                         viewModel?.benchmarkTranscriptMatchText = ""
                         viewModel?.benchmarkToolCallMatchText = ""
@@ -1411,6 +1617,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                                 } else {
                                     toolResult = await generateSpeechToolCall(
                                         url: item.processingAudioURL,
+                                        model: settings.benchmarkSpeechToToolModel,
                                         viewModel: viewModel
                                     )
                                 }
@@ -1426,7 +1633,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                                 } else {
                                     print(
                                         """
-                                        Benchmark tool-call mismatch: file=\(item.audioURL.lastPathComponent); expected=\(toolComparison["expected_tool_call_json"] as? String ?? ""); actual=\(toolComparison["actual_tool_call_json"] as? String ?? ""); raw=\(toolComparison["actual_tool_call"] as? String ?? "")
+                                        Benchmark tool-call mismatch: file=\(item.audioURL.lastPathComponent); expected=\(toolComparison["expected_tool_call_json"] as? String ?? ""); actual=\(toolComparison["actual_tool_call_json"] as? String ?? ""); actual_parse_error=\(toolComparison["actual_tool_call_parse_error"] as? String ?? ""); expected_parse_error=\(toolComparison["expected_tool_call_parse_error"] as? String ?? ""); raw=\(toolComparison["actual_tool_call"] as? String ?? "")
                                         """
                                     )
                                     let mismatchKey = benchmarkToolCallMismatchKey(
@@ -1482,7 +1689,13 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                                             appleFoundationTextToolModelHandle: appleFoundationTextToolModelHandle,
                                             customTextToolModelHandle: customTextToolModelHandle
                                         )
-                                        : leapSpeechToolModelHandle
+                                        : speechToToolModelHandle(
+                                            for: settings.benchmarkSpeechToToolModel,
+                                            leapSpeechToolModelHandle: leapSpeechToolModelHandle,
+                                            localMultimodalSpeechToolModelHandle: localMultimodalSpeechToolModelHandle,
+                                            ultravoxSpeechToolModelHandle: ultravoxSpeechToolModelHandle,
+                                            qwen3ASRSpeechToolModelHandle: qwen3ASRSpeechToolModelHandle
+                                        )
                                     toolInferenceId = trackToolCallInference(
                                         toolCall: toolResult,
                                         modelHandle: toolHandle,
@@ -1545,10 +1758,12 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                         viewModel?.benchmarkExpectedTranscript = needsSpeechToText ? item.expectedTranscript ?? "" : ""
                         viewModel?.benchmarkStepsText = benchmarkStepsDescription(
                             settings.benchmarkSteps,
-                            textToToolModel: settings.benchmarkTextToToolModel
+                            textToToolModel: settings.benchmarkTextToToolModel,
+                            speechToToolModel: settings.benchmarkSpeechToToolModel
                         )
                         viewModel?.benchmarkExpectedToolCall = hasToolStep ? expectedToolCallDisplay(for: item) : ""
                         viewModel?.benchmarkActualToolCall = hasToolStep ? actualToolCallDisplay(for: toolResult) : ""
+                        viewModel?.benchmarkRawModelText = hasToolStep ? rawModelTextDisplay(for: toolResult) : ""
                         viewModel?.benchmarkLatencyText = benchmarkLatencyText(
                             transcription: transcription,
                             toolCall: toolResult,
@@ -1591,6 +1806,9 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
                         await MainActor.run {
                             viewModel?.benchmarkStatus = passCompleteStatus
                             viewModel?.benchmarkSleepCountdown = ""
+                        }
+                        guard await sleepBenchmarkDelay(seconds: settings.benchmarkDelaySeconds, viewModel: viewModel) else {
+                            break
                         }
                         continue
                     }
@@ -1646,6 +1864,131 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             || lowercased.contains("failed to load model")
             || lowercased.contains("model is corrupted")
             || lowercased.contains("corrupted or incomplete")
+    }
+
+    private nonisolated static func benchmarkWarmupKey(
+        settings: VoiceRecorderEffectiveSettings,
+        item: BenchmarkDatasetItem
+    ) -> String {
+        [
+            settings.benchmarkSteps.map(\.rawValue).joined(separator: "+"),
+            settings.voiceToTextMode.rawValue,
+            settings.whisperModelSize.rawValue,
+            settings.audioToToolArchitecture.rawValue,
+            settings.benchmarkTextToToolModel.signature,
+            settings.benchmarkSpeechToToolModel.signature,
+            settings.benchmarkRecordingsMatch.joined(separator: ","),
+            item.processingAudioURL.lastPathComponent
+        ].joined(separator: "|")
+    }
+
+    private nonisolated static func runBenchmarkWarmup(
+        item: BenchmarkDatasetItem,
+        settings: VoiceRecorderEffectiveSettings,
+        viewModel: RecorderViewModel?
+    ) async -> BenchmarkWarmupResult {
+        let needsSpeechToText = settings.benchmarkSteps.contains(.speechToText)
+        let needsTextToTool = settings.benchmarkSteps.contains(.textToTool)
+        let needsSpeechToTool = settings.benchmarkSteps.contains(.speechToTool)
+        let hasToolStep = needsTextToTool || needsSpeechToTool
+
+        guard needsSpeechToText == false || settings.voiceToTextMode != .disabled else {
+            return BenchmarkWarmupResult(completed: false, runtimeStopStatus: nil)
+        }
+
+        print(
+            "Benchmark warm-up starting: steps=\(settings.benchmarkSteps.map(\.rawValue).joined(separator: ",")), file=\(item.processingAudioURL.lastPathComponent)"
+        )
+        await MainActor.run {
+            viewModel?.isBenchmarking = true
+            viewModel?.benchmarkStatus = "Warming up \(benchmarkStepsDescription(settings.benchmarkSteps, textToToolModel: settings.benchmarkTextToToolModel, speechToToolModel: settings.benchmarkSpeechToToolModel))..."
+            viewModel?.benchmarkCurrentInput = item.audioURL.lastPathComponent
+            viewModel?.benchmarkPreprocessingFile = item.processingAudioURL.lastPathComponent
+            viewModel?.benchmarkRunProgress = "Warm-up (not measured)"
+            viewModel?.benchmarkSleepCountdown = ""
+            viewModel?.benchmarkTranscript = ""
+            viewModel?.benchmarkExpectedTranscript = needsSpeechToText ? item.expectedTranscript ?? "" : ""
+            viewModel?.benchmarkStepsText = benchmarkStepsDescription(
+                settings.benchmarkSteps,
+                textToToolModel: settings.benchmarkTextToToolModel,
+                speechToToolModel: settings.benchmarkSpeechToToolModel
+            )
+            viewModel?.benchmarkExpectedToolCall = hasToolStep ? expectedToolCallDisplay(for: item) : ""
+            viewModel?.benchmarkActualToolCall = ""
+            viewModel?.benchmarkRawModelText = ""
+            viewModel?.benchmarkLatencyText = ""
+            viewModel?.benchmarkTranscriptMatchText = ""
+            viewModel?.benchmarkToolCallMatchText = hasToolStep ? "warm-up not measured" : ""
+        }
+
+        let totalStart = Date()
+        var transcription: SpeechTranscriptionResult?
+        var toolResult: BenchmarkToolCallResult?
+
+        if needsSpeechToText {
+            transcription = await transcribeIfNeeded(
+                url: item.processingAudioURL,
+                voiceToTextMode: settings.voiceToTextMode,
+                whisperModelSize: settings.whisperModelSize,
+                progressHandler: { progress, speed in
+                    guard settings.voiceToTextMode == .leap else { return }
+                    Task { @MainActor [weak viewModel] in
+                        guard viewModel?.benchmarkRequested == true else { return }
+                        viewModel?.benchmarkStatus = leapDownloadMessage(progress: progress, speed: speed)
+                    }
+                }
+            )
+        }
+
+        if hasToolStep {
+            if needsTextToTool {
+                toolResult = await generateTextToolCall(
+                    transcript: transcription?.transcript,
+                    model: settings.benchmarkTextToToolModel,
+                    viewModel: viewModel
+                )
+            } else {
+                toolResult = await generateSpeechToolCall(
+                    url: item.processingAudioURL,
+                    model: settings.benchmarkSpeechToToolModel,
+                    viewModel: viewModel
+                )
+            }
+        }
+
+        let totalDurationMs = Int(Date().timeIntervalSince(totalStart) * 1000)
+        let runtimeStopStatus = benchmarkRuntimeStopStatus(
+            transcription: transcription,
+            toolCall: toolResult
+        )
+        await MainActor.run {
+            let transcriptText = benchmarkTranscriptText(from: transcription)
+            viewModel?.benchmarkStatus = runtimeStopStatus
+                ?? "Warm-up complete. Starting measured benchmark runs..."
+            viewModel?.benchmarkCurrentInput = item.audioURL.lastPathComponent
+            viewModel?.benchmarkPreprocessingFile = item.processingAudioURL.lastPathComponent
+            viewModel?.benchmarkRunProgress = runtimeStopStatus == nil
+                ? "Warm-up complete"
+                : "Stopped"
+            viewModel?.benchmarkSleepCountdown = ""
+            viewModel?.benchmarkTranscript = needsSpeechToText ? transcriptText : ""
+            viewModel?.benchmarkExpectedTranscript = needsSpeechToText ? item.expectedTranscript ?? "" : ""
+            viewModel?.benchmarkExpectedToolCall = hasToolStep ? expectedToolCallDisplay(for: item) : ""
+            viewModel?.benchmarkActualToolCall = hasToolStep ? actualToolCallDisplay(for: toolResult) : ""
+            viewModel?.benchmarkRawModelText = hasToolStep ? rawModelTextDisplay(for: toolResult) : ""
+            viewModel?.benchmarkLatencyText = "Warm-up only; " + benchmarkLatencyText(
+                transcription: transcription,
+                toolCall: toolResult,
+                totalDurationMs: totalDurationMs
+            )
+            viewModel?.benchmarkTranscriptMatchText = needsSpeechToText ? "warm-up not measured" : ""
+            viewModel?.benchmarkToolCallMatchText = hasToolStep ? "warm-up not measured" : ""
+        }
+        print(
+            "Benchmark warm-up complete: file=\(item.processingAudioURL.lastPathComponent), total_duration_ms=\(totalDurationMs), runtime_stop=\(runtimeStopStatus ?? "none")"
+        )
+
+        return BenchmarkWarmupResult(completed: runtimeStopStatus == nil, runtimeStopStatus: runtimeStopStatus)
     }
 
     private nonisolated static func prepareWhisperBenchmarkModel(
@@ -1763,7 +2106,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     }
 
     private nonisolated static func needsLocalTextToToolPreparation(_ model: BenchmarkTextToToolModel) -> Bool {
-        model.provider == "llama_cpp" || model.provider == "mlx"
+        model.provider == "llama_cpp" || model.provider == "llama_cpp_mtmd" || model.provider == "mlx"
     }
 
     private nonisolated static func benchmarkSettings(from viewModel: RecorderViewModel?) async -> VoiceRecorderEffectiveSettings? {
@@ -2167,10 +2510,12 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             viewModel?.benchmarkExpectedTranscript = ""
             viewModel?.benchmarkStepsText = benchmarkStepsDescription(
                 settings.benchmarkSteps,
-                textToToolModel: settings.benchmarkTextToToolModel
+                textToToolModel: settings.benchmarkTextToToolModel,
+                speechToToolModel: settings.benchmarkSpeechToToolModel
             )
             viewModel?.benchmarkExpectedToolCall = ""
             viewModel?.benchmarkActualToolCall = ""
+            viewModel?.benchmarkRawModelText = ""
             viewModel?.benchmarkLatencyText = ""
             viewModel?.benchmarkTranscriptMatchText = ""
             viewModel?.benchmarkToolCallMatchText = ""
@@ -2250,13 +2595,13 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         let result = await LeapBenchmarkToolCallModel.shared.generate(
             input: .text(trimmedTranscript),
             textToToolModel: model,
-	            progressHandler: { progress, speed in
-	                Task { @MainActor [weak viewModel] in
-	                    guard viewModel?.benchmarkRequested == true else { return }
-	                    viewModel?.benchmarkStatus = modelDownloadMessage(
-	                        modelName: model.displayName,
-	                        progress: progress,
-	                        speed: speed
+            progressHandler: { progress, speed in
+                Task { @MainActor [weak viewModel] in
+                    guard viewModel?.benchmarkRequested == true else { return }
+                    viewModel?.benchmarkStatus = modelDownloadMessage(
+                        modelName: model.displayName,
+                        progress: progress,
+                        speed: speed
                     )
                 }
             }
@@ -2266,17 +2611,22 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
 
     private nonisolated static func generateSpeechToolCall(
         url: URL,
+        model: BenchmarkTextToToolModel,
         viewModel: RecorderViewModel?
     ) async -> BenchmarkToolCallResult {
+        print("Benchmark speech_to_tool starting: model=\(model.modelId), file=\(url.lastPathComponent)")
         await MainActor.run {
-            viewModel?.benchmarkStatus = "Generating tool call from audio..."
+            viewModel?.benchmarkStatus = "Generating tool call from audio with \(model.displayName)..."
         }
         let result = await LeapBenchmarkToolCallModel.shared.generate(
             input: .audio(url),
+            speechToToolModel: model,
             progressHandler: { progress, speed in
                 Task { @MainActor [weak viewModel] in
                     guard viewModel?.benchmarkRequested == true else { return }
-                    viewModel?.benchmarkStatus = leapDownloadMessage(progress: progress, speed: speed)
+                    viewModel?.benchmarkStatus = model.usesSharedAudioModel
+                        ? leapDownloadMessage(progress: progress, speed: speed)
+                        : modelDownloadMessage(modelName: model.displayName, progress: progress, speed: speed)
                 }
             }
         )
@@ -2303,6 +2653,12 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         switch model.kind {
         case .leapLFM25Audio:
             return leapAudioTextToolModelHandle
+        case .liquidLFM25AudioOnePointFiveB:
+            return customTextToolModelHandle
+        case .ultravoxLlama32OneB:
+            return customTextToolModelHandle
+        case .qwen3ASRZeroPointSixB:
+            return customTextToolModelHandle
         case .leapLFM25350M:
             return leapSmallTextToolModelHandle
         case .leapLFM2512BInstruct:
@@ -2332,6 +2688,25 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         }
     }
 
+    private nonisolated static func speechToToolModelHandle(
+        for model: BenchmarkTextToToolModel,
+        leapSpeechToolModelHandle: ModelHandle,
+        localMultimodalSpeechToolModelHandle: ModelHandle,
+        ultravoxSpeechToolModelHandle: ModelHandle,
+        qwen3ASRSpeechToolModelHandle: ModelHandle
+    ) -> ModelHandle {
+        switch model.kind {
+        case .liquidLFM25AudioOnePointFiveB:
+            return localMultimodalSpeechToolModelHandle
+        case .qwen3ASRZeroPointSixB:
+            return qwen3ASRSpeechToolModelHandle
+        case .ultravoxLlama32OneB:
+            return ultravoxSpeechToolModelHandle
+        default:
+            return leapSpeechToolModelHandle
+        }
+    }
+
     private nonisolated static func benchmarkToolCallResult(
         step: BenchmarkStep,
         generation: BenchmarkToolCallGenerationResult
@@ -2339,6 +2714,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         BenchmarkToolCallResult(
             step: step,
             rawOutput: generation.rawOutput,
+            rawText: generation.rawText,
             durationMs: generation.durationMs,
             parsedJSON: generation.parsedJSON,
             canonicalJSON: generation.canonicalJSON,
@@ -2368,6 +2744,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "expected_tool_call_missing": item.expectedToolCall == nil,
             "expected_tool_call_parse_error": item.expectedToolCallParseError ?? "",
             "actual_tool_call": actualToolCall?.rawOutput ?? "",
+            "actual_raw_model_text": actualToolCall?.rawText ?? "",
             "actual_tool_call_json": actualCanonical,
             "actual_tool_call_parse_error": actualToolCall?.parsedSuccessfully == true ? "" : actualToolCall?.errorDescription ?? "",
             "tool_call_step": actualToolCall?.step.rawValue ?? "",
@@ -2407,12 +2784,24 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         return ""
     }
 
+    private nonisolated static func rawModelTextDisplay(for result: BenchmarkToolCallResult?) -> String {
+        guard let result else { return "" }
+        let rawText = result.rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard rawText.isEmpty == false else { return "" }
+        return rawText
+    }
+
     private nonisolated static func benchmarkStepsDescription(
         _ steps: [BenchmarkStep],
-        textToToolModel: BenchmarkTextToToolModel? = nil
+        textToToolModel: BenchmarkTextToToolModel? = nil,
+        speechToToolModel: BenchmarkTextToToolModel? = nil
     ) -> String {
         guard steps.isEmpty == false else { return "unsupported steps" }
         var description = steps.map(\.rawValue).joined(separator: " + ")
+        if steps.contains(.speechToTool), let speechToToolModel {
+            description += " (\(speechToToolModel.displayName))"
+            return description
+        }
         if steps.contains(.textToTool), let textToToolModel {
             description += " (\(textToToolModel.displayName))"
         }
@@ -2529,7 +2918,9 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
     ) -> String {
         var parts = [
             settings.benchmarkSteps.map(\.rawValue).joined(separator: "+"),
-            settings.benchmarkTextToToolModel.modelId,
+            settings.benchmarkSteps.contains(.speechToTool)
+                ? settings.benchmarkSpeechToToolModel.modelId
+                : settings.benchmarkTextToToolModel.modelId,
             item.audioBundlePath
         ]
         if inferenceCount > 1 {
@@ -2587,6 +2978,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
         let outputText = nonEmptyText(toolCall.rawOutput) ?? toolCall.canonicalJSON ?? ""
         var outputMeta: [String: Any] = [
             "raw_tool_call": toolCall.rawOutput,
+            "raw_model_text": toolCall.rawText,
             "output_text": outputText,
             "tool_call_json": toolCall.canonicalJSON ?? "",
             "tool_call_parse_error": toolCall.parsedSuccessfully ? "" : toolCall.errorDescription ?? "",
@@ -2659,7 +3051,11 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "text_to_tool_model": settings.benchmarkTextToToolModel.modelId,
             "text_to_tool_model_name": settings.benchmarkTextToToolModel.displayName,
             "text_to_tool_model_source": settings.benchmarkTextToToolModel.modelSource,
-            "text_to_tool_quantization": settings.benchmarkTextToToolModel.quantization
+            "text_to_tool_quantization": settings.benchmarkTextToToolModel.quantization,
+            "speech_to_tool_model": settings.benchmarkSpeechToToolModel.modelId,
+            "speech_to_tool_model_name": settings.benchmarkSpeechToToolModel.displayName,
+            "speech_to_tool_model_source": settings.benchmarkSpeechToToolModel.modelSource,
+            "speech_to_tool_quantization": settings.benchmarkSpeechToToolModel.quantization
         ]
         if let lineID = item.lineID {
             meta["benchmark_line_id"] = lineID
@@ -2734,6 +3130,9 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             "selected_text_to_tool_model": settings.benchmarkTextToToolModel.modelId,
             "selected_text_to_tool_model_name": settings.benchmarkTextToToolModel.displayName,
             "selected_text_to_tool_quantization": settings.benchmarkTextToToolModel.quantization,
+            "selected_speech_to_tool_model": settings.benchmarkSpeechToToolModel.modelId,
+            "selected_speech_to_tool_model_name": settings.benchmarkSpeechToToolModel.displayName,
+            "selected_speech_to_tool_quantization": settings.benchmarkSpeechToToolModel.quantization,
             "tool_call_step": toolCall?.step.rawValue ?? "",
             "tool_call_duration_ms": toolCall?.durationMs ?? 0,
             "benchmark_total_duration_ms": totalDurationMs,
@@ -2765,6 +3164,7 @@ final class RecorderViewModel: NSObject, ObservableObject, AVAudioPlayerDelegate
             attributes["actual_tool_call_json"] = actualToolCallCanonicalJSON
         }
         if let toolCall {
+            attributes["actual_raw_model_text"] = toolCall.rawText
             attributes["tool_call_model"] = toolCall.modelId
             attributes["tool_call_model_name"] = toolCall.modelName
             attributes["tool_call_model_source"] = toolCall.modelSource

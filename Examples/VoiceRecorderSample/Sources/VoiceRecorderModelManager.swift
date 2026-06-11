@@ -38,6 +38,7 @@ struct ModelAssetStatus: Sendable {
 
 enum VoiceRecorderModelAsset: Sendable {
     case gguf(BenchmarkTextToToolModel)
+    case ggufProjector(BenchmarkTextToToolModel)
     case whisper(WhisperModelSize)
     case leapAudio(modelName: String, quantization: String)
 }
@@ -64,6 +65,8 @@ actor VoiceRecorderModelManager {
             switch asset {
             case .gguf(let model):
                 return try ggufStatus(for: model)
+            case .ggufProjector(let model):
+                return try ggufProjectorStatus(for: model)
             case .whisper(let model):
                 return try whisperStatus(for: model)
             case .leapAudio(let modelName, let quantization):
@@ -97,6 +100,8 @@ actor VoiceRecorderModelManager {
         switch asset {
         case .gguf(let model):
             return try await prepareGGUF(model, progressHandler: progressHandler)
+        case .ggufProjector(let model):
+            return try await prepareGGUFProjector(model, progressHandler: progressHandler)
         case .whisper(let model):
             return try await prepareWhisper(model, progressHandler: progressHandler)
         case .leapAudio(let modelName, let quantization):
@@ -120,7 +125,16 @@ actor VoiceRecorderModelManager {
         switch asset {
         case .gguf(let model):
             let url = try ggufURL(for: model)
-            return try validFileExists(at: url) ? url : nil
+            if try validFileExists(at: url) {
+                return url
+            }
+            return try bundledModelFileURL(named: url.lastPathComponent)
+        case .ggufProjector(let model):
+            let url = try ggufProjectorURL(for: model)
+            if try validFileExists(at: url) {
+                return url
+            }
+            return try bundledModelFileURL(named: url.lastPathComponent)
         case .whisper(let model):
             let url = try stableWhisperFolder(for: model)
             return modelFolderExists(at: url) ? url : nil
@@ -137,6 +151,11 @@ actor VoiceRecorderModelManager {
                 try? fileManager.removeItem(at: finalURL)
                 try? fileManager.removeItem(at: partialGGUFURL(for: model))
                 try? fileManager.removeItem(at: manifestURL(for: model))
+            case .ggufProjector(let model):
+                let finalURL = try ggufProjectorURL(for: model)
+                try? fileManager.removeItem(at: finalURL)
+                try? fileManager.removeItem(at: partialGGUFProjectorURL(for: model))
+                try? fileManager.removeItem(at: ggufProjectorManifestURL(for: model))
             case .whisper(let model):
                 try? fileManager.removeItem(at: stableWhisperFolder(for: model))
             case .leapAudio(let modelName, let quantization):
@@ -151,7 +170,38 @@ actor VoiceRecorderModelManager {
         _ model: BenchmarkTextToToolModel,
         progressHandler: (@Sendable (ModelAssetDownloadProgress) -> Void)?
     ) async throws -> URL {
-        let finalURL = try ggufURL(for: model)
+        try await prepareGGUFFile(
+            model,
+            finalURL: ggufURL(for: model),
+            partialURL: partialGGUFURL(for: model),
+            manifestURL: manifestURL(for: model),
+            downloadURLString: model.downloadURLString,
+            progressHandler: progressHandler
+        )
+    }
+
+    private func prepareGGUFProjector(
+        _ model: BenchmarkTextToToolModel,
+        progressHandler: (@Sendable (ModelAssetDownloadProgress) -> Void)?
+    ) async throws -> URL {
+        try await prepareGGUFFile(
+            model,
+            finalURL: ggufProjectorURL(for: model),
+            partialURL: partialGGUFProjectorURL(for: model),
+            manifestURL: ggufProjectorManifestURL(for: model),
+            downloadURLString: model.mmprojDownloadURLString,
+            progressHandler: progressHandler
+        )
+    }
+
+    private func prepareGGUFFile(
+        _ model: BenchmarkTextToToolModel,
+        finalURL: URL,
+        partialURL: URL,
+        manifestURL: URL,
+        downloadURLString: String?,
+        progressHandler: (@Sendable (ModelAssetDownloadProgress) -> Void)?
+    ) async throws -> URL {
         if try validFileExists(at: finalURL) {
             progressHandler?(
                 ModelAssetDownloadProgress(
@@ -164,8 +214,20 @@ actor VoiceRecorderModelManager {
             )
             return finalURL
         }
+        if let bundledURL = try bundledModelFileURL(named: finalURL.lastPathComponent) {
+            progressHandler?(
+                ModelAssetDownloadProgress(
+                    phase: .cached,
+                    progress: 1,
+                    speedBytesPerSecond: 0,
+                    receivedBytes: try fileSize(at: bundledURL),
+                    expectedBytes: try fileSize(at: bundledURL)
+                )
+            )
+            return bundledURL
+        }
 
-        guard let downloadURLString = model.downloadURLString,
+        guard let downloadURLString,
               let downloadURL = URL(string: downloadURLString)
         else {
             throw SpeechTranscriptionError.transcriptionFailed(
@@ -174,7 +236,6 @@ actor VoiceRecorderModelManager {
         }
 
         try prepareAppManagedDirectory(finalURL.deletingLastPathComponent())
-        let partialURL = try partialGGUFURL(for: model)
         let startedAt = Date()
         let finalURLForClosure = finalURL
         let partialURLForClosure = partialURL
@@ -195,7 +256,7 @@ actor VoiceRecorderModelManager {
                 finalBytes: downloadResult.finalBytes,
                 completedAt: Date()
             ),
-            for: model
+            at: manifestURL
         )
         return finalURL
     }
@@ -372,6 +433,15 @@ actor VoiceRecorderModelManager {
 
     private func ggufStatus(for model: BenchmarkTextToToolModel) throws -> ModelAssetStatus {
         let finalURL = try ggufURL(for: model)
+        return try fileStatus(finalURL: finalURL, partialURL: partialGGUFURL(for: model))
+    }
+
+    private func ggufProjectorStatus(for model: BenchmarkTextToToolModel) throws -> ModelAssetStatus {
+        let finalURL = try ggufProjectorURL(for: model)
+        return try fileStatus(finalURL: finalURL, partialURL: partialGGUFProjectorURL(for: model))
+    }
+
+    private func fileStatus(finalURL: URL, partialURL: URL) throws -> ModelAssetStatus {
         if try validFileExists(at: finalURL) {
             return ModelAssetStatus(
                 state: .cached,
@@ -381,7 +451,15 @@ actor VoiceRecorderModelManager {
                 message: nil
             )
         }
-        let partialURL = try partialGGUFURL(for: model)
+        if let bundledURL = try bundledModelFileURL(named: finalURL.lastPathComponent) {
+            return ModelAssetStatus(
+                state: .cached,
+                localURL: bundledURL,
+                partialURL: nil,
+                bytes: try fileSize(at: bundledURL),
+                message: nil
+            )
+        }
         if try validFileExists(at: partialURL) {
             return ModelAssetStatus(
                 state: .partial,
@@ -522,6 +600,24 @@ actor VoiceRecorderModelManager {
         try ggufURL(for: model).appendingPathExtension("manifest.json")
     }
 
+    private func ggufProjectorURL(for model: BenchmarkTextToToolModel) throws -> URL {
+        try appManagedRoot()
+            .appendingPathComponent("mmproj", isDirectory: true)
+            .appendingPathComponent(Self.safePathComponent(model.id), isDirectory: true)
+            .appendingPathComponent(
+                model.mmprojDownloadFilename ?? "mmproj-\(Self.defaultGGUFFilename(for: model))",
+                isDirectory: false
+            )
+    }
+
+    private func partialGGUFProjectorURL(for model: BenchmarkTextToToolModel) throws -> URL {
+        try ggufProjectorURL(for: model).appendingPathExtension("partial")
+    }
+
+    private func ggufProjectorManifestURL(for model: BenchmarkTextToToolModel) throws -> URL {
+        try ggufProjectorURL(for: model).appendingPathExtension("manifest.json")
+    }
+
     private func stableWhisperFolder(for model: WhisperModelSize) throws -> URL {
         try appManagedRoot()
             .appendingPathComponent("whisper", isDirectory: true)
@@ -568,6 +664,40 @@ actor VoiceRecorderModelManager {
     private func validFileExists(at url: URL) throws -> Bool {
         guard fileManager.fileExists(atPath: url.path) else { return false }
         return try fileSize(at: url) > 0
+    }
+
+    private func bundledModelFileURL(named filename: String) throws -> URL? {
+        let nsFilename = filename as NSString
+        let basename = nsFilename.deletingPathExtension
+        let pathExtension = nsFilename.pathExtension
+        let candidateSubdirectories: [String?] = [
+            nil,
+            "ModelAssets",
+            "ModelAssets/gguf",
+            "ModelAssets/mmproj"
+        ]
+
+        for subdirectory in candidateSubdirectories {
+            let directURL = Bundle.main.url(
+                forResource: filename,
+                withExtension: nil,
+                subdirectory: subdirectory
+            )
+            if let directURL, try validFileExists(at: directURL) {
+                return directURL
+            }
+
+            let splitURL = Bundle.main.url(
+                forResource: basename,
+                withExtension: pathExtension.isEmpty ? nil : pathExtension,
+                subdirectory: subdirectory
+            )
+            if let splitURL, try validFileExists(at: splitURL) {
+                return splitURL
+            }
+        }
+
+        return nil
     }
 
     private func modelFolderExists(at url: URL) -> Bool {
@@ -642,9 +772,9 @@ actor VoiceRecorderModelManager {
         )
     }
 
-    private func writeManifest(_ manifest: GGUFModelManifest, for model: BenchmarkTextToToolModel) throws {
+    private func writeManifest(_ manifest: GGUFModelManifest, at url: URL) throws {
         let data = try jsonEncoder.encode(manifest)
-        try data.write(to: manifestURL(for: model), options: [.atomic])
+        try data.write(to: url, options: [.atomic])
     }
 
     private func excludeFromBackup(_ url: URL) throws {

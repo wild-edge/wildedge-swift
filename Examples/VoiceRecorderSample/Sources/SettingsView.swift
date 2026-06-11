@@ -40,6 +40,20 @@ struct SettingsView: View {
                 Section("Benchmark") {
                     Toggle("benchmark_enabled", isOn: benchmarkEnabledBinding)
                         .disabled(settingsStore.effectiveSettings.isUsingSDKPayload)
+
+                    Picker("Text-to-tool model", selection: benchmarkTextToToolModelBinding) {
+                        ForEach(selectableBenchmarkTextToToolModels) { model in
+                            Text(model.displayName).tag(model)
+                        }
+                    }
+                    .disabled(settingsStore.effectiveSettings.isUsingSDKPayload)
+
+                    Picker("Speech-to-tool model", selection: benchmarkSpeechToToolModelBinding) {
+                        ForEach(selectableBenchmarkSpeechToToolModels) { model in
+                            Text(model.displayName).tag(model)
+                        }
+                    }
+                    .disabled(settingsStore.effectiveSettings.isUsingSDKPayload)
                 }
                 #endif
 
@@ -126,6 +140,26 @@ struct SettingsView: View {
                 }
 
                 #if BENCHMARK_BUILD
+                Section("Speech To Tool") {
+                    #if canImport(LlamaSwift)
+                    ForEach([
+                        BenchmarkTextToToolModel.liquidLFM25AudioOnePointFiveB,
+                        .ultravoxLlama32OneB,
+                        .qwen3ASRZeroPointSixB
+                    ]) { model in
+                        textToToolDownloadRow(model)
+                    }
+                    #endif
+
+                    LabeledContent("Leap SDK", value: "Use the Leap section above")
+
+                    #if !canImport(LlamaSwift)
+                    Text("Local speech-to-tool models are disabled in this build because LlamaSwift is not linked.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    #endif
+                }
+
                 Section("Text To Tool") {
                     #if canImport(LlamaSwift)
                     ForEach([
@@ -297,6 +331,64 @@ struct SettingsView: View {
             set: { settingsStore.benchmarkEnabled = $0 }
         )
     }
+
+    private var benchmarkTextToToolModelBinding: Binding<BenchmarkTextToToolModel> {
+        Binding(
+            get: { settingsStore.effectiveSettings.benchmarkTextToToolModel },
+            set: { settingsStore.benchmarkTextToToolModel = $0 }
+        )
+    }
+
+    private var benchmarkSpeechToToolModelBinding: Binding<BenchmarkTextToToolModel> {
+        Binding(
+            get: { settingsStore.effectiveSettings.benchmarkSpeechToToolModel },
+            set: { settingsStore.benchmarkSpeechToToolModel = $0 }
+        )
+    }
+
+    private var selectableBenchmarkTextToToolModels: [BenchmarkTextToToolModel] {
+        SettingsStore.selectableBenchmarkTextToToolModels.filter { model in
+            switch model.provider {
+            case "llama_cpp":
+                #if canImport(LlamaSwift)
+                return true
+                #else
+                return false
+                #endif
+            case "mlx":
+                #if canImport(MLXLLM) && canImport(MLXLMCommon)
+                return true
+                #else
+                return false
+                #endif
+            case "foundation_models":
+                #if canImport(FoundationModels)
+                return true
+                #else
+                return false
+                #endif
+            default:
+                return false
+            }
+        }
+    }
+
+    private var selectableBenchmarkSpeechToToolModels: [BenchmarkTextToToolModel] {
+        SettingsStore.selectableBenchmarkSpeechToToolModels.filter { model in
+            switch model.provider {
+            case "llama_cpp_mtmd":
+                #if canImport(LlamaSwift)
+                return true
+                #else
+                return false
+                #endif
+            case "leap_sdk":
+                return true
+            default:
+                return false
+            }
+        }
+    }
     #endif
 
     private func downloadWhisperModels() {
@@ -430,10 +522,17 @@ struct SettingsView: View {
         #if BENCHMARK_BUILD
         #if canImport(LlamaSwift)
         downloads.append(contentsOf: [
+            .textToTool(.liquidLFM25AudioOnePointFiveB),
+            .ggufProjector(.liquidLFM25AudioOnePointFiveB),
+            .textToTool(.ultravoxLlama32OneB),
+            .ggufProjector(.ultravoxLlama32OneB),
+            .textToTool(.qwen3ASRZeroPointSixB),
+            .ggufProjector(.qwen3ASRZeroPointSixB),
             .textToTool(.leapLFM25350M),
             .textToTool(.leapLFM2512BInstruct),
             .textToTool(.functionGemma),
             .textToTool(.tinyLlamaOnePointOneB),
+            .textToTool(.qwen2ZeroPointFiveBInstruct),
             .textToTool(.qwen25OnePointFiveBInstruct),
             .textToTool(.qwen3ZeroPointSixB4Bit),
             .textToTool(.qwen3FourB4Bit)
@@ -612,6 +711,39 @@ struct SettingsView: View {
                             textToToolModelStatus = "Downloading \(model.displayName) \(Int(progress * 100))%"
                         }
                     }
+                } else if model.provider == "llama_cpp_mtmd" {
+                    _ = try await VoiceRecorderModelManager.shared.prepare(
+                        .gguf(model),
+                        progressHandler: { progress in
+                            guard progress.phase == .downloading,
+                                  let fraction = progress.progress
+                            else {
+                                return
+                            }
+                            Task { @MainActor in
+                                let combinedProgress = fraction * 0.5
+                                textToToolDownloadProgress = combinedProgress
+                                textToToolDownloadSpeedBytesPerSecond = progress.speedBytesPerSecond
+                                textToToolModelStatus = "Downloading \(model.displayName) model \(Int(combinedProgress * 100))%"
+                            }
+                        }
+                    )
+                    _ = try await VoiceRecorderModelManager.shared.prepare(
+                        .ggufProjector(model),
+                        progressHandler: { progress in
+                            guard progress.phase == .downloading,
+                                  let fraction = progress.progress
+                            else {
+                                return
+                            }
+                            Task { @MainActor in
+                                let combinedProgress = 0.5 + fraction * 0.5
+                                textToToolDownloadProgress = combinedProgress
+                                textToToolDownloadSpeedBytesPerSecond = progress.speedBytesPerSecond
+                                textToToolModelStatus = "Downloading \(model.displayName) projector \(Int(combinedProgress * 100))%"
+                            }
+                        }
+                    )
                 } else {
                     _ = try await LlamaCppBenchmarkTextToToolModel.shared.downloadModel(model) { progress, speed in
                         Task { @MainActor in
@@ -694,6 +826,15 @@ private struct ManagedModelDownload: Identifiable {
             title: model.displayName,
             subtitle: [model.provider, model.quantization].filter { !$0.isEmpty }.joined(separator: " - "),
             kind: .managed(.gguf(model))
+        )
+    }
+
+    static func ggufProjector(_ model: BenchmarkTextToToolModel) -> ManagedModelDownload {
+        ManagedModelDownload(
+            id: "mmproj-\(model.id)",
+            title: "\(model.displayName) mmproj",
+            subtitle: [model.provider, "projector"].joined(separator: " - "),
+            kind: .managed(.ggufProjector(model))
         )
     }
 

@@ -103,6 +103,9 @@ enum BenchmarkStep: String, CaseIterable, Identifiable, Sendable {
 
 enum BenchmarkTextToToolModelKind: String, Sendable {
     case leapLFM25Audio
+    case liquidLFM25AudioOnePointFiveB
+    case ultravoxLlama32OneB
+    case qwen3ASRZeroPointSixB
     case leapLFM25350M
     case leapLFM2512BInstruct
     case functionGemma
@@ -129,6 +132,9 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
     let modelFormat: String
     let downloadURLString: String?
     let downloadFilename: String?
+    let mmprojDownloadURLString: String?
+    let mmprojDownloadFilename: String?
+    let serverURLString: String?
     let approximateDownloadSize: String?
     let contextSize: Int
     let maxGenerationTokens: Int
@@ -144,6 +150,9 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         modelFormat: String,
         downloadURLString: String? = nil,
         downloadFilename: String? = nil,
+        mmprojDownloadURLString: String? = nil,
+        mmprojDownloadFilename: String? = nil,
+        serverURLString: String? = nil,
         approximateDownloadSize: String? = nil,
         contextSize: Int = 1024,
         maxGenerationTokens: Int = 192
@@ -158,6 +167,9 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         self.modelFormat = modelFormat
         self.downloadURLString = downloadURLString
         self.downloadFilename = downloadFilename
+        self.mmprojDownloadURLString = mmprojDownloadURLString
+        self.mmprojDownloadFilename = mmprojDownloadFilename
+        self.serverURLString = serverURLString
         self.approximateDownloadSize = approximateDownloadSize
         self.contextSize = contextSize
         self.maxGenerationTokens = maxGenerationTokens
@@ -172,6 +184,60 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         provider: "leap_sdk",
         modelSource: "leap-sdk",
         modelFormat: "gguf"
+    )
+
+    static let liquidLFM25AudioOnePointFiveB = BenchmarkTextToToolModel(
+        kind: .liquidLFM25AudioOnePointFiveB,
+        id: "liquid-lfm2.5-audio-1.5b-q4-0",
+        displayName: "Liquid LFM2.5 Audio 1.5B",
+        modelName: "LiquidAI/LFM2.5-Audio-1.5B-GGUF",
+        quantization: "Q4_0",
+        provider: "llama_cpp_mtmd",
+        modelSource: "huggingface",
+        modelFormat: "gguf",
+        downloadURLString: "https://huggingface.co/LiquidAI/LFM2.5-Audio-1.5B-GGUF/resolve/main/LFM2.5-Audio-1.5B-Q4_0.gguf",
+        downloadFilename: "LFM2.5-Audio-1.5B-Q4_0.gguf",
+        mmprojDownloadURLString: "https://huggingface.co/LiquidAI/LFM2.5-Audio-1.5B-GGUF/resolve/main/mmproj-LFM2.5-Audio-1.5B-Q4_0.gguf",
+        mmprojDownloadFilename: "mmproj-LFM2.5-Audio-1.5B-Q4_0.gguf",
+        approximateDownloadSize: "696 MB model + 220 MB mmproj",
+        contextSize: 2048,
+        maxGenerationTokens: 256
+    )
+
+    static let ultravoxLlama32OneB = BenchmarkTextToToolModel(
+        kind: .ultravoxLlama32OneB,
+        id: "ultravox-v0.5-llama-3.2-1b-q4-k-m",
+        displayName: "Ultravox v0.5 Llama 3.2 1B Q4_K_M",
+        modelName: "ggml-org/ultravox-v0_5-llama-3_2-1b-GGUF",
+        quantization: "Q4_K_M",
+        provider: "llama_cpp_mtmd",
+        modelSource: "huggingface",
+        modelFormat: "gguf",
+        downloadURLString: "https://huggingface.co/ggml-org/ultravox-v0_5-llama-3_2-1b-GGUF/resolve/main/Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+        downloadFilename: "Llama-3.2-1B-Instruct-Q4_K_M.gguf",
+        mmprojDownloadURLString: "https://huggingface.co/ggml-org/ultravox-v0_5-llama-3_2-1b-GGUF/resolve/main/mmproj-ultravox-v0_5-llama-3_2-1b-Q4_K_M.gguf",
+        mmprojDownloadFilename: "mmproj-ultravox-v0_5-llama-3_2-1b-Q4_K_M.gguf",
+        approximateDownloadSize: "808 MB model + 382 MB mmproj",
+        contextSize: 2048,
+        maxGenerationTokens: 256
+    )
+
+    static let qwen3ASRZeroPointSixB = BenchmarkTextToToolModel(
+        kind: .qwen3ASRZeroPointSixB,
+        id: "qwen3-asr-0.6b-q8-0",
+        displayName: "Qwen3-ASR 0.6B",
+        modelName: "ggml-org/Qwen3-ASR-0.6B-GGUF",
+        quantization: "Q8_0",
+        provider: "llama_cpp_mtmd",
+        modelSource: "huggingface",
+        modelFormat: "gguf",
+        downloadURLString: "https://huggingface.co/ggml-org/Qwen3-ASR-0.6B-GGUF/resolve/main/Qwen3-ASR-0.6B-Q8_0.gguf",
+        downloadFilename: "Qwen3-ASR-0.6B-Q8_0.gguf",
+        mmprojDownloadURLString: "https://huggingface.co/ggml-org/Qwen3-ASR-0.6B-GGUF/resolve/main/mmproj-Qwen3-ASR-0.6B-Q8_0.gguf",
+        mmprojDownloadFilename: "mmproj-Qwen3-ASR-0.6B-Q8_0.gguf",
+        approximateDownloadSize: "805 MB model + 214 MB mmproj",
+        contextSize: 2048,
+        maxGenerationTokens: 256
     )
 
     static let leapLFM25350M = BenchmarkTextToToolModel(
@@ -376,6 +442,9 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
             modelFormat,
             downloadURLString ?? "",
             downloadFilename ?? "",
+            mmprojDownloadURLString ?? "",
+            mmprojDownloadFilename ?? "",
+            serverURLString ?? "",
             String(contextSize),
             String(maxGenerationTokens)
         ].joined(separator: ":")
@@ -405,6 +474,9 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         modelFormat: String? = nil,
         downloadURLString: String? = nil,
         downloadFilename: String? = nil,
+        mmprojDownloadURLString: String? = nil,
+        mmprojDownloadFilename: String? = nil,
+        serverURLString: String? = nil,
         contextSize: Int? = nil,
         maxGenerationTokens: Int? = nil
     ) -> BenchmarkTextToToolModel {
@@ -420,6 +492,9 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
             modelFormat: modelFormat ?? self.modelFormat,
             downloadURLString: downloadURLString ?? self.downloadURLString,
             downloadFilename: downloadFilename ?? self.downloadFilename,
+            mmprojDownloadURLString: mmprojDownloadURLString ?? self.mmprojDownloadURLString,
+            mmprojDownloadFilename: mmprojDownloadFilename ?? self.mmprojDownloadFilename,
+            serverURLString: serverURLString ?? self.serverURLString,
             approximateDownloadSize: approximateDownloadSize,
             contextSize: contextSize ?? self.contextSize,
             maxGenerationTokens: maxGenerationTokens ?? self.maxGenerationTokens
@@ -435,6 +510,9 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         modelFormat: String? = nil,
         downloadURLString: String? = nil,
         downloadFilename: String? = nil,
+        mmprojDownloadURLString: String? = nil,
+        mmprojDownloadFilename: String? = nil,
+        serverURLString: String? = nil,
         contextSize: Int? = nil,
         maxGenerationTokens: Int? = nil
     ) -> BenchmarkTextToToolModel {
@@ -451,6 +529,9 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
             modelFormat: modelFormat?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty ?? "gguf",
             downloadURLString: downloadURLString?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             downloadFilename: downloadFilename?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            mmprojDownloadURLString: mmprojDownloadURLString?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            mmprojDownloadFilename: mmprojDownloadFilename?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            serverURLString: serverURLString?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             contextSize: contextSize ?? 1024,
             maxGenerationTokens: maxGenerationTokens ?? 192
         )
@@ -461,6 +542,12 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         switch normalized {
         case "", "default", "leap", "leapsdk", "lfm25audio", "lfm25audio15b", "leaplfm25audio15b", "leaplfm25audio15bq40":
             return .leapLFM25Audio
+        case "liquidlfm25audio", "liquidlfm25audio15b", "liquidlfm25audio15bgguf", "liquidlfm25audio15bq40", "lfm25audio15bgguf", "lfm25audiogguf", "lfm25audioq40":
+            return .liquidLFM25AudioOnePointFiveB
+        case "ultravox", "ultravox05", "ultravoxv05", "ultravoxllama321b", "ultravox05llama321b", "ultravoxv05llama321b", "ultravoxv05llama321bq4km":
+            return .ultravoxLlama32OneB
+        case "qwen3asr", "qwen3asr06b", "qwen3asr06bgguf", "qwen3asr06bq4km", "qwen3asr060b", "qwen3asr060bgguf", "qwen3asr060bq4km":
+            return .qwen3ASRZeroPointSixB
         case "lfm25350m", "lfm25350mq4km", "leaplfm25350m", "leaplfm25350mq4km", "lfm25small", "smallest":
             return .leapLFM25350M
         case "lfm2350m", "lfm2350mq4km", "leaplfm2350m", "leaplfm2350mq4km", "lfm2small":
@@ -490,6 +577,19 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         case "applefoundationmodels", "foundationmodels", "appleintelligence", "systemlanguagemodel", "apple":
             return .appleFoundationModels
         default:
+            if normalized.contains("ultravox"),
+               normalized.contains("llama"),
+               normalized.contains("321b") || normalized.contains("32") {
+                return .ultravoxLlama32OneB
+            }
+            if normalized.contains("qwen3"), normalized.contains("asr") {
+                return .qwen3ASRZeroPointSixB
+            }
+            if normalized.contains("lfm25") || normalized.contains("lfm2.5") || normalized.contains("lfm2_5") {
+                if normalized.contains("audio") && (normalized.contains("gguf") || normalized.contains("liquid")) {
+                    return .liquidLFM25AudioOnePointFiveB
+                }
+            }
             if normalized.contains("functiongemma") {
                 if normalized.contains("mlx") {
                     return .functionGemmaMLX
@@ -540,11 +640,11 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
     static func from(remoteValue: String) -> BenchmarkTextToToolModel? {
         let trimmed = remoteValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty == false else { return nil }
-        if trimmed.contains("/") {
-            return custom(modelName: trimmed)
-        }
         if let preset = preset(remoteValue: trimmed) {
             return preset
+        }
+        if trimmed.contains("/") {
+            return custom(modelName: trimmed)
         }
         return custom(modelName: trimmed)
     }
@@ -571,6 +671,7 @@ struct VoiceRecorderEffectiveSettings: Sendable {
     let benchmarkSteps: [BenchmarkStep]
     let benchmarkStepsError: String?
     let benchmarkTextToToolModel: BenchmarkTextToToolModel
+    let benchmarkSpeechToToolModel: BenchmarkTextToToolModel
     #endif
     let isUsingSDKPayload: Bool
     let remoteConfigWarning: String?
@@ -584,6 +685,9 @@ struct VoiceRecorderEffectiveSettings: Sendable {
             return benchmarkSteps.map(\.rawValue).joined(separator: " + ")
         }
         #endif
+        if audioToToolArchitecture == .oneStep {
+            return "manual speech-to-tool"
+        }
         return "manual recording"
     }
 
@@ -595,13 +699,19 @@ struct VoiceRecorderEffectiveSettings: Sendable {
                 return "No benchmark model running"
             }
             if benchmarkSteps == [.speechToTool] {
-                return "Leap LFM2.5 Audio 1.5B"
+                return benchmarkSpeechToToolModel.displayName
+            }
+            if benchmarkSteps.contains(.speechToTool) {
+                return "\(speechModel) + \(benchmarkSpeechToToolModel.displayName)"
             }
             if benchmarkSteps.contains(.textToTool) {
                 return "\(speechModel) + \(benchmarkTextToToolModel.displayName)"
             }
         }
         #endif
+        if audioToToolArchitecture == .oneStep {
+            return BenchmarkTextToToolModel.liquidLFM25AudioOnePointFiveB.displayName
+        }
         return speechModel
     }
 
@@ -663,6 +773,18 @@ final class SettingsStore: ObservableObject {
             userDefaults.set(benchmarkEnabled, forKey: Self.benchmarkEnabledKey)
         }
     }
+
+    @Published var benchmarkTextToToolModel: BenchmarkTextToToolModel {
+        didSet {
+            userDefaults.set(benchmarkTextToToolModel.id, forKey: Self.benchmarkTextToToolModelKey)
+        }
+    }
+
+    @Published var benchmarkSpeechToToolModel: BenchmarkTextToToolModel {
+        didSet {
+            userDefaults.set(benchmarkSpeechToToolModel.id, forKey: Self.benchmarkSpeechToToolModelKey)
+        }
+    }
     #endif
 
     @Published private(set) var sdkPayload: RemoteSDKConfig?
@@ -680,11 +802,39 @@ final class SettingsStore: ObservableObject {
     private static let useSDKPayloadSettingsKey = "VoiceRecorderSample.useSDKPayloadSettings"
     #if BENCHMARK_BUILD
     private static let benchmarkEnabledKey = "VoiceRecorderSample.benchmarkEnabled"
-    private static let defaultBenchmarkVoiceToTextMode: VoiceToTextMode = .whisper
+    private static let benchmarkTextToToolModelKey = "VoiceRecorderSample.benchmarkTextToToolModel"
+    private static let benchmarkSpeechToToolModelKey = "VoiceRecorderSample.benchmarkSpeechToToolModel"
+    private static let forceQwen3ASRFullBenchmark = false
+    private static let forceUltravoxQ4KMSpeechToToolBenchmark = false
+    private static let forceLiquidLFM25SpeechToToolManual = false
+    private static let defaultBenchmarkVoiceToTextMode: VoiceToTextMode = .disabled
     private static let defaultBenchmarkWhisperModelSize: WhisperModelSize = .tiny
-    private static let defaultBenchmarkAudioToToolArchitecture: AudioToToolArchitecture = .twoStep
-    private static let defaultBenchmarkDelaySeconds: TimeInterval = 10
-    private static let defaultBenchmarkSteps: [BenchmarkStep] = [.speechToText, .textToTool]
+    private static let defaultBenchmarkAudioToToolArchitecture: AudioToToolArchitecture = .oneStep
+    private static let minimumBenchmarkDelaySeconds: TimeInterval = 1
+    private static let defaultBenchmarkDelaySeconds: TimeInterval = minimumBenchmarkDelaySeconds
+    private static let defaultBenchmarkNumberOfInferences = 5
+    private static let defaultBenchmarkSteps: [BenchmarkStep] = [.speechToTool]
+    private static let defaultBenchmarkTextToToolModel: BenchmarkTextToToolModel = .ultravoxLlama32OneB
+    private static let defaultBenchmarkSpeechToToolModel: BenchmarkTextToToolModel = .ultravoxLlama32OneB
+    static let selectableBenchmarkTextToToolModels: [BenchmarkTextToToolModel] = [
+        .leapLFM25350M,
+        .leapLFM2512BInstruct,
+        .functionGemma,
+        .tinyLlamaOnePointOneB,
+        .qwen2ZeroPointFiveBInstruct,
+        .qwen25OnePointFiveBInstruct,
+        .qwen3ZeroPointSixB4Bit,
+        .qwen3FourB4Bit,
+        .functionGemmaMLX,
+        .qwen35ZeroPointEightBOptiQMLX,
+        .appleFoundationModels
+    ]
+    static let selectableBenchmarkSpeechToToolModels: [BenchmarkTextToToolModel] = [
+        .liquidLFM25AudioOnePointFiveB,
+        .ultravoxLlama32OneB,
+        .qwen3ASRZeroPointSixB,
+        .leapLFM25Audio
+    ]
     #endif
     private static let sdkConfigRefreshInterval: TimeInterval = 30
 
@@ -725,6 +875,12 @@ final class SettingsStore: ObservableObject {
         useSDKPayloadSettings = userDefaults.bool(forKey: Self.useSDKPayloadSettingsKey)
         #if BENCHMARK_BUILD
         benchmarkEnabled = userDefaults.bool(forKey: Self.benchmarkEnabledKey)
+        benchmarkTextToToolModel = Self.selectableBenchmarkTextToToolModel(
+            id: userDefaults.string(forKey: Self.benchmarkTextToToolModelKey)
+        ) ?? Self.defaultBenchmarkTextToToolModel
+        benchmarkSpeechToToolModel = Self.selectableBenchmarkSpeechToToolModel(
+            id: userDefaults.string(forKey: Self.benchmarkSpeechToToolModelKey)
+        ) ?? Self.defaultBenchmarkSpeechToToolModel
         #endif
         sdkPayload = RemoteSDKConfigStore.shared.current
         sdkPayloadRefreshedAt = RemoteSDKConfigStore.shared.lastUpdatedAt
@@ -807,6 +963,66 @@ final class SettingsStore: ObservableObject {
 
     var effectiveSettings: VoiceRecorderEffectiveSettings {
         #if BENCHMARK_BUILD
+        if Self.forceLiquidLFM25SpeechToToolManual {
+            return VoiceRecorderEffectiveSettings(
+                voiceToTextMode: .disabled,
+                whisperModelSize: Self.defaultBenchmarkWhisperModelSize,
+                audioToToolArchitecture: .oneStep,
+                includeSpectrogramAttachment: false,
+                includeWAVAttachment: true,
+                benchmarkEnabled: false,
+                benchmarkDelaySeconds: Self.defaultBenchmarkDelaySeconds,
+                benchmarkRecordingsMatch: ["*"],
+                benchmarkNumberOfInferences: 1,
+                benchmarkSteps: Self.defaultBenchmarkSteps,
+                benchmarkStepsError: nil,
+                benchmarkTextToToolModel: Self.defaultBenchmarkTextToToolModel,
+                benchmarkSpeechToToolModel: Self.defaultBenchmarkSpeechToToolModel,
+                isUsingSDKPayload: false,
+                remoteConfigWarning: nil
+            )
+        }
+
+        if Self.forceQwen3ASRFullBenchmark {
+            return VoiceRecorderEffectiveSettings(
+                voiceToTextMode: .disabled,
+                whisperModelSize: Self.defaultBenchmarkWhisperModelSize,
+                audioToToolArchitecture: .oneStep,
+                includeSpectrogramAttachment: false,
+                includeWAVAttachment: false,
+                benchmarkEnabled: true,
+                benchmarkDelaySeconds: Self.defaultBenchmarkDelaySeconds,
+                benchmarkRecordingsMatch: ["*.m4a"],
+                benchmarkNumberOfInferences: 1,
+                benchmarkSteps: [.speechToTool],
+                benchmarkStepsError: nil,
+                benchmarkTextToToolModel: .qwen3ASRZeroPointSixB,
+                benchmarkSpeechToToolModel: .qwen3ASRZeroPointSixB,
+                isUsingSDKPayload: false,
+                remoteConfigWarning: nil
+            )
+        }
+
+        if Self.forceUltravoxQ4KMSpeechToToolBenchmark {
+            return VoiceRecorderEffectiveSettings(
+                voiceToTextMode: Self.defaultBenchmarkVoiceToTextMode,
+                whisperModelSize: Self.defaultBenchmarkWhisperModelSize,
+                audioToToolArchitecture: Self.defaultBenchmarkAudioToToolArchitecture,
+                includeSpectrogramAttachment: false,
+                includeWAVAttachment: false,
+                benchmarkEnabled: true,
+                benchmarkDelaySeconds: Self.defaultBenchmarkDelaySeconds,
+                benchmarkRecordingsMatch: ["*"],
+                benchmarkNumberOfInferences: Self.defaultBenchmarkNumberOfInferences,
+                benchmarkSteps: Self.defaultBenchmarkSteps,
+                benchmarkStepsError: nil,
+                benchmarkTextToToolModel: .ultravoxLlama32OneB,
+                benchmarkSpeechToToolModel: .ultravoxLlama32OneB,
+                isUsingSDKPayload: false,
+                remoteConfigWarning: nil
+            )
+        }
+
         let sdkPayload = sdkPayload ?? [:]
         let sdkBenchmarkEnabled = Self.benchmarkEnabled(from: sdkPayload) ?? false
         guard useSDKPayloadSettings || sdkBenchmarkEnabled else {
@@ -822,7 +1038,8 @@ final class SettingsStore: ObservableObject {
                 benchmarkNumberOfInferences: 1,
                 benchmarkSteps: Self.defaultBenchmarkSteps,
                 benchmarkStepsError: nil,
-                benchmarkTextToToolModel: .default,
+                benchmarkTextToToolModel: benchmarkTextToToolModel,
+                benchmarkSpeechToToolModel: benchmarkSpeechToToolModel,
                 isUsingSDKPayload: false,
                 remoteConfigWarning: nil
             )
@@ -845,19 +1062,29 @@ final class SettingsStore: ObservableObject {
         #if BENCHMARK_BUILD
         let benchmarkEnabled = useSDKPayloadSettings ? sdkBenchmarkEnabled : true
         let sdkAudioToToolArchitecture = Self.audioToToolArchitecture(from: sdkPayload)
-        let benchmarkStepConfiguration = Self.benchmarkSteps(from: sdkPayload)
-            ?? sdkAudioToToolArchitecture.map { (Self.benchmarkSteps(for: $0), nil) }
-            ?? (Self.defaultBenchmarkSteps, nil)
+        let benchmarkStepConfiguration = Self.forceUltravoxQ4KMSpeechToToolBenchmark
+            ? (Self.defaultBenchmarkSteps, nil)
+            : Self.benchmarkSteps(from: sdkPayload)
+                ?? sdkAudioToToolArchitecture.map { (Self.benchmarkSteps(for: $0), nil) }
+                ?? (Self.defaultBenchmarkSteps, nil)
         let benchmarkTextToToolModel = Self.benchmarkTextToToolModel(from: sdkPayload) ?? .default
+        let benchmarkSpeechToToolModel = Self.forceUltravoxQ4KMSpeechToToolBenchmark
+            ? Self.defaultBenchmarkSpeechToToolModel
+            : Self.benchmarkSpeechToToolModel(from: sdkPayload)
+                ?? Self.defaultBenchmarkSpeechToToolModel
         if let remoteConfigWarning = Self.remoteConfigUnsupportedWarning(
             from: sdkPayload,
             behavior: benchmarkEnabled ? .benchmarkStopped : .appleSTTFallback
         ) {
             if benchmarkEnabled {
                 return VoiceRecorderEffectiveSettings(
-                    voiceToTextMode: Self.voiceToTextMode(from: sdkPayload) ?? .disabled,
+                    voiceToTextMode: Self.forceUltravoxQ4KMSpeechToToolBenchmark
+                        ? .disabled
+                        : Self.voiceToTextMode(from: sdkPayload) ?? .disabled,
                     whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? .tiny,
-                    audioToToolArchitecture: sdkAudioToToolArchitecture ?? .twoStep,
+                    audioToToolArchitecture: Self.forceUltravoxQ4KMSpeechToToolBenchmark
+                        ? .oneStep
+                        : sdkAudioToToolArchitecture ?? .twoStep,
                     includeSpectrogramAttachment: false,
                     includeWAVAttachment: false,
                     benchmarkEnabled: benchmarkEnabled,
@@ -877,6 +1104,7 @@ final class SettingsStore: ObservableObject {
                     benchmarkSteps: benchmarkStepConfiguration.0,
                     benchmarkStepsError: nil,
                     benchmarkTextToToolModel: benchmarkTextToToolModel,
+                    benchmarkSpeechToToolModel: benchmarkSpeechToToolModel,
                     isUsingSDKPayload: true,
                     remoteConfigWarning: remoteConfigWarning
                 )
@@ -894,14 +1122,19 @@ final class SettingsStore: ObservableObject {
                 benchmarkSteps: Self.defaultBenchmarkSteps,
                 benchmarkStepsError: nil,
                 benchmarkTextToToolModel: .default,
+                benchmarkSpeechToToolModel: Self.defaultBenchmarkSpeechToToolModel,
                 isUsingSDKPayload: true,
                 remoteConfigWarning: remoteConfigWarning
             )
         }
         return VoiceRecorderEffectiveSettings(
-            voiceToTextMode: Self.voiceToTextMode(from: sdkPayload) ?? Self.defaultBenchmarkVoiceToTextMode,
+            voiceToTextMode: Self.forceUltravoxQ4KMSpeechToToolBenchmark
+                ? .disabled
+                : Self.voiceToTextMode(from: sdkPayload) ?? Self.defaultBenchmarkVoiceToTextMode,
             whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? Self.defaultBenchmarkWhisperModelSize,
-            audioToToolArchitecture: sdkAudioToToolArchitecture ?? Self.defaultBenchmarkAudioToToolArchitecture,
+            audioToToolArchitecture: Self.forceUltravoxQ4KMSpeechToToolBenchmark
+                ? .oneStep
+                : sdkAudioToToolArchitecture ?? Self.defaultBenchmarkAudioToToolArchitecture,
             includeSpectrogramAttachment: benchmarkEnabled ? false : Self.boolValue(
                 from: sdkPayload,
                 preferredKeys: [
@@ -941,6 +1174,7 @@ final class SettingsStore: ObservableObject {
             benchmarkSteps: benchmarkStepConfiguration.0,
             benchmarkStepsError: benchmarkStepConfiguration.1,
             benchmarkTextToToolModel: benchmarkTextToToolModel,
+            benchmarkSpeechToToolModel: benchmarkSpeechToToolModel,
             isUsingSDKPayload: true,
             remoteConfigWarning: nil
         )
@@ -1002,6 +1236,9 @@ final class SettingsStore: ObservableObject {
             settings.benchmarkSteps.map(\.rawValue).joined(separator: ","),
             settings.benchmarkStepsError ?? "",
             settings.benchmarkTextToToolModel.signature,
+            settings.benchmarkSpeechToToolModel.signature,
+            benchmarkTextToToolModel.signature,
+            benchmarkSpeechToToolModel.signature,
             settings.isUsingSDKPayload ? "sdk" : "local",
             settings.remoteConfigWarning ?? ""
         ].joined(separator: "|")
@@ -1025,7 +1262,13 @@ final class SettingsStore: ObservableObject {
         if settings.benchmarkEnabled && settings.remoteConfigWarning != nil {
             benchmark = ", benchmark stopped"
         } else if settings.benchmarkEnabled {
-            benchmark = ", benchmark on, steps \(steps), text-to-tool \(settings.benchmarkTextToToolModel.displayName), delay \(Int(settings.benchmarkDelaySeconds))s, \(settings.benchmarkNumberOfInferences)x"
+            let toolModel: String
+            if settings.benchmarkSteps.contains(.speechToTool) {
+                toolModel = "speech-to-tool \(settings.benchmarkSpeechToToolModel.displayName)"
+            } else {
+                toolModel = "text-to-tool \(settings.benchmarkTextToToolModel.displayName)"
+            }
+            benchmark = ", benchmark on, steps \(steps), \(toolModel), delay \(Int(settings.benchmarkDelaySeconds))s, \(settings.benchmarkNumberOfInferences)x"
         } else {
             benchmark = ", benchmark off"
         }
@@ -1075,10 +1318,28 @@ final class SettingsStore: ObservableObject {
         return "SDK payload fallback"
     }
 
+    #if BENCHMARK_BUILD
+    private static func selectableBenchmarkTextToToolModel(id: String?) -> BenchmarkTextToToolModel? {
+        guard let id else { return nil }
+        return selectableBenchmarkTextToToolModels.first { $0.id == id }
+    }
+
+    private static func selectableBenchmarkSpeechToToolModel(id: String?) -> BenchmarkTextToToolModel? {
+        guard let id else { return nil }
+        return selectableBenchmarkSpeechToToolModels.first { $0.id == id }
+    }
+    #endif
+
     private static func remoteConfigUnsupportedWarning(
         from config: RemoteSDKConfig,
         behavior: UnsupportedRemoteConfigBehavior = .appleSTTFallback
     ) -> String? {
+        #if BENCHMARK_BUILD
+        if forceUltravoxQ4KMSpeechToToolBenchmark {
+            return nil
+        }
+        #endif
+
         var unsupportedSettings: [String] = []
 
         if let value = voiceToTextModelValue(from: config),
@@ -1119,16 +1380,10 @@ final class SettingsStore: ObservableObject {
                 unsupportedSettings.append("text_to_tool_model \(configuredTextModel.displayName)")
             }
         } else if configuredSteps.contains(.speechToTool) {
-            if LeapSpeechTranscriber.isLoadTemporarilyDisabled {
-                unsupportedSettings.append("speech_to_tool_model \(BenchmarkTextToToolModel.leapLFM25Audio.displayName)")
-            } else if let value = benchmarkSpeechToToolModelValue(from: config) ?? benchmarkTextToToolModelValue(from: config) {
-                if let model = benchmarkTextToToolModel(from: value) {
-                    if isSupportedRemoteSpeechToToolModel(model) == false {
-                        unsupportedSettings.append("speech_to_tool_model \(model.displayName)")
-                    }
-                } else {
-                    unsupportedSettings.append("speech_to_tool_model")
-                }
+            let configuredSpeechModel = benchmarkSpeechToToolModel(from: config)
+                ?? defaultBenchmarkSpeechToToolModel
+            if isSupportedRemoteSpeechToToolModel(configuredSpeechModel) == false {
+                unsupportedSettings.append("speech_to_tool_model \(configuredSpeechModel.displayName)")
             }
         } else if let value = benchmarkTextToToolModelValue(from: config) {
             if let model = benchmarkTextToToolModel(from: value) {
@@ -1458,7 +1713,7 @@ final class SettingsStore: ObservableObject {
         else {
             return nil
         }
-        return max(0, seconds)
+        return max(Self.minimumBenchmarkDelaySeconds, seconds)
     }
 
     private static func benchmarkNumberOfInferences(from config: RemoteSDKConfig) -> Int? {
@@ -1484,6 +1739,14 @@ final class SettingsStore: ObservableObject {
 
     private static func benchmarkTextToToolModel(from config: RemoteSDKConfig) -> BenchmarkTextToToolModel? {
         guard let value = benchmarkTextToToolModelValue(from: config) else { return nil }
+
+        return benchmarkTextToToolModel(from: value)
+    }
+
+    private static func benchmarkSpeechToToolModel(from config: RemoteSDKConfig) -> BenchmarkTextToToolModel? {
+        guard let value = benchmarkSpeechToToolModelValue(from: config) ?? benchmarkTextToToolModelValue(from: config) else {
+            return nil
+        }
 
         return benchmarkTextToToolModel(from: value)
     }
@@ -1566,6 +1829,34 @@ final class SettingsStore: ObservableObject {
                 in: object,
                 keys: ["download_filename", "downloadFilename", "filename", "file_name", "fileName"]
             )
+            let mmprojDownloadURLString = firstString(
+                in: object,
+                keys: [
+                    "mmproj_url",
+                    "mmprojURL",
+                    "mmproj_download_url",
+                    "mmprojDownloadURL",
+                    "projector_url",
+                    "projectorURL",
+                    "projector_download_url",
+                    "projectorDownloadURL"
+                ]
+            )
+            let mmprojDownloadFilename = firstString(
+                in: object,
+                keys: [
+                    "mmproj_filename",
+                    "mmprojFilename",
+                    "mmproj_download_filename",
+                    "mmprojDownloadFilename",
+                    "projector_filename",
+                    "projectorFilename"
+                ]
+            )
+            let serverURLString = firstString(
+                in: object,
+                keys: ["server_url", "serverURL", "endpoint_url", "endpointURL", "base_url", "baseURL", "llama_server_url", "llamaServerURL"]
+            )
             let contextSize = firstInt(
                 in: object,
                 keys: ["context_size", "contextSize", "n_ctx", "nCtx"]
@@ -1588,6 +1879,30 @@ final class SettingsStore: ObservableObject {
                     modelFormat: modelFormat,
                     downloadURLString: downloadURLString,
                     downloadFilename: downloadFilename,
+                    mmprojDownloadURLString: mmprojDownloadURLString,
+                    mmprojDownloadFilename: mmprojDownloadFilename,
+                    serverURLString: serverURLString,
+                    contextSize: contextSize,
+                    maxGenerationTokens: maxGenerationTokens
+                )
+            }
+
+            if let modelName,
+               let preset = isDefaultTextToToolModelValue(modelName)
+                    ? BenchmarkTextToToolModel.default
+                    : BenchmarkTextToToolModel.preset(remoteValue: modelName) {
+                return preset.withOverrides(
+                    displayName: displayName,
+                    modelName: modelName,
+                    quantization: quantization,
+                    provider: provider,
+                    modelSource: modelSource,
+                    modelFormat: modelFormat,
+                    downloadURLString: downloadURLString,
+                    downloadFilename: downloadFilename,
+                    mmprojDownloadURLString: mmprojDownloadURLString,
+                    mmprojDownloadFilename: mmprojDownloadFilename,
+                    serverURLString: serverURLString,
                     contextSize: contextSize,
                     maxGenerationTokens: maxGenerationTokens
                 )
@@ -1595,24 +1910,8 @@ final class SettingsStore: ObservableObject {
 
             if let modelName,
                modelName.contains("/") == false {
-                let preset = isDefaultTextToToolModelValue(modelName)
-                    ? BenchmarkTextToToolModel.default
-                    : BenchmarkTextToToolModel.preset(remoteValue: modelName)
-                guard let preset else {
-                    return BenchmarkTextToToolModel.custom(
-                        modelName: modelName,
-                        displayName: displayName,
-                        quantization: quantization,
-                        provider: provider,
-                        modelSource: modelSource,
-                        modelFormat: modelFormat,
-                        downloadURLString: downloadURLString,
-                        downloadFilename: downloadFilename,
-                        contextSize: contextSize,
-                        maxGenerationTokens: maxGenerationTokens
-                    )
-                }
-                return preset.withOverrides(
+                return BenchmarkTextToToolModel.custom(
+                    modelName: modelName,
                     displayName: displayName,
                     quantization: quantization,
                     provider: provider,
@@ -1620,6 +1919,9 @@ final class SettingsStore: ObservableObject {
                     modelFormat: modelFormat,
                     downloadURLString: downloadURLString,
                     downloadFilename: downloadFilename,
+                    mmprojDownloadURLString: mmprojDownloadURLString,
+                    mmprojDownloadFilename: mmprojDownloadFilename,
+                    serverURLString: serverURLString,
                     contextSize: contextSize,
                     maxGenerationTokens: maxGenerationTokens
                 )
@@ -1635,6 +1937,9 @@ final class SettingsStore: ObservableObject {
                     modelFormat: modelFormat,
                     downloadURLString: downloadURLString,
                     downloadFilename: downloadFilename,
+                    mmprojDownloadURLString: mmprojDownloadURLString,
+                    mmprojDownloadFilename: mmprojDownloadFilename,
+                    serverURLString: serverURLString,
                     contextSize: contextSize,
                     maxGenerationTokens: maxGenerationTokens
                 )
@@ -1663,6 +1968,12 @@ final class SettingsStore: ObservableObject {
     private static func isSupportedRemoteTextToToolModel(_ model: BenchmarkTextToToolModel) -> Bool {
         switch model.kind {
         case .leapLFM25Audio:
+            return false
+        case .liquidLFM25AudioOnePointFiveB:
+            return false
+        case .ultravoxLlama32OneB:
+            return false
+        case .qwen3ASRZeroPointSixB:
             return false
         case .leapLFM25350M:
             #if canImport(LlamaSwift)
@@ -1734,10 +2045,22 @@ final class SettingsStore: ObservableObject {
     }
 
     private static func isSupportedRemoteSpeechToToolModel(_ model: BenchmarkTextToToolModel) -> Bool {
-        if LeapSpeechTranscriber.isLoadTemporarilyDisabled {
+        switch model.kind {
+        case .leapLFM25Audio:
+            if LeapSpeechTranscriber.isLoadTemporarilyDisabled {
+                return false
+            }
+            return model.matchesRemoteAllowlistPreset(.leapLFM25Audio)
+        case .liquidLFM25AudioOnePointFiveB:
+            return model.matchesRemoteAllowlistPreset(.liquidLFM25AudioOnePointFiveB)
+        case .ultravoxLlama32OneB:
+            return model.provider == BenchmarkTextToToolModel.ultravoxLlama32OneB.provider
+                && model.modelFormat == BenchmarkTextToToolModel.ultravoxLlama32OneB.modelFormat
+        case .qwen3ASRZeroPointSixB:
+            return model.matchesRemoteAllowlistPreset(.qwen3ASRZeroPointSixB)
+        default:
             return false
         }
-        return model.matchesRemoteAllowlistPreset(.leapLFM25Audio)
     }
 
     private static func firstInt(in object: [String: JSONValue], keys: [String]) -> Int? {

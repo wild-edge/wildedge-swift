@@ -11,10 +11,13 @@
 		4A7D2D1B3E5B4D4D9D2C8A11 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A7D2D1A3E5B4D4D9D2C8A11 /* SettingsStore.swift */; };
 		7B1122334455667788990001 /* ToolCallSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990002 /* ToolCallSupport.swift */; };
 		7B1122334455667788990003 /* BenchmarkToolCallModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990004 /* BenchmarkToolCallModel.swift */; };
+		7B1122334455667788990013 /* LlamaServerSpeechToToolModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990014 /* LlamaServerSpeechToToolModel.swift */; };
+		7B1122334455667788990015 /* LlamaMultimodalSpeechToToolModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990016 /* LlamaMultimodalSpeechToToolModel.swift */; };
 			7B1122334455667788990005 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990006 /* Assets.xcassets */; };
 			7B1122334455667788990007 /* BenchmarkLocalTextToToolModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990008 /* BenchmarkLocalTextToToolModels.swift */; };
 			7B1122334455667788990009 /* VoiceRecorderModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990010 /* VoiceRecorderModelManager.swift */; };
 			7B1122334455667788990011 /* MlxBenchmarkTextToToolModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B1122334455667788990012 /* MlxBenchmarkTextToToolModel.swift */; };
+		ABCD00000000000000000005 /* ModelAssets in Resources */ = {isa = PBXBuildFile; fileRef = ABCD00000000000000000006 /* ModelAssets */; };
 		ABCD00000000000000000001 /* benchmark_data in Resources */ = {isa = PBXBuildFile; fileRef = ABCD00000000000000000002 /* benchmark_data */; };
 		A3595218B85326094F38F424 /* RecorderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30357B251393A34B2BE2087F /* RecorderViewModel.swift */; };
 		AA2222222222222222222222 /* onnxruntime in Frameworks */ = {isa = PBXBuildFile; productRef = EE1111111111111111111111 /* onnxruntime */; };
@@ -41,6 +44,8 @@
 		4A7D2D1A3E5B4D4D9D2C8A11 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		7B1122334455667788990002 /* ToolCallSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolCallSupport.swift; sourceTree = "<group>"; };
 			7B1122334455667788990004 /* BenchmarkToolCallModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkToolCallModel.swift; sourceTree = "<group>"; };
+			7B1122334455667788990014 /* LlamaServerSpeechToToolModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaServerSpeechToToolModel.swift; sourceTree = "<group>"; };
+			7B1122334455667788990016 /* LlamaMultimodalSpeechToToolModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaMultimodalSpeechToToolModel.swift; sourceTree = "<group>"; };
 			7B1122334455667788990006 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 			7B1122334455667788990008 /* BenchmarkLocalTextToToolModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchmarkLocalTextToToolModels.swift; sourceTree = "<group>"; };
 			7B1122334455667788990010 /* VoiceRecorderModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecorderModelManager.swift; sourceTree = "<group>"; };
@@ -48,6 +53,7 @@
 		803F58F1EB4984FCC62D3361 /* wildedge-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wildedge-swift"; path = ../..; sourceTree = SOURCE_ROOT; };
 		9F718E01DE511FF02B526B16 /* VoiceRecorderApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceRecorderApp.swift; sourceTree = "<group>"; };
 		ABCD00000000000000000002 /* benchmark_data */ = {isa = PBXFileReference; lastKnownFileType = folder; path = benchmark_data; sourceTree = "<group>"; };
+		ABCD00000000000000000006 /* ModelAssets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ModelAssets; sourceTree = "<group>"; };
 		B41A9D0E5C94415BB81B6A11 /* SpectrogramRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectrogramRenderer.swift; sourceTree = "<group>"; };
 		B7C8D9E0F102030405060707 /* LeapSpeechTranscriber.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeapSpeechTranscriber.swift; sourceTree = "<group>"; };
 		D6C8C924B3D64F9E9A3A2C11 /* RemoteSDKConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSDKConfig.swift; sourceTree = "<group>"; };
@@ -91,6 +97,8 @@
 					7B1122334455667788990010 /* VoiceRecorderModelManager.swift */,
 					7B1122334455667788990002 /* ToolCallSupport.swift */,
 				7B1122334455667788990004 /* BenchmarkToolCallModel.swift */,
+				7B1122334455667788990014 /* LlamaServerSpeechToToolModel.swift */,
+				7B1122334455667788990016 /* LlamaMultimodalSpeechToToolModel.swift */,
 				7B1122334455667788990008 /* BenchmarkLocalTextToToolModels.swift */,
 				7B1122334455667788990012 /* MlxBenchmarkTextToToolModel.swift */,
 				B41A9D0E5C94415BB81B6A11 /* SpectrogramRenderer.swift */,
@@ -112,6 +120,7 @@
 			isa = PBXGroup;
 			children = (
 				F26147204566514D4F3DE015 /* Packages */,
+				ABCD00000000000000000006 /* ModelAssets */,
 				ABCD00000000000000000002 /* benchmark_data */,
 				0FF926428A3B809EA8702027 /* Sources */,
 				8BDCCCFF747CF63B96350B03 /* Products */,
@@ -180,7 +189,7 @@
 				DD1111111111111111111111 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */,
 				BB2222222222222222222222 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
 				CC3333333333333333333333 /* XCRemoteSwiftPackageReference "leap-sdk" */,
-				DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */,
+				DD7777777777777777777777 /* XCLocalSwiftPackageReference "Packages/LlamaSwiftMultimodal" */,
 				EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				EE7777777777777777777778 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 			);
@@ -200,6 +209,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7B1122334455667788990005 /* Assets.xcassets in Resources */,
+				ABCD00000000000000000005 /* ModelAssets in Resources */,
 				ABCD00000000000000000001 /* benchmark_data in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -243,6 +253,8 @@
 					7B1122334455667788990009 /* VoiceRecorderModelManager.swift in Sources */,
 					7B1122334455667788990001 /* ToolCallSupport.swift in Sources */,
 				7B1122334455667788990003 /* BenchmarkToolCallModel.swift in Sources */,
+				7B1122334455667788990013 /* LlamaServerSpeechToToolModel.swift in Sources */,
+				7B1122334455667788990015 /* LlamaMultimodalSpeechToToolModel.swift in Sources */,
 				7B1122334455667788990007 /* BenchmarkLocalTextToToolModels.swift in Sources */,
 				7B1122334455667788990011 /* MlxBenchmarkTextToToolModel.swift in Sources */,
 				B41A9D0F5C94415BB81B6A11 /* SpectrogramRenderer.swift in Sources */,
@@ -386,6 +398,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 8G3P36PD72;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -406,6 +419,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 8G3P36PD72;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -482,6 +496,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 8G3P36PD72;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
@@ -526,6 +541,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../../../wildedge-swift";
 		};
+		DD7777777777777777777777 /* XCLocalSwiftPackageReference "Packages/LlamaSwiftMultimodal" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/LlamaSwiftMultimodal;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -551,14 +570,6 @@
 			requirement = {
 				kind = exactVersion;
 				version = 0.10.6;
-			};
-		};
-		DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/mattt/llama.swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.9334.0;
 			};
 		};
 		EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
@@ -601,7 +612,7 @@
 		};
 		DD6666666666666666666666 /* LlamaSwift */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = DD7777777777777777777777 /* XCRemoteSwiftPackageReference "llama.swift" */;
+			package = DD7777777777777777777777 /* XCLocalSwiftPackageReference "Packages/LlamaSwiftMultimodal" */;
 			productName = LlamaSwift;
 		};
 		EE7777777777777777777772 /* MLXLLM */ = {

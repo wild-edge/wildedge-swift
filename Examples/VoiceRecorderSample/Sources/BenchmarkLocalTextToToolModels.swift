@@ -34,7 +34,7 @@ actor LlamaCppBenchmarkTextToToolModel {
         _ model: BenchmarkTextToToolModel,
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
     ) async throws -> URL {
-        guard model.provider == "llama_cpp", model.modelFormat == "gguf" else {
+        guard Self.supportsTextInference(model) else {
             throw SpeechTranscriptionError.transcriptionFailed("\(model.displayName) is not a llama.cpp GGUF model.")
         }
         guard let url = try await modelManager.prepare(
@@ -80,6 +80,11 @@ actor LlamaCppBenchmarkTextToToolModel {
             "llama.cpp is not linked in this build. Cannot run \(model.displayName)."
         )
         #endif
+    }
+
+    private nonisolated static func supportsTextInference(_ model: BenchmarkTextToToolModel) -> Bool {
+        (model.provider == "llama_cpp" || model.provider == "llama_cpp_mtmd")
+            && model.modelFormat == "gguf"
     }
 
     #if canImport(LlamaSwift)

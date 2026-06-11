@@ -91,13 +91,9 @@ actor LeapSpeechTranscriber {
             reasoningContent: nil,
             functionCalls: nil
         )
-        let options = GenerationOptions()
-            .with(maxTokens: 256)
-            .with(enableThinking: false)
-
         var transcript = ""
         var reasoningFallback = ""
-        for try await response in conversation.generateResponse(message: message, generationOptions: options) {
+        for try await response in conversation.generateResponse(message: message) {
             switch onEnum(of: response) {
             case .chunk(let chunk):
                 transcript += chunk.text
@@ -214,14 +210,10 @@ actor LeapSpeechTranscriber {
         maxTokens: Int,
         logPrefix: String
     ) async throws -> String {
-        let options = GenerationOptions()
-            .with(maxTokens: Int32(maxTokens))
-            .with(enableThinking: false)
-
         var generatedText = ""
         var reasoningFallback = ""
         var responseEvents: [String] = []
-        for try await response in conversation.generateResponse(message: message, generationOptions: options) {
+        for try await response in conversation.generateResponse(message: message) {
             switch onEnum(of: response) {
             case .chunk(let chunk):
                 generatedText += chunk.text
