@@ -139,8 +139,8 @@ actor VoiceRecorderModelManager {
                 try? fileManager.removeItem(at: manifestURL(for: model))
             case .whisper(let model):
                 try? fileManager.removeItem(at: stableWhisperFolder(for: model))
-            case .leapAudio:
-                break
+            case .leapAudio(let modelName, let quantization):
+                try? fileManager.removeItem(at: leapFolder(modelName: modelName, quantization: quantization))
             }
         } catch {
             return

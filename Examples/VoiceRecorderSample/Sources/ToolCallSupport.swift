@@ -138,6 +138,10 @@ enum ToolCallJSON {
             }
         }
 
+        if let functionCallValue = firstFunctionCallValue(from: searchTexts) {
+            return ToolCallParseResult(value: functionCallValue, error: nil)
+        }
+
         guard sawJSONObject else {
             return ToolCallParseResult(value: nil, error: "No JSON object found.")
         }
@@ -157,6 +161,9 @@ enum ToolCallJSON {
                     return value.canonicalString
                 }
             }
+        }
+        if let functionCallValue = firstFunctionCallValue(from: uniqueSearchTexts(from: trimmed)) {
+            return functionCallValue.canonicalString
         }
         return nil
     }
@@ -180,19 +187,25 @@ enum ToolCallJSON {
         }
         let object = try JSONSerialization.jsonObject(with: data)
         let value = try ToolCallJSONValue(any: object)
-        try validateToolCall(value)
-        return value
+        return try normalizedToolCallValue(from: value)
     }
 
     private static func uniqueSearchTexts(from text: String) -> [String] {
         let withoutThinkBlocks = text.removingTaggedBlocks(named: "think")
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard withoutThinkBlocks.isEmpty == false,
-              withoutThinkBlocks != text
-        else {
-            return [text]
+        let withoutFunctionTags = withoutThinkBlocks
+            .removingKnownFunctionCallTags()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var texts: [String] = []
+        for candidate in [withoutFunctionTags, withoutThinkBlocks, text] {
+            guard candidate.isEmpty == false,
+                  texts.contains(candidate) == false else {
+                continue
+            }
+            texts.append(candidate)
         }
-        return [withoutThinkBlocks, text]
+        return texts.isEmpty ? [text] : texts
     }
 
     private static func extractJSONObjectCandidates(from text: String) -> [String] {
@@ -242,6 +255,455 @@ enum ToolCallJSON {
         }
 
         return nil
+    }
+
+    private static func normalizedToolCallValue(from value: ToolCallJSONValue) throws -> ToolCallJSONValue {
+        switch value {
+        case .object(let object):
+            if isCanonicalToolCallObject(object) {
+                let canonical = ToolCallJSONValue.object(object)
+                try validateToolCall(canonical)
+                return canonical
+            }
+            if let nested = nestedToolCallValue(in: object) {
+                return try normalizedToolCallValue(from: nested)
+            }
+            if let toolName = toolName(in: object) {
+                let canonicalName = try canonicalToolName(toolName)
+                let arguments = try canonicalArguments(
+                    for: canonicalName,
+                    rawArguments: rawArguments(in: object),
+                    fallbackObject: object
+                )
+                let canonical = ToolCallJSONValue.object([
+                    "tool_name": .string(canonicalName),
+                    "arguments": arguments
+                ])
+                try validateToolCall(canonical)
+                return canonical
+            }
+            throw validationError("Tool call must contain a supported tool name.")
+        case .array(let array):
+            for item in array {
+                if let value = try? normalizedToolCallValue(from: item) {
+                    return value
+                }
+            }
+            throw validationError("No valid tool call found in array.")
+        default:
+            throw validationError("Tool call must be a JSON object.")
+        }
+    }
+
+    private static func isCanonicalToolCallObject(_ object: [String: ToolCallJSONValue]) -> Bool {
+        Set(object.keys) == ["tool_name", "arguments"]
+    }
+
+    private static func nestedToolCallValue(in object: [String: ToolCallJSONValue]) -> ToolCallJSONValue? {
+        for key in ["function_call", "functionCall", "tool_call", "toolCall", "call", "action"] {
+            if let value = object[key] {
+                return value
+            }
+        }
+        for key in ["function", "tool"] {
+            if case .object? = object[key] {
+                return object[key]
+            }
+        }
+        for key in ["tool_calls", "toolCalls", "calls", "actions"] {
+            if case .array? = object[key] {
+                return object[key]
+            }
+        }
+        return nil
+    }
+
+    private static func toolName(in object: [String: ToolCallJSONValue]) -> String? {
+        for key in ["tool_name", "toolName", "name", "function_name", "functionName", "function", "tool", "action"] {
+            if case .string(let name)? = object[key] {
+                return name
+            }
+        }
+        return nil
+    }
+
+    private static func rawArguments(in object: [String: ToolCallJSONValue]) -> ToolCallJSONValue? {
+        for key in ["arguments", "args", "parameters", "params", "kwargs", "input"] {
+            if let value = object[key] {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func canonicalToolName(_ name: String) throws -> String {
+        let normalized = name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "-", with: "_")
+            .replacingOccurrences(of: " ", with: "_")
+            .lowercased()
+
+        switch normalized {
+        case "set_temperature", "settemperature", "temperature", "climate", "set_climate":
+            return "set_temperature"
+        case "change_volume", "changevolume", "volume", "set_volume", "adjust_volume", "audio_volume":
+            return "change_volume"
+        case "navigate", "navigation", "navigate_to", "get_directions", "directions", "route":
+            return "navigate"
+        case "unknown", "none", "no_tool":
+            return "unknown"
+        default:
+            throw validationError("Unsupported tool_name: \(name).")
+        }
+    }
+
+    private static func canonicalArguments(
+        for toolName: String,
+        rawArguments: ToolCallJSONValue?,
+        fallbackObject: [String: ToolCallJSONValue]
+    ) throws -> ToolCallJSONValue {
+        let argumentObject = try argumentObject(from: rawArguments)
+            ?? fallbackArguments(from: fallbackObject)
+
+        switch toolName {
+        case "set_temperature":
+            guard let temperature = argumentObject["temperature"].flatMap(numberValue) else {
+                throw validationError("set_temperature.arguments.temperature must be a number.")
+            }
+            return .object(["temperature": .number(temperature)])
+        case "change_volume":
+            guard let rawDirection = argumentObject["direction"].flatMap(stringValue),
+                  let direction = canonicalVolumeDirection(rawDirection) else {
+                throw validationError("change_volume.arguments.direction must be \"up\" or \"down\".")
+            }
+            return .object(["direction": .string(direction)])
+        case "navigate":
+            guard let destination = argumentObject["destination"].flatMap(stringValue)
+                    ?? argumentObject["place"].flatMap(stringValue)
+                    ?? argumentObject["location"].flatMap(stringValue),
+                  destination.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+                throw validationError("navigate.arguments.destination must be a lowercase string.")
+            }
+            return .object(["destination": .string(cleanedDestination(destination))])
+        case "unknown":
+            return .object([:])
+        default:
+            throw validationError("Unsupported tool_name: \(toolName).")
+        }
+    }
+
+    private static func argumentObject(
+        from value: ToolCallJSONValue?
+    ) throws -> [String: ToolCallJSONValue]? {
+        guard let value else { return nil }
+        switch value {
+        case .object(let object):
+            return object
+        case .array(let array):
+            for item in array {
+                if case .object(let object) = item {
+                    return object
+                }
+            }
+            return nil
+        case .string(let string):
+            if let object = jsonObjectValue(from: string) {
+                return object
+            }
+            return keyValueArguments(from: string)
+        default:
+            return nil
+        }
+    }
+
+    private static func fallbackArguments(
+        from object: [String: ToolCallJSONValue]
+    ) -> [String: ToolCallJSONValue] {
+        let reservedKeys: Set<String> = [
+            "tool_name", "toolName", "name", "function_name", "functionName", "function",
+            "tool", "action", "arguments", "args", "parameters", "params", "kwargs", "input"
+        ]
+        return object.filter { reservedKeys.contains($0.key) == false }
+    }
+
+    private static func jsonObjectValue(from text: String) -> [String: ToolCallJSONValue]? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let data = trimmed.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let value = try? ToolCallJSONValue(any: object),
+              case .object(let parsed) = value else {
+            return nil
+        }
+        return parsed
+    }
+
+    private static func firstFunctionCallValue(from searchTexts: [String]) -> ToolCallJSONValue? {
+        for searchText in searchTexts {
+            for functionCall in extractFunctionCallCandidates(from: searchText) {
+                if let value = try? normalizedToolCallValue(from: functionCall) {
+                    return value
+                }
+            }
+        }
+        return nil
+    }
+
+    private static func extractFunctionCallCandidates(from text: String) -> [ToolCallJSONValue] {
+        let names = [
+            "set_temperature", "setTemperature", "temperature",
+            "change_volume", "changeVolume", "volume",
+            "navigate", "navigation", "unknown"
+        ]
+        var candidates: [ToolCallJSONValue] = []
+        for name in names {
+            var searchRange = text.startIndex..<text.endIndex
+            while let nameRange = text.range(of: name, options: [.caseInsensitive], range: searchRange) {
+                let afterName = nameRange.upperBound..<text.endIndex
+                if let openParen = text[afterName].firstIndex(of: "("),
+                   let closeParen = matchingCloseParen(startingAt: openParen, in: text) {
+                    let rawArguments = String(text[text.index(after: openParen)..<closeParen])
+                    candidates.append(.object([
+                        "name": .string(name),
+                        "arguments": .object(functionArguments(from: rawArguments, functionName: name))
+                    ]))
+                    searchRange = text.index(after: closeParen)..<text.endIndex
+                    continue
+                }
+
+                if let taggedCandidate = functionCallCandidateWithoutParentheses(
+                    name: name,
+                    text: text,
+                    nameEndIndex: nameRange.upperBound
+                ) {
+                    candidates.append(taggedCandidate.value)
+                    searchRange = taggedCandidate.nextIndex..<text.endIndex
+                    continue
+                }
+
+                searchRange = nameRange.upperBound..<text.endIndex
+            }
+        }
+        return candidates
+    }
+
+    private static func functionCallCandidateWithoutParentheses(
+        name: String,
+        text: String,
+        nameEndIndex: String.Index
+    ) -> (value: ToolCallJSONValue, nextIndex: String.Index)? {
+        let trailingStart = text[nameEndIndex...]
+            .firstIndex { $0.isWhitespace == false && $0 != ":" }
+            ?? nameEndIndex
+
+        if trailingStart < text.endIndex,
+           text[trailingStart] == "{",
+           let objectEndIndex = endOfJSONObject(startingAt: trailingStart, in: text) {
+            let rawArguments = String(text[trailingStart..<objectEndIndex])
+            return (
+                .object([
+                    "name": .string(name),
+                    "arguments": .object(functionArguments(from: rawArguments, functionName: name))
+                ]),
+                objectEndIndex
+            )
+        }
+
+        let boundary = text[trailingStart...].firstIndex { character in
+            character == "<" || character == "\n" || character == ";" || character == ")"
+        } ?? text.endIndex
+        let rawArguments = String(text[trailingStart..<boundary])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard rawArguments.isEmpty == false else {
+            return nil
+        }
+        return (
+            .object([
+                "name": .string(name),
+                "arguments": .object(functionArguments(from: rawArguments, functionName: name))
+            ]),
+            boundary
+        )
+    }
+
+    private static func matchingCloseParen(
+        startingAt openParen: String.Index,
+        in text: String
+    ) -> String.Index? {
+        var depth = 0
+        var quote: Character?
+        var isEscaped = false
+        var index = openParen
+        while index < text.endIndex {
+            let character = text[index]
+            if let activeQuote = quote {
+                if isEscaped {
+                    isEscaped = false
+                } else if character == "\\" {
+                    isEscaped = true
+                } else if character == activeQuote {
+                    quote = nil
+                }
+            } else if character == "\"" || character == "'" {
+                quote = character
+            } else if character == "(" {
+                depth += 1
+            } else if character == ")" {
+                depth -= 1
+                if depth == 0 {
+                    return index
+                }
+            }
+            index = text.index(after: index)
+        }
+        return nil
+    }
+
+    private static func functionArguments(
+        from text: String,
+        functionName: String
+    ) -> [String: ToolCallJSONValue] {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let object = jsonObjectValue(from: trimmed) {
+            return object
+        }
+        let keyValues = keyValueArguments(from: trimmed)
+        if keyValues.isEmpty == false {
+            return keyValues
+        }
+        guard trimmed.isEmpty == false else {
+            return [:]
+        }
+
+        switch try? canonicalToolName(functionName) {
+        case "set_temperature":
+            return ["temperature": primitiveValue(from: trimmed)]
+        case "change_volume":
+            return ["direction": primitiveValue(from: trimmed)]
+        case "navigate":
+            return ["destination": primitiveValue(from: trimmed)]
+        default:
+            return [:]
+        }
+    }
+
+    private static func keyValueArguments(from text: String) -> [String: ToolCallJSONValue] {
+        var arguments: [String: ToolCallJSONValue] = [:]
+        for field in splitArguments(text) {
+            let separators = ["=", ":"]
+            guard let separator = separators.compactMap({ field.range(of: $0) }).min(by: { $0.lowerBound < $1.lowerBound }) else {
+                continue
+            }
+            let key = field[..<separator.lowerBound]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+            let rawValue = field[separator.upperBound...]
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard key.isEmpty == false else { continue }
+            arguments[key] = primitiveValue(from: rawValue)
+        }
+        return arguments
+    }
+
+    private static func splitArguments(_ text: String) -> [String] {
+        var fields: [String] = []
+        var current = ""
+        var quote: Character?
+        var isEscaped = false
+        for character in text {
+            if let activeQuote = quote {
+                current.append(character)
+                if isEscaped {
+                    isEscaped = false
+                } else if character == "\\" {
+                    isEscaped = true
+                } else if character == activeQuote {
+                    quote = nil
+                }
+            } else if character == "\"" || character == "'" {
+                quote = character
+                current.append(character)
+            } else if character == "," {
+                fields.append(current.trimmingCharacters(in: .whitespacesAndNewlines))
+                current = ""
+            } else {
+                current.append(character)
+            }
+        }
+        let last = current.trimmingCharacters(in: .whitespacesAndNewlines)
+        if last.isEmpty == false {
+            fields.append(last)
+        }
+        return fields
+    }
+
+    private static func primitiveValue(from text: String) -> ToolCallJSONValue {
+        let trimmed = text
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+        if let double = Double(trimmed), double.isFinite {
+            if double.rounded() == double {
+                return .number(String(Int64(double)))
+            }
+            return .number(String(format: "%.15g", double))
+        }
+        return .string(trimmed)
+    }
+
+    private static func stringValue(_ value: ToolCallJSONValue) -> String? {
+        switch value {
+        case .string(let string):
+            return string
+        case .number(let number):
+            return number
+        default:
+            return nil
+        }
+    }
+
+    private static func numberValue(_ value: ToolCallJSONValue) -> String? {
+        switch value {
+        case .number(let number):
+            return number
+        case .string(let string):
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let double = Double(trimmed), double.isFinite else { return nil }
+            if double.rounded() == double {
+                return String(Int64(double))
+            }
+            return String(format: "%.15g", double)
+        default:
+            return nil
+        }
+    }
+
+    private static func canonicalVolumeDirection(_ direction: String) -> String? {
+        let normalized = direction
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        if ["up", "increase", "raise", "louder", "unmute"].contains(normalized) {
+            return "up"
+        }
+        if ["down", "decrease", "lower", "quieter", "mute"].contains(normalized) {
+            return "down"
+        }
+        return nil
+    }
+
+    private static func cleanedDestination(_ destination: String) -> String {
+        var cleaned = destination
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters))
+        for filler in ["please", "pls", "thanks", "thank you", "now"] {
+            if cleaned.hasPrefix("\(filler) ") {
+                cleaned = String(cleaned.dropFirst(filler.count + 1))
+            }
+            if cleaned.hasSuffix(" \(filler)") {
+                cleaned = String(cleaned.dropLast(filler.count + 1))
+            }
+        }
+        return cleaned
     }
 
     private static func validateToolCall(_ value: ToolCallJSONValue) throws {
@@ -407,13 +869,43 @@ enum ToolCallPromptBuilder {
     """
 
     static let compactSystemPrompt = """
-    Return one valid JSON object, then stop after }. No transcript, prose, Markdown, code fence, or extra keys. Shape: {"tool_name":"set_temperature|change_volume|navigate|unknown","arguments":{}}. Quote keys/strings. set_temperature {"temperature":number}: temperature, warmer/cooler, AC; use spoken number. change_volume {"direction":"up"|"down"}: volume/sound; too loud/quieter/down=>down; too quiet/louder/can't hear=>up. navigate {"destination":"lowercase place"}: go/drive/navigate/directions; strip please/now. unknown {}.
+    Convert one short in-car command into exactly one JSON object:
+    {"tool_name":"...","arguments":{...}}
+
+    Return only JSON. No Markdown, prose, reasoning, <think> text, <start_function_call> tags, native function-call syntax, arrays, or multiple calls. Stop after the closing brace.
+
+    Tools:
+    - set_temperature {"temperature":number}: climate, temperature, heat, cold, warm, cool, AC, air conditioning.
+    - change_volume {"direction":"up"|"down"}: audio loudness, volume, sound, louder, quieter, mute, unmute. Map "too loud", "volume down", "lower sound" to "down"; "too quiet", "can't hear", "volume up" to "up".
+    - navigate {"destination":lowercase string}: routing, directions, drive/go/navigate to a place. Destination is only the place name; remove filler like please, pls, thanks, thank you, now.
+    - unknown {}: no supported tool clearly matches.
+
+    Examples:
+    set temperature to 21 degrees -> {"tool_name":"set_temperature","arguments":{"temperature":21}}
+    volume down -> {"tool_name":"change_volume","arguments":{"direction":"down"}}
+    I can't hear it -> {"tool_name":"change_volume","arguments":{"direction":"up"}}
+    navigate home, please -> {"tool_name":"navigate","arguments":{"destination":"home"}}
     """
 
     static let systemPrompt = compactSystemPrompt
 
-    static let speechToToolSystemPrompt = """
-    Perform ASR.
+    static let speechToToolSystemPrompt = "Perform ASR."
+
+    static let toolCallJSONSchema = """
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool_name", "arguments"],
+      "properties": {
+        "tool_name": {
+          "type": "string",
+          "enum": ["set_temperature", "change_volume", "navigate", "unknown"]
+        },
+        "arguments": {
+          "type": "object"
+        }
+      }
+    }
     """
 
     static func textToToolUserPrompt(transcript: String) -> String {
@@ -449,7 +941,26 @@ enum ToolCallPromptBuilder {
 
     static func speechToToolUserPrompt() -> String {
         """
-        \(compactSystemPrompt)
+        You convert one spoken in-car command into exactly one JSON object.
+
+        Return only valid JSON. No transcript, prose, Markdown, code fences, reasoning, or extra keys. Stop after the JSON object.
+
+        Required shape:
+        {"tool_name":"set_temperature|change_volume|navigate|unknown","arguments":{}}
+
+        Choose exactly one tool:
+        - set_temperature: use for cabin temperature, heat, cold, warmer, cooler, AC, air conditioning. Arguments: {"temperature":number}. If a number is spoken, use it.
+        - change_volume: use for audio volume, sound, loud, quiet, louder, quieter, mute, unmute. Arguments: {"direction":"up"|"down"}. Map "too loud", "quieter", "lower", "volume down" to "down". Map "too quiet", "can't hear", "louder", "volume up" to "up".
+        - navigate: use only for travel, routing, directions, driving, or going to a destination. Arguments: {"destination":"lowercase place"}. Remove filler like please, now, thanks.
+        - unknown: use when no tool clearly matches. Arguments: {}.
+
+        Do not choose navigate just because a place word appears. Choose navigate only when the command asks to go, drive, route, navigate, or get directions.
+
+        Examples:
+        "temperature 21 degrees" -> {"tool_name":"set_temperature","arguments":{"temperature":21}}
+        "it's too loud, volume down" -> {"tool_name":"change_volume","arguments":{"direction":"down"}}
+        "I can't hear it" -> {"tool_name":"change_volume","arguments":{"direction":"up"}}
+        "let's go home" -> {"tool_name":"navigate","arguments":{"destination":"home"}}
         """
     }
 }
@@ -490,11 +1001,79 @@ enum ToolCallTranscriptHeuristics {
             return forced
         }
 
+        if ToolCallJSON.parseAndValidate(from: normalizedOutput).value == nil,
+           let inferred = inferredToolCallJSON(fromTranscript: transcript) {
+            return inferred
+        }
+
         if let correctedNavigation = correctedNavigationToolCallJSON(rawOutput: normalizedOutput) {
             return correctedNavigation
         }
 
         return normalizedOutput
+    }
+
+    private static func inferredToolCallJSON(fromTranscript transcript: String) -> String? {
+        let normalized = normalize(transcript)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters))
+        guard normalized.isEmpty == false else { return nil }
+
+        if containsAny(in: normalized, terms: ["temperature", "temp", "degrees", "warmer", "cooler", "cold", "hot", "heat", "ac"]) {
+            let temperature = firstNumber(in: normalized)
+                ?? (containsAny(in: normalized, terms: ["cooler", "cold", "ac"]) ? 19 : 22)
+            return #"{"tool_name":"set_temperature","arguments":{"temperature":\#(temperature)}}"#
+        }
+
+        if let forced = forcedToolCallJSON(for: normalized) {
+            return forced
+        }
+
+        if containsAny(in: normalized, terms: ["navigate", "directions", "drive", "go", "route"])
+            || normalized.contains("get to") {
+            let destination = cleanedNavigationDestination(navigationDestination(from: normalized))
+            guard destination.isEmpty == false else { return nil }
+            let quotedDestination = ToolCallJSONValue.string(destination).canonicalString
+            return #"{"tool_name":"navigate","arguments":{"destination":\#(quotedDestination)}}"#
+        }
+
+        return nil
+    }
+
+    private static func firstNumber(in text: String) -> Int? {
+        guard let range = text.range(of: #"\b\d{1,3}\b"#, options: .regularExpression),
+              let value = Int(text[range])
+        else {
+            return nil
+        }
+        return value
+    }
+
+    private static func navigationDestination(from text: String) -> String {
+        let prefixes = [
+            "how do i get to ",
+            "can you navigate to ",
+            "could you navigate to ",
+            "please navigate to ",
+            "navigate to ",
+            "navigate ",
+            "directions to ",
+            "drive to ",
+            "route to ",
+            "let's go to ",
+            "lets go to ",
+            "let's go ",
+            "lets go ",
+            "go to ",
+            "go "
+        ]
+        for prefix in prefixes where text.hasPrefix(prefix) {
+            return String(text.dropFirst(prefix.count))
+        }
+        if let range = text.range(of: " get to ") {
+            return String(text[range.upperBound...])
+        }
+        return text
     }
 
     private static func correctedNavigationToolCallJSON(rawOutput: String) -> String? {
@@ -585,6 +1164,34 @@ private extension String {
             result.removeSubrange(startRange.lowerBound..<endRange.upperBound)
         }
 
+        return result
+    }
+
+    func removingKnownFunctionCallTags() -> String {
+        var result = self
+        let tags = [
+            "<start_function_call>",
+            "<end_function_call>",
+            "<function_call>",
+            "</function_call>",
+            "<tool_call>",
+            "</tool_call>",
+            "<start_tool_call>",
+            "<end_tool_call>",
+            "<start_parameter>",
+            "<end_parameter>",
+            "<start_argument>",
+            "<end_argument>",
+            "<separator>",
+            "<sep>"
+        ]
+        for tag in tags {
+            result = result.replacingOccurrences(
+                of: tag,
+                with: " ",
+                options: [.caseInsensitive]
+            )
+        }
         return result
     }
 }

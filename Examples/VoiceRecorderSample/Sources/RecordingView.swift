@@ -17,7 +17,7 @@ struct RecordingView: View {
                 ScrollView {
                     VStack(spacing: 28) {
                         #if BENCHMARK_BUILD
-                        if shouldShowBenchmarkPanel {
+                        if shouldShowBenchmarkTable {
                             BenchmarkStatusCard(
                                 isRunning: viewModel.isBenchmarking,
                                 statusText: benchmarkStatusText,
@@ -32,85 +32,17 @@ struct RecordingView: View {
                                 actualToolCall: viewModel.benchmarkActualToolCall,
                                 latencyText: viewModel.benchmarkLatencyText,
                                 transcriptMatchText: viewModel.benchmarkTranscriptMatchText,
-                                toolCallMatchText: viewModel.benchmarkToolCallMatchText
+                                toolCallMatchText: viewModel.benchmarkToolCallMatchText,
+                                toolCallMatchSummary: viewModel.benchmarkToolCallMatchSummary,
+                                toolCallMismatchDetails: viewModel.benchmarkToolCallMismatchDetails
                             )
                             .transition(.move(edge: .top).combined(with: .opacity))
+                        } else {
+                            voiceInputContent
                         }
+                        #else
+                        voiceInputContent
                         #endif
-
-                        ActiveConfigurationCard(
-                            sourceText: effectiveSettingsSourceText,
-                            flowText: settingsStore.effectiveSettings.flowDisplayName,
-                            modelText: settingsStore.effectiveSettings.modelDisplayName,
-                            configStatusText: settingsStore.effectiveSettings.remoteConfigWarning ?? "Config supported"
-                        )
-
-                        Spacer(minLength: 12)
-
-                        VoiceBarsView(levels: viewModel.barLevels)
-                            .frame(height: 80)
-                            .opacity(viewModel.isRecording ? 1 : 0.15)
-                            .animation(.easeInOut(duration: 0.3), value: viewModel.isRecording)
-
-                        Text(formattedDuration)
-                            .font(.system(size: 52, weight: .thin, design: .monospaced))
-                            .foregroundStyle(viewModel.isRecording ? Color.primary : Color.secondary)
-                            .animation(.easeInOut(duration: 0.3), value: viewModel.isRecording)
-                            .contentTransition(.numericText())
-
-                        RecordButton(
-                            isRecording: viewModel.isRecording,
-                            isFinishing: viewModel.isFinishing
-                        ) {
-                            Task {
-                                let effectiveSettings = settingsStore.effectiveSettings
-                                await viewModel.toggleRecording(
-                                    voiceToTextMode: effectiveSettings.voiceToTextMode,
-                                    whisperModelSize: effectiveSettings.whisperModelSize,
-                                    audioToToolArchitecture: effectiveSettings.audioToToolArchitecture,
-                                    includeSpectrogramAttachment: effectiveSettings.includeSpectrogramAttachment,
-                                    includeWAVAttachment: effectiveSettings.includeWAVAttachment
-                                )
-                            }
-                        }
-
-                        if viewModel.isProcessing {
-                            VStack(spacing: 8) {
-                                if let processingProgress = viewModel.processingProgress {
-                                    ProgressView(value: processingProgress)
-                                        .frame(maxWidth: 260)
-                                    Text("\(Int(processingProgress * 100))%")
-                                        .font(.caption2.monospacedDigit())
-                                        .foregroundStyle(.secondary)
-                                } else {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                }
-
-                                Text(viewModel.processingMessage.isEmpty ? "Processing voice..." : viewModel.processingMessage)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .multilineTextAlignment(.center)
-                                    .frame(maxWidth: 300)
-                            }
-                        } else if let processedAudioURL = viewModel.processedAudioURL {
-                            ProcessedAudioCard(
-                                url: processedAudioURL,
-                                isPlaying: viewModel.isPlayingProcessedAudio,
-                                statusText: viewModel.processingMessage,
-                                action: {
-                                    viewModel.toggleProcessedPlayback()
-                                }
-                            )
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                        }
-
-                        if let result = viewModel.lastRecording {
-                            RecordingResultCard(result: result)
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
-                        }
-
-                        Spacer(minLength: 12)
                     }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 16)
@@ -153,6 +85,83 @@ struct RecordingView: View {
         }
     }
 
+    @ViewBuilder
+    private var voiceInputContent: some View {
+        ActiveConfigurationCard(
+            sourceText: effectiveSettingsSourceText,
+            flowText: settingsStore.effectiveSettings.flowDisplayName,
+            modelText: settingsStore.effectiveSettings.modelDisplayName,
+            configStatusText: settingsStore.effectiveSettings.remoteConfigWarning ?? "Config supported"
+        )
+
+        Spacer(minLength: 12)
+
+        VoiceBarsView(levels: viewModel.barLevels)
+            .frame(height: 80)
+            .opacity(viewModel.isRecording ? 1 : 0.15)
+            .animation(.easeInOut(duration: 0.3), value: viewModel.isRecording)
+
+        Text(formattedDuration)
+            .font(.system(size: 52, weight: .thin, design: .monospaced))
+            .foregroundStyle(viewModel.isRecording ? Color.primary : Color.secondary)
+            .animation(.easeInOut(duration: 0.3), value: viewModel.isRecording)
+            .contentTransition(.numericText())
+
+        RecordButton(
+            isRecording: viewModel.isRecording,
+            isFinishing: viewModel.isFinishing
+        ) {
+            Task {
+                let effectiveSettings = settingsStore.effectiveSettings
+                await viewModel.toggleRecording(
+                    voiceToTextMode: effectiveSettings.voiceToTextMode,
+                    whisperModelSize: effectiveSettings.whisperModelSize,
+                    audioToToolArchitecture: effectiveSettings.audioToToolArchitecture,
+                    includeSpectrogramAttachment: effectiveSettings.includeSpectrogramAttachment,
+                    includeWAVAttachment: effectiveSettings.includeWAVAttachment
+                )
+            }
+        }
+
+        if viewModel.isProcessing {
+            VStack(spacing: 8) {
+                if let processingProgress = viewModel.processingProgress {
+                    ProgressView(value: processingProgress)
+                        .frame(maxWidth: 260)
+                    Text("\(Int(processingProgress * 100))%")
+                        .font(.caption2.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
+                Text(viewModel.processingMessage.isEmpty ? "Processing voice..." : viewModel.processingMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 300)
+            }
+        } else if let processedAudioURL = viewModel.processedAudioURL {
+            ProcessedAudioCard(
+                url: processedAudioURL,
+                isPlaying: viewModel.isPlayingProcessedAudio,
+                statusText: viewModel.processingMessage,
+                action: {
+                    viewModel.toggleProcessedPlayback()
+                }
+            )
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+
+        if let result = viewModel.lastRecording {
+            RecordingResultCard(result: result)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+
+        Spacer(minLength: 12)
+    }
+
     private var formattedDuration: String {
         let total = Int(viewModel.duration)
         let tenths = Int(viewModel.duration * 10) % 10
@@ -173,10 +182,9 @@ struct RecordingView: View {
     }
 
     #if BENCHMARK_BUILD
-    private var shouldShowBenchmarkPanel: Bool {
+    private var shouldShowBenchmarkTable: Bool {
         settingsStore.effectiveSettings.benchmarkEnabled
             || viewModel.isBenchmarking
-            || !viewModel.benchmarkStatus.isEmpty
             || !didCompleteBenchmarkStartupConfigRefresh
     }
 
@@ -260,6 +268,9 @@ private struct BenchmarkStatusCard: View {
     let latencyText: String
     let transcriptMatchText: String
     let toolCallMatchText: String
+    let toolCallMatchSummary: String
+    let toolCallMismatchDetails: [String]
+    @State private var isShowingToolMismatchDetails = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -295,20 +306,29 @@ private struct BenchmarkStatusCard: View {
             stableRow("Measuring inference time", value: runProgress)
             stableRow("Benchmark steps", value: stepsText)
             stableRow("Sleep countdown", value: sleepCountdown)
-            stableRow("Expected transcript", value: expectedTranscript)
-            stableRow(
-                "Actual transcript",
-                value: transcript,
-                processingWhenEmpty: isRunning && includesTranscriptStep
-            )
-            stableBlock("Expected tool call", value: expectedToolCall)
-            stableBlock(
-                "Actual tool call",
-                value: actualToolCall,
-                processingWhenEmpty: isRunning && includesToolStep
-            )
-            resultRow(label: "Transcript result", value: transcriptMatchText)
-            resultRow(label: "Tool-call result", value: toolCallMatchText)
+            if includesTranscriptStep {
+                Divider()
+                stableBlock("Expected speech_to_text", value: expectedTranscript)
+                stableBlock(
+                    "Actual speech_to_text",
+                    value: transcript,
+                    processingWhenEmpty: isRunning
+                )
+                resultRow(label: "Speech-to-text result", value: transcriptMatchText)
+            }
+
+            if includesToolStep {
+                Divider()
+                stableBlock("Expected tool JSON", value: expectedToolCall)
+                stableBlock(
+                    actualToolCallLabel,
+                    value: actualToolCall,
+                    processingWhenEmpty: isRunning
+                )
+                resultRow(label: "Tool JSON result", value: toolCallMatchText)
+                resultRow(label: "Tool JSON matches", value: toolCallMatchSummary)
+                toolMismatchDisclosure
+            }
         }
         .padding(14)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
@@ -364,6 +384,27 @@ private struct BenchmarkStatusCard: View {
         .font(.caption)
     }
 
+    @ViewBuilder
+    private var toolMismatchDisclosure: some View {
+        if toolCallMismatchDetails.isEmpty == false {
+            DisclosureGroup(isExpanded: $isShowingToolMismatchDetails) {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(toolCallMismatchDetails, id: \.self) { detail in
+                        Text(detail)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.orange)
+                            .textSelection(.enabled)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+            } label: {
+                Text("show details")
+                    .font(.caption.weight(.semibold))
+            }
+        }
+    }
+
     private func displayValue(_ value: String, processingWhenEmpty: Bool = false) -> String {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty {
@@ -386,6 +427,12 @@ private struct BenchmarkStatusCard: View {
 
     private var includesToolStep: Bool {
         stepsText.contains("text_to_tool") || stepsText.contains("speech_to_tool")
+    }
+
+    private var actualToolCallLabel: String {
+        stepsText.contains("speech_to_tool")
+            ? "Actual speech_to_tool JSON"
+            : "Actual text_to_tool JSON"
     }
 }
 #endif

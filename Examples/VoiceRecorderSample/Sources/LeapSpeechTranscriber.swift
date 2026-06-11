@@ -1,6 +1,12 @@
 import Foundation
 import LeapSDK
 
+struct AppMeasuredTextResponse {
+    let text: String
+    let durationMs: Int
+    let generationMetrics: BenchmarkGenerationMetrics?
+}
+
 actor LeapSpeechTranscriber {
     static let modelName = "LFM2.5-Audio-1.5B"
     static let quantization = "Q4_0"
@@ -45,10 +51,11 @@ actor LeapSpeechTranscriber {
 
         print("LeapSDK load started: \(Self.modelName) \(Self.quantization)")
         do {
+            let options = try Self.inferenceOptions()
             runner = try await Leap.shared.load(
                 model: Self.modelName,
                 quantization: Self.quantization,
-                options: nil,
+                options: options,
                 progress: { progress, speed in
                     progressHandler?(Self.normalizedProgress(progress), speed)
                 }
@@ -61,6 +68,24 @@ actor LeapSpeechTranscriber {
             print("LeapSDK load failed: \(message)")
             throw SpeechTranscriptionError.transcriptionFailed("Leap model load failed: \(message)")
         }
+    }
+
+    private static func inferenceOptions() throws -> LiquidInferenceEngineManifestOptions {
+        let cacheDirectory = try leapKVCacheDirectory()
+        return LiquidInferenceEngineManifestOptions(
+            cacheOptions: LiquidCacheOptions.enabled(path: cacheDirectory.path)
+        )
+    }
+
+    private static func leapKVCacheDirectory() throws -> URL {
+        let baseDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? FileManager.default.temporaryDirectory
+        let cacheDirectory = baseDirectory.appendingPathComponent("leap-kv-cache", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: cacheDirectory,
+            withIntermediateDirectories: true
+        )
+        return cacheDirectory
     }
 
     func downloadModel(
@@ -148,6 +173,10 @@ actor LeapSpeechTranscriber {
     }
 
     func toolCall(fromTranscript transcript: String) async throws -> String {
+        try await appMeasuredToolCall(fromTranscript: transcript).text
+    }
+
+    func appMeasuredToolCall(fromTranscript transcript: String) async throws -> AppMeasuredTextResponse {
         try await prepareModel()
 
         guard let runner else {
@@ -182,6 +211,14 @@ actor LeapSpeechTranscriber {
         fromAudio url: URL,
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
     ) async throws -> String {
+        try await appMeasuredToolCall(fromAudio: url, progressHandler: progressHandler).text
+    }
+
+    func appMeasuredToolCall(
+        fromAudio url: URL,
+        progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil,
+        userPrompt: String? = nil
+    ) async throws -> AppMeasuredTextResponse {
         try await prepareModel(progressHandler: progressHandler)
 
         guard let runner else {
@@ -193,13 +230,17 @@ actor LeapSpeechTranscriber {
             throw SpeechTranscriptionError.transcriptionFailed("Leap audio input is empty.")
         }
         let audioFormat = Self.audioFormat(for: url)
+        let prompt = userPrompt ?? ToolCallPromptBuilder.speechToToolUserPrompt()
+        print(
+            "Leap speech-to-tool prompt override=\(userPrompt == nil ? "false" : "true") length=\(prompt.count) preview=\(Self.promptPreview(prompt))"
+        )
         let conversation = runner.createConversation(
             systemPrompt: ToolCallPromptBuilder.speechToToolSystemPrompt
         )
         let message = ChatMessage(
             role: .user,
             content: [
-                ChatMessageContent.text(ToolCallPromptBuilder.speechToToolUserPrompt()),
+                ChatMessageContent.text(prompt),
                 ChatMessageContent.audio(data: audioData, format: audioFormat)
             ],
             reasoningContent: nil,
@@ -218,14 +259,17 @@ actor LeapSpeechTranscriber {
         message: ChatMessage,
         maxTokens: Int,
         logPrefix: String
-    ) async throws -> String {
+    ) async throws -> AppMeasuredTextResponse {
         let options = GenerationOptions()
             .with(maxTokens: Int32(maxTokens))
+            .with(temperature: 0)
             .with(enableThinking: false)
 
         var generatedText = ""
         var reasoningFallback = ""
         var responseEvents: [String] = []
+        var generationMetrics: BenchmarkGenerationMetrics?
+        let start = Date()
         for try await response in conversation.generateResponse(message: message, generationOptions: options) {
             switch onEnum(of: response) {
             case .chunk(let chunk):
@@ -239,14 +283,18 @@ actor LeapSpeechTranscriber {
                     }
                     return nil
                 }.joined()
+                let finalFunctionCallJSON = completion.fullMessage.functionCalls?.first.flatMap(Self.toolCallJSON(from:))
                 if let stats = completion.stats {
-                    print("\(logPrefix) complete: tokens=\(stats.totalTokens), tps=\(stats.tokenPerSecond)")
+                    generationMetrics = BenchmarkGenerationMetrics(stats: stats)
+                    print(
+                        "\(logPrefix) complete: prompt_tokens=\(stats.promptTokens), completion_tokens=\(stats.completionTokens), total_tokens=\(stats.totalTokens), tps=\(stats.tokenPerSecond)"
+                    )
                 } else {
                     print("\(logPrefix) complete: no generation stats")
                 }
                 responseEvents.append("complete(text:\(finalText.count))")
                 if generatedText.isEmpty {
-                    generatedText = finalText
+                    generatedText = finalFunctionCallJSON ?? finalText
                 }
             case .reasoningChunk(let text):
                 reasoningFallback += text.reasoning
@@ -267,11 +315,20 @@ actor LeapSpeechTranscriber {
 
         let trimmed = generatedText.trimmingCharacters(in: .whitespacesAndNewlines)
         let fallback = reasoningFallback.trimmingCharacters(in: .whitespacesAndNewlines)
+        let durationMs = Int(Date().timeIntervalSince(start) * 1000)
         if trimmed.isEmpty == false {
-            return trimmed
+            return AppMeasuredTextResponse(
+                text: trimmed,
+                durationMs: durationMs,
+                generationMetrics: generationMetrics
+            )
         }
         if fallback.isEmpty == false {
-            return fallback
+            return AppMeasuredTextResponse(
+                text: fallback,
+                durationMs: durationMs,
+                generationMetrics: generationMetrics
+            )
         }
         let events = responseEvents.isEmpty
             ? "no response events"
@@ -336,6 +393,15 @@ actor LeapSpeechTranscriber {
         guard progress.isFinite else { return 0 }
         let normalized = progress > 1 ? progress / 100 : progress
         return min(max(normalized, 0), 1)
+    }
+
+    private static func promptPreview(_ prompt: String) -> String {
+        let singleLine = prompt
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\t", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let preview = singleLine.prefix(120)
+        return String(preview)
     }
 
     private static func loadFailureDescription(_ error: Error) -> String {

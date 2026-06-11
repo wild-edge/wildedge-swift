@@ -108,6 +108,8 @@ enum BenchmarkTextToToolModelKind: String, Sendable {
     case functionGemma
     case functionGemmaMLX
     case qwen35ZeroPointEightBOptiQMLX
+    case qwen3ZeroPointSixBInstructMLX
+    case qwen25ZeroPointFiveBInstructMLX
     case tinyLlamaOnePointOneB
     case qwen25OnePointFiveBInstruct
     case qwen3ZeroPointSixB
@@ -232,13 +234,13 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         modelFormat: "safetensors",
         approximateDownloadSize: "151 MB",
         contextSize: 1024,
-        maxGenerationTokens: 64
+        maxGenerationTokens: 40
     )
 
     static let qwen35ZeroPointEightBOptiQMLX = BenchmarkTextToToolModel(
         kind: .qwen35ZeroPointEightBOptiQMLX,
         id: "qwen3.5-0.8b-mlx-optiq-4bit",
-        displayName: "Qwen3.5 0.8B OptiQ MLX 4-bit",
+        displayName: "Qwen3.5 0.8B OptiQ MLX 4-bit (experimental)",
         modelName: "mlx-community/Qwen3.5-0.8B-OptiQ-4bit",
         quantization: "OptiQ 4-bit",
         provider: "mlx",
@@ -246,7 +248,33 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
         modelFormat: "safetensors",
         approximateDownloadSize: "0.6 GB",
         contextSize: 1024,
-        maxGenerationTokens: 64
+        maxGenerationTokens: 40
+    )
+
+    static let qwen3ZeroPointSixBInstructMLX = BenchmarkTextToToolModel(
+        kind: .qwen3ZeroPointSixBInstructMLX,
+        id: "qwen3-0.6b-instruct-mlx-4bit",
+        displayName: "Qwen3 0.6B Instruct MLX 4-bit",
+        modelName: "mlx-community/Qwen3-0.6B-Instruct-4bit",
+        quantization: "4-bit",
+        provider: "mlx",
+        modelSource: "huggingface",
+        modelFormat: "safetensors",
+        contextSize: 1024,
+        maxGenerationTokens: 40
+    )
+
+    static let qwen25ZeroPointFiveBInstructMLX = BenchmarkTextToToolModel(
+        kind: .qwen25ZeroPointFiveBInstructMLX,
+        id: "qwen2.5-0.5b-instruct-mlx-4bit",
+        displayName: "Qwen2.5 0.5B Instruct MLX 4-bit",
+        modelName: "mlx-community/Qwen2.5-0.5B-Instruct-4bit",
+        quantization: "4-bit",
+        provider: "mlx",
+        modelSource: "huggingface",
+        modelFormat: "safetensors",
+        contextSize: 1024,
+        maxGenerationTokens: 40
     )
 
     static let tinyLlamaOnePointOneB = BenchmarkTextToToolModel(
@@ -456,6 +484,10 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
             return .functionGemmaMLX
         case "qwen3508bmlx", "qwen3508bmlx4bit", "qwen3508boptiq", "qwen3508boptiq4bit", "qwen3508bmlxoptiq4bit", "qwen3508b", "qwen35small":
             return .qwen35ZeroPointEightBOptiQMLX
+        case "qwen306binstruct", "qwen306binstruct4bit", "qwen306binstructmlx", "qwen306binstructmlx4bit", "qwen306bmlx", "qwen306bmlx4bit", "qwen306bmlxcommunity", "qwen3600minstruct", "qwen3600minstruct4bit", "qwen3600minstructmlx", "qwen3600mmlx", "qwen3smallmlx", "mlxcommunityqwen306binstruct4bit":
+            return .qwen3ZeroPointSixBInstructMLX
+        case "qwen2505binstruct", "qwen2505binstruct4bit", "qwen2505binstructmlx", "qwen2505binstructmlx4bit", "qwen2505bmlx", "qwen2505bmlx4bit", "qwen2505b", "qwen2505b4bit", "qwen25mini", "qwen25smallest", "qwen05bmlx", "qwen05binstruct", "qwen05binstruct4bit", "qwen05binstructmlx", "qwen500mmlx", "qwen500minstruct", "qwen500minstruct4bit", "qwen500minstructmlx", "mlxcommunityqwen2505binstruct4bit":
+            return .qwen25ZeroPointFiveBInstructMLX
         case "tinyllama", "tinyllama11b", "tinyllama11b4bit", "tinyllama11bgguf", "tinyllama11b4bitgguf", "tinyllama11bq4km", "tinyllama11bchat", "tinyllama11bchatv10", "tinyllama1b":
             return .tinyLlamaOnePointOneB
         case "qwen15b", "qwen15binstruct", "qwen2515b", "qwen2515binstruct", "qwen25small":
@@ -481,6 +513,16 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
                 if normalized.contains("08b") || normalized.contains("0.8b") || normalized.contains("800m") || normalized.contains("optiq") {
                     return .qwen35ZeroPointEightBOptiQMLX
                 }
+            }
+            if normalized.contains("qwen25"),
+               normalized.contains("mlx"),
+               normalized.contains("05b") || normalized.contains("0.5b") || normalized.contains("500m") {
+                return .qwen25ZeroPointFiveBInstructMLX
+            }
+            if normalized.contains("qwen3"),
+               normalized.contains("mlx"),
+               normalized.contains("06b") || normalized.contains("0.6b") || normalized.contains("600m") {
+                return .qwen3ZeroPointSixBInstructMLX
             }
             if normalized.contains("tinyllama") {
                 return .tinyLlamaOnePointOneB
@@ -518,11 +560,11 @@ struct BenchmarkTextToToolModel: Hashable, Identifiable, Sendable {
     static func from(remoteValue: String) -> BenchmarkTextToToolModel? {
         let trimmed = remoteValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.isEmpty == false else { return nil }
-        if trimmed.contains("/") {
-            return custom(modelName: trimmed)
-        }
         if let preset = preset(remoteValue: trimmed) {
             return preset
+        }
+        if trimmed.contains("/") {
+            return custom(modelName: trimmed)
         }
         return custom(modelName: trimmed)
     }
@@ -546,9 +588,11 @@ struct VoiceRecorderEffectiveSettings: Sendable {
     let benchmarkDelaySeconds: TimeInterval
     let benchmarkRecordingsMatch: [String]
     let benchmarkNumberOfInferences: Int
+    let benchmarkLoop: Bool
     let benchmarkSteps: [BenchmarkStep]
     let benchmarkStepsError: String?
     let benchmarkTextToToolModel: BenchmarkTextToToolModel
+    let benchmarkSpeechToToolPrompt: String?
     #endif
     let isUsingSDKPayload: Bool
     let remoteConfigWarning: String?
@@ -658,19 +702,12 @@ final class SettingsStore: ObservableObject {
     private static let useSDKPayloadSettingsKey = "VoiceRecorderSample.useSDKPayloadSettings"
     #if BENCHMARK_BUILD
     private static let benchmarkEnabledKey = "VoiceRecorderSample.benchmarkEnabled"
-    private static let defaultBenchmarkDelaySeconds: TimeInterval = 10
-    private static let defaultBenchmarkSteps: [BenchmarkStep] = [.speechToText]
     #endif
     private static let sdkConfigRefreshInterval: TimeInterval = 30
 
     private let userDefaults: UserDefaults
     private var remoteConfigRefresher: RemoteSDKConfigRefresher?
     private var didStartRemoteRefresh = false
-
-    private enum UnsupportedRemoteConfigBehavior {
-        case appleSTTFallback
-        case benchmarkStopped
-    }
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
@@ -697,12 +734,21 @@ final class SettingsStore: ObservableObject {
         audioToToolArchitecture = AudioToToolArchitecture(
             rawValue: userDefaults.string(forKey: Self.audioToToolArchitectureKey) ?? ""
         ) ?? .twoStep
-        useSDKPayloadSettings = userDefaults.bool(forKey: Self.useSDKPayloadSettingsKey)
         #if BENCHMARK_BUILD
-        benchmarkEnabled = userDefaults.bool(forKey: Self.benchmarkEnabledKey)
+        useSDKPayloadSettings = true
+        userDefaults.set(true, forKey: Self.useSDKPayloadSettingsKey)
+        benchmarkEnabled = true
+        userDefaults.set(true, forKey: Self.benchmarkEnabledKey)
+        #else
+        useSDKPayloadSettings = userDefaults.bool(forKey: Self.useSDKPayloadSettingsKey)
         #endif
         sdkPayload = RemoteSDKConfigStore.shared.current
         sdkPayloadRefreshedAt = RemoteSDKConfigStore.shared.lastUpdatedAt
+        #if BENCHMARK_BUILD
+        if let localConfigWarning = BenchmarkConfigRuntime.localConfigStartupWarning() {
+            sdkPayloadStatus = localConfigWarning
+        }
+        #endif
     }
 
     func startRemoteConfigRefresh(fetchImmediately: Bool = true) {
@@ -782,203 +828,24 @@ final class SettingsStore: ObservableObject {
 
     var effectiveSettings: VoiceRecorderEffectiveSettings {
         #if BENCHMARK_BUILD
-        let sdkPayload = sdkPayload ?? [:]
-        let sdkBenchmarkEnabled = Self.benchmarkEnabled(from: sdkPayload) ?? false
-        guard useSDKPayloadSettings || sdkBenchmarkEnabled else {
-            #if LEAP_SDK_SPEECH_TO_TOOL_ONLY
-            let localVoiceToTextMode: VoiceToTextMode = .leap
-            let localAudioToToolArchitecture: AudioToToolArchitecture = .oneStep
-            let localBenchmarkSteps: [BenchmarkStep] = [.speechToTool]
-            let localBenchmarkTextToToolModel: BenchmarkTextToToolModel = .leapLFM25Audio
-            #else
-            let localVoiceToTextMode = voiceToTextMode
-            let localAudioToToolArchitecture = audioToToolArchitecture
-            let localBenchmarkSteps = Self.defaultBenchmarkSteps
-            let localBenchmarkTextToToolModel = BenchmarkTextToToolModel.default
-            #endif
-            return VoiceRecorderEffectiveSettings(
-                voiceToTextMode: localVoiceToTextMode,
-                whisperModelSize: whisperModelSize,
-                audioToToolArchitecture: localAudioToToolArchitecture,
-                includeSpectrogramAttachment: benchmarkEnabled ? false : includeSpectrogramAttachment,
-                includeWAVAttachment: benchmarkEnabled ? false : includeWAVAttachment,
-                benchmarkEnabled: benchmarkEnabled,
-                benchmarkDelaySeconds: Self.defaultBenchmarkDelaySeconds,
-                benchmarkRecordingsMatch: ["*"],
-                benchmarkNumberOfInferences: 1,
-                benchmarkSteps: localBenchmarkSteps,
-                benchmarkStepsError: nil,
-                benchmarkTextToToolModel: localBenchmarkTextToToolModel,
-                isUsingSDKPayload: false,
-                remoteConfigWarning: nil
-            )
-        }
-        #else
-        guard useSDKPayloadSettings else {
-            return VoiceRecorderEffectiveSettings(
-                voiceToTextMode: voiceToTextMode,
-                whisperModelSize: whisperModelSize,
-                audioToToolArchitecture: audioToToolArchitecture,
-                includeSpectrogramAttachment: includeSpectrogramAttachment,
-                includeWAVAttachment: includeWAVAttachment,
-                isUsingSDKPayload: false,
-                remoteConfigWarning: nil
-            )
-        }
-        let sdkPayload = sdkPayload ?? [:]
-        #endif
-
-        #if BENCHMARK_BUILD
-        #if LEAP_SDK_SPEECH_TO_TOOL_ONLY
-        let benchmarkEnabled = useSDKPayloadSettings ? (sdkBenchmarkEnabled || self.benchmarkEnabled) : true
-        let forcedVoiceToTextMode: VoiceToTextMode = .leap
-        let forcedAudioToToolArchitecture: AudioToToolArchitecture = .oneStep
-        let benchmarkStepConfiguration: ([BenchmarkStep], String?) = ([.speechToTool], nil)
-        let benchmarkTextToToolModel: BenchmarkTextToToolModel = .leapLFM25Audio
-        #else
-        let benchmarkEnabled = useSDKPayloadSettings ? sdkBenchmarkEnabled : true
-        let forcedVoiceToTextMode = Self.voiceToTextMode(from: sdkPayload) ?? .apple
-        let sdkAudioToToolArchitecture = Self.audioToToolArchitecture(from: sdkPayload)
-        let forcedAudioToToolArchitecture = sdkAudioToToolArchitecture ?? .twoStep
-        let benchmarkStepConfiguration = Self.benchmarkSteps(from: sdkPayload)
-            ?? sdkAudioToToolArchitecture.map { (Self.benchmarkSteps(for: $0), nil) }
-            ?? (Self.defaultBenchmarkSteps, nil)
-        let benchmarkTextToToolModel = Self.benchmarkTextToToolModel(from: sdkPayload) ?? .default
-        #endif
-        if let remoteConfigWarning = Self.remoteConfigUnsupportedWarning(
-            from: sdkPayload,
-            behavior: benchmarkEnabled ? .benchmarkStopped : .appleSTTFallback
-        ) {
-            if benchmarkEnabled {
-                return VoiceRecorderEffectiveSettings(
-                    voiceToTextMode: forcedVoiceToTextMode,
-                    whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? .tiny,
-                    audioToToolArchitecture: forcedAudioToToolArchitecture,
-                    includeSpectrogramAttachment: false,
-                    includeWAVAttachment: false,
-                    benchmarkEnabled: benchmarkEnabled,
-                    benchmarkDelaySeconds: Self.benchmarkDelaySeconds(from: sdkPayload) ?? Self.defaultBenchmarkDelaySeconds,
-                    benchmarkRecordingsMatch: Self.stringArrayValue(
-                        from: sdkPayload,
-                        preferredKeys: [
-                            "recordings_match",
-                            "recordingsMatch",
-                            "benchmark_recordings",
-                            "benchmarkRecordings",
-                            "recording_ids",
-                            "recordingIds"
-                        ]
-                    ) ?? ["*"],
-                    benchmarkNumberOfInferences: Self.benchmarkNumberOfInferences(from: sdkPayload) ?? 1,
-                    benchmarkSteps: benchmarkStepConfiguration.0,
-                    benchmarkStepsError: nil,
-                    benchmarkTextToToolModel: benchmarkTextToToolModel,
-                    isUsingSDKPayload: true,
-                    remoteConfigWarning: remoteConfigWarning
-                )
-            }
-            return VoiceRecorderEffectiveSettings(
-                voiceToTextMode: .apple,
-                whisperModelSize: .tiny,
-                audioToToolArchitecture: .twoStep,
-                includeSpectrogramAttachment: false,
-                includeWAVAttachment: false,
-                benchmarkEnabled: benchmarkEnabled,
-                benchmarkDelaySeconds: Self.defaultBenchmarkDelaySeconds,
-                benchmarkRecordingsMatch: ["*"],
-                benchmarkNumberOfInferences: 1,
-                benchmarkSteps: Self.defaultBenchmarkSteps,
-                benchmarkStepsError: nil,
-                benchmarkTextToToolModel: .default,
-                isUsingSDKPayload: true,
-                remoteConfigWarning: remoteConfigWarning
-            )
-        }
-        return VoiceRecorderEffectiveSettings(
-            voiceToTextMode: forcedVoiceToTextMode,
-            whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? .tiny,
-            audioToToolArchitecture: forcedAudioToToolArchitecture,
-            includeSpectrogramAttachment: benchmarkEnabled ? false : Self.boolValue(
-                from: sdkPayload,
-                preferredKeys: [
-                    "audio_spectrogram",
-                    "audioSpectrogram",
-                    "spectrogram",
-                    "spectogram",
-                    "include_spectrogram_attachment",
-                    "includeSpectrogramAttachment"
-                ]
-            ) ?? false,
-            includeWAVAttachment: benchmarkEnabled ? false : Self.boolValue(
-                from: sdkPayload,
-                preferredKeys: [
-                    "wav",
-                    "audio_wav",
-                    "audioWAV",
-                    "include_wav_attachment",
-                    "includeWAVAttachment",
-                    "includeWavAttachment"
-                ]
-            ) ?? true,
+        return BenchmarkConfigRuntime.resolveEffectiveSettings(
+            remoteConfig: sdkPayload,
+            useRemoteConfig: useSDKPayloadSettings,
             benchmarkEnabled: benchmarkEnabled,
-            benchmarkDelaySeconds: Self.benchmarkDelaySeconds(from: sdkPayload) ?? Self.defaultBenchmarkDelaySeconds,
-            benchmarkRecordingsMatch: Self.stringArrayValue(
-                from: sdkPayload,
-                preferredKeys: [
-                    "recordings_match",
-                    "recordingsMatch",
-                    "benchmark_recordings",
-                    "benchmarkRecordings",
-                    "recording_ids",
-                    "recordingIds"
-                ]
-            ) ?? ["*"],
-            benchmarkNumberOfInferences: Self.benchmarkNumberOfInferences(from: sdkPayload) ?? 1,
-            benchmarkSteps: benchmarkStepConfiguration.0,
-            benchmarkStepsError: benchmarkStepConfiguration.1,
-            benchmarkTextToToolModel: benchmarkTextToToolModel,
-            isUsingSDKPayload: true,
-            remoteConfigWarning: nil
-        )
+            localVoiceToTextMode: voiceToTextMode,
+            localWhisperModelSize: whisperModelSize,
+            localAudioToToolArchitecture: audioToToolArchitecture,
+            includeSpectrogramAttachment: includeSpectrogramAttachment,
+            includeWAVAttachment: includeWAVAttachment
+        ).settings
         #else
-        if let remoteConfigWarning = Self.remoteConfigUnsupportedWarning(from: sdkPayload) {
-            return VoiceRecorderEffectiveSettings(
-                voiceToTextMode: .apple,
-                whisperModelSize: .tiny,
-                audioToToolArchitecture: .twoStep,
-                includeSpectrogramAttachment: false,
-                includeWAVAttachment: false,
-                isUsingSDKPayload: true,
-                remoteConfigWarning: remoteConfigWarning
-            )
-        }
         return VoiceRecorderEffectiveSettings(
-            voiceToTextMode: Self.voiceToTextMode(from: sdkPayload) ?? .apple,
-            whisperModelSize: Self.whisperModelSize(from: sdkPayload) ?? .tiny,
-            audioToToolArchitecture: Self.audioToToolArchitecture(from: sdkPayload) ?? .twoStep,
-            includeSpectrogramAttachment: Self.boolValue(
-                from: sdkPayload,
-                preferredKeys: [
-                    "audio_spectrogram",
-                    "audioSpectrogram",
-                    "spectrogram",
-                    "spectogram",
-                    "include_spectrogram_attachment",
-                    "includeSpectrogramAttachment"
-                ]
-            ) ?? false,
-            includeWAVAttachment: Self.boolValue(
-                from: sdkPayload,
-                preferredKeys: [
-                    "wav",
-                    "audio_wav",
-                    "audioWAV",
-                    "include_wav_attachment",
-                    "includeWAVAttachment",
-                    "includeWavAttachment"
-                ]
-            ) ?? true,
-            isUsingSDKPayload: true,
+            voiceToTextMode: voiceToTextMode,
+            whisperModelSize: whisperModelSize,
+            audioToToolArchitecture: audioToToolArchitecture,
+            includeSpectrogramAttachment: includeSpectrogramAttachment,
+            includeWAVAttachment: includeWAVAttachment,
+            isUsingSDKPayload: false,
             remoteConfigWarning: nil
         )
         #endif
@@ -995,9 +862,11 @@ final class SettingsStore: ObservableObject {
             String(settings.benchmarkDelaySeconds),
             settings.benchmarkRecordingsMatch.joined(separator: ","),
             String(settings.benchmarkNumberOfInferences),
+            settings.benchmarkLoop ? "loop" : "once",
             settings.benchmarkSteps.map(\.rawValue).joined(separator: ","),
             settings.benchmarkStepsError ?? "",
             settings.benchmarkTextToToolModel.signature,
+            settings.benchmarkSpeechToToolPrompt ?? "",
             settings.isUsingSDKPayload ? "sdk" : "local",
             settings.remoteConfigWarning ?? ""
         ].joined(separator: "|")
@@ -1021,7 +890,8 @@ final class SettingsStore: ObservableObject {
         if settings.benchmarkEnabled && settings.remoteConfigWarning != nil {
             benchmark = ", benchmark stopped"
         } else if settings.benchmarkEnabled {
-            benchmark = ", benchmark on, steps \(steps), text-to-tool \(settings.benchmarkTextToToolModel.displayName), delay \(Int(settings.benchmarkDelaySeconds))s, \(settings.benchmarkNumberOfInferences)x"
+            let loop = settings.benchmarkLoop ? "loop" : "single pass"
+            benchmark = ", benchmark on, steps \(steps), text-to-tool \(settings.benchmarkTextToToolModel.displayName), delay \(Int(settings.benchmarkDelaySeconds))s, \(settings.benchmarkNumberOfInferences)x, \(loop)"
         } else {
             benchmark = ", benchmark off"
         }
@@ -1045,18 +915,10 @@ final class SettingsStore: ObservableObject {
             sdkPayload = config
             sdkPayloadRefreshedAt = RemoteSDKConfigStore.shared.lastUpdatedAt ?? Date()
             #if BENCHMARK_BUILD
-            let behavior: UnsupportedRemoteConfigBehavior = (Self.benchmarkEnabled(from: config) ?? false)
-                ? .benchmarkStopped
-                : .appleSTTFallback
-            sdkPayloadStatus = Self.remoteConfigUnsupportedWarning(from: config, behavior: behavior)
-                ?? "SDK payload refreshed"
+            sdkPayloadStatus = BenchmarkConfigRuntime.statusWarning(for: config) ?? "SDK payload refreshed"
             #else
-            sdkPayloadStatus = Self.remoteConfigUnsupportedWarning(from: config, behavior: .appleSTTFallback)
-                ?? "SDK payload refreshed"
+            sdkPayloadStatus = "SDK payload refreshed"
             #endif
-            if let refreshEvery = Self.sdkConfigFetchInterval(from: config) {
-                remoteConfigRefresher?.updateRefreshEvery(refreshEvery)
-            }
         case .failure(let error):
             sdkPayloadStatus = error.localizedDescription
         }
@@ -1069,915 +931,6 @@ final class SettingsStore: ObservableObject {
         }
         #endif
         return "SDK payload fallback"
-    }
-
-    private static func remoteConfigUnsupportedWarning(
-        from config: RemoteSDKConfig,
-        behavior: UnsupportedRemoteConfigBehavior = .appleSTTFallback
-    ) -> String? {
-        #if BENCHMARK_BUILD && LEAP_SDK_SPEECH_TO_TOOL_ONLY
-        return nil
-        #else
-
-        var unsupportedSettings: [String] = []
-
-        if let value = voiceToTextModelValue(from: config),
-           voiceToTextMode(fromValue: value) == nil {
-            unsupportedSettings.append("voice_to_text_model")
-        }
-
-        if let value = explicitWhisperModelSizeValue(from: config),
-           whisperModelSize(fromValue: value) == nil {
-            unsupportedSettings.append("whisper_model_size")
-        }
-
-        if let value = audioToToolArchitectureValue(from: config),
-           audioToToolArchitecture(fromValue: value) == nil {
-            unsupportedSettings.append("audio_to_tool_architecture")
-        }
-
-        #if BENCHMARK_BUILD
-        if let stepConfiguration = benchmarkSteps(from: config),
-           let error = stepConfiguration.1 {
-            unsupportedSettings.append(error)
-        }
-
-        let configuredSteps = benchmarkSteps(from: config)?.0
-            ?? audioToToolArchitecture(from: config).map(benchmarkSteps(for:))
-            ?? defaultBenchmarkSteps
-
-        if configuredSteps.contains(.speechToText),
-           let value = voiceToTextModelValue(from: config),
-           voiceToTextMode(fromValue: value) == .leap,
-           LeapSpeechTranscriber.isLoadTemporarilyDisabled {
-            unsupportedSettings.append("voice_to_text_model Leap LFM2.5 Audio")
-        }
-
-        if configuredSteps.contains(.textToTool) {
-            let configuredTextModel = benchmarkTextToToolModel(from: config) ?? .default
-            if isSupportedRemoteTextToToolModel(configuredTextModel) == false {
-                unsupportedSettings.append("text_to_tool_model \(configuredTextModel.displayName)")
-            }
-        } else if configuredSteps.contains(.speechToTool) {
-            if LeapSpeechTranscriber.isLoadTemporarilyDisabled {
-                unsupportedSettings.append("speech_to_tool_model \(BenchmarkTextToToolModel.leapLFM25Audio.displayName)")
-            } else if let value = benchmarkSpeechToToolModelValue(from: config) ?? benchmarkTextToToolModelValue(from: config) {
-                if let model = benchmarkTextToToolModel(from: value) {
-                    if isSupportedRemoteSpeechToToolModel(model) == false {
-                        unsupportedSettings.append("speech_to_tool_model \(model.displayName)")
-                    }
-                } else {
-                    unsupportedSettings.append("speech_to_tool_model")
-                }
-            }
-        } else if let value = benchmarkTextToToolModelValue(from: config) {
-            if let model = benchmarkTextToToolModel(from: value) {
-                if isSupportedRemoteTextToToolModel(model) == false {
-                    unsupportedSettings.append("text_to_tool_model \(model.displayName)")
-                }
-            } else {
-                unsupportedSettings.append("text_to_tool_model")
-            }
-        }
-
-        #endif
-
-        guard unsupportedSettings.isEmpty == false else { return nil }
-        let settingsList = unsupportedSettings
-            .prefix(3)
-            .joined(separator: "; ")
-        let suffix = unsupportedSettings.count > 3 ? "; ..." : ""
-        switch behavior {
-        case .appleSTTFallback:
-            return "Config setting is not supported: \(settingsList)\(suffix). Falling back to Apple STT."
-        case .benchmarkStopped:
-            return "SDK config is not supported: \(settingsList)\(suffix). Benchmark run has stopped. Waiting for a supported SDK config; please update the app or SDK config."
-        }
-        #endif
-    }
-
-    private static func voiceToTextMode(from config: RemoteSDKConfig) -> VoiceToTextMode? {
-        guard let value = voiceToTextModelValue(from: config) else { return nil }
-        return voiceToTextMode(fromValue: value)
-    }
-
-    private static func voiceToTextMode(fromValue value: JSONValue) -> VoiceToTextMode? {
-        switch value {
-        case .object(let object):
-            for key in ["model", "value", "provider", "name", "type"] {
-                if let nested = object[key],
-                   let mode = voiceToTextMode(fromValue: nested) {
-                    return mode
-                }
-            }
-            return nil
-        case .null:
-            return .disabled
-        case .string(let model):
-            let normalized = model
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-                .replacingOccurrences(of: "-", with: "_")
-                .replacingOccurrences(of: ".", with: "_")
-                .replacingOccurrences(of: " ", with: "_")
-            switch normalized {
-            case "", "null", "none", "disabled", "off", "false":
-                return .disabled
-            case "apple", "enabled_apple", "apple_speech", "apple_speech_recognizer":
-                return .apple
-            case "whisper", "enabled_whisper", "whisper_tiny", "whisper_base", "openai_whisper_tiny", "openai_whisper_base":
-                return .whisper
-            case "leap", "enabled_leap", "leap_sdk", "leap_lfm2_5_audio_1_5b", "leap_lfm2_5_audio_1_5b_q8_0", "lfm25_audio", "lfm2_5_audio", "lfm2_5_audio_1_5b", "lfm2_5_audio_1_5b_q8_0":
-                return .leap
-            default:
-                return nil
-            }
-        case .bool(let enabled):
-            return enabled ? .apple : .disabled
-        default:
-            return nil
-        }
-    }
-
-    private static func whisperModelSize(from config: RemoteSDKConfig) -> WhisperModelSize? {
-        if let value = explicitWhisperModelSizeValue(from: config),
-           let model = whisperModelSize(fromValue: value) {
-            return model
-        }
-
-        if let value = voiceToTextModelValue(from: config),
-           let model = whisperModelSize(fromValue: value) {
-            return model
-        }
-
-        return nil
-    }
-
-    private static func whisperModelSize(fromValue value: JSONValue) -> WhisperModelSize? {
-        switch value {
-        case .object(let object):
-            for key in ["whisper_model", "whisperModel", "model_size", "modelSize", "size", "variant", "model", "value", "name", "type"] {
-                if let nested = object[key],
-                   let model = whisperModelSize(fromValue: nested) {
-                    return model
-                }
-            }
-            return nil
-        case .string(let model):
-            let normalized = model
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-                .replacingOccurrences(of: "-", with: "_")
-                .replacingOccurrences(of: ".", with: "_")
-                .replacingOccurrences(of: " ", with: "_")
-            switch normalized {
-            case "tiny", "openai_whisper_tiny", "whisper_tiny":
-                return .tiny
-            case "base", "openai_whisper_base", "whisper_base":
-                return .base
-            default:
-                return nil
-            }
-        default:
-            return nil
-        }
-    }
-
-    private static func audioToToolArchitecture(from config: RemoteSDKConfig) -> AudioToToolArchitecture? {
-        guard let value = audioToToolArchitectureValue(from: config) else { return nil }
-        return audioToToolArchitecture(fromValue: value)
-    }
-
-    private static func audioToToolArchitecture(fromValue value: JSONValue) -> AudioToToolArchitecture? {
-        switch value {
-        case .object(let object):
-            for key in ["architecture", "mode", "value", "name", "type"] {
-                if let nested = object[key],
-                   let architecture = audioToToolArchitecture(fromValue: nested) {
-                    return architecture
-                }
-            }
-            return nil
-        case .string(let architecture):
-            let normalized = architecture
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-                .replacingOccurrences(of: "-", with: "_")
-                .replacingOccurrences(of: " ", with: "_")
-            switch normalized {
-            case "2step", "2_step", "two_step", "twostep", "transcribe_then_tool", "stt_then_tool":
-                return .twoStep
-            case "1step", "1_step", "one_step", "onestep", "direct_audio_to_tool", "audio_to_tool":
-                return .oneStep
-            default:
-                return nil
-            }
-        case .number(let number):
-            if number == 1 {
-                return .oneStep
-            }
-            if number == 2 {
-                return .twoStep
-            }
-            return nil
-        default:
-            return nil
-        }
-    }
-
-    private static func voiceToTextModelValue(from config: RemoteSDKConfig) -> JSONValue? {
-        if let value = jsonValue(
-            from: config,
-            preferredKeys: [
-                "voice_to_text_model",
-                "voiceToTextModel",
-                "voice_to_text",
-                "voiceToText",
-                "speech_to_text_model",
-                "speechToTextModel"
-            ]
-        ) {
-            return value
-        }
-
-        if let modelSettings = jsonValue(
-            from: config,
-            preferredKeys: ["model_settings", "modelSettings"]
-        ),
-           case .object(let object) = modelSettings,
-           let modelValue = jsonValue(
-            from: object,
-            preferredKeys: ["model_name", "modelName", "model", "model_id", "modelId", "name", "id"]
-           ) {
-            return modelValue
-        }
-
-        return directJSONValue(
-            from: config,
-            preferredKeys: ["model_name", "modelName"]
-        )
-    }
-
-    private static func explicitWhisperModelSizeValue(from config: RemoteSDKConfig) -> JSONValue? {
-        if let value = jsonValue(
-            from: config,
-            preferredKeys: [
-                "whisper_model",
-                "whisperModel",
-                "whisper_model_size",
-                "whisperModelSize",
-                "voice_to_text_model_size",
-                "voiceToTextModelSize",
-                "speech_to_text_model_size",
-                "speechToTextModelSize"
-            ]
-        ) {
-            return value
-        }
-
-        guard let voiceToText = jsonValue(
-            from: config,
-            preferredKeys: [
-                "voice_to_text_model",
-                "voiceToTextModel",
-                "voice_to_text",
-                "voiceToText",
-                "speech_to_text_model",
-                "speechToTextModel"
-            ]
-        ),
-              case .object(let object) = voiceToText
-        else {
-            return nil
-        }
-
-        return jsonValue(
-            from: object,
-            preferredKeys: ["whisper_model", "whisperModel", "model_size", "modelSize", "size", "variant"]
-        )
-    }
-
-    private static func audioToToolArchitectureValue(from config: RemoteSDKConfig) -> JSONValue? {
-        jsonValue(
-            from: config,
-            preferredKeys: [
-                "audio_to_tool_architecture",
-                "audioToToolArchitecture",
-                "audio_to_tool",
-                "audioToTool",
-                "tool_architecture",
-                "toolArchitecture",
-                "tool_call_architecture",
-                "toolCallArchitecture"
-            ]
-        )
-    }
-
-    private static func sdkConfigFetchInterval(from config: RemoteSDKConfig) -> TimeInterval? {
-        guard let value = jsonValue(
-            from: config,
-            preferredKeys: [
-                "config_fetch",
-                "configFetch",
-                "sdk_config_fetch",
-                "sdkConfigFetch",
-                "config_fetch_seconds",
-                "configFetchSeconds"
-            ]
-        ),
-              let seconds = durationSeconds(from: value)
-        else {
-            return nil
-        }
-        return max(1, seconds)
-    }
-
-    private static func durationSeconds(from value: JSONValue) -> Double? {
-        switch value {
-        case .number(let number):
-            return number
-        case .string(let string):
-            return durationSeconds(from: string)
-        case .object(let object):
-            for key in ["seconds", "value", "interval", "every", "delay_seconds", "delaySeconds", "config_fetch", "configFetch"] {
-                if let nested = object[key],
-                   let seconds = durationSeconds(from: nested) {
-                    return seconds
-                }
-            }
-            return nil
-        default:
-            return nil
-        }
-    }
-
-    private static func durationSeconds(from string: String) -> Double? {
-        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if let seconds = Double(trimmed) {
-            return seconds
-        }
-        if trimmed.hasSuffix("ms") {
-            let value = trimmed.dropLast(2).trimmingCharacters(in: .whitespacesAndNewlines)
-            return Double(value).map { $0 / 1_000 }
-        }
-        for suffix in ["seconds", "second", "secs", "sec", "s"] where trimmed.hasSuffix(suffix) {
-            let value = trimmed.dropLast(suffix.count).trimmingCharacters(in: .whitespacesAndNewlines)
-            return Double(value)
-        }
-        return nil
-    }
-
-    #if BENCHMARK_BUILD
-    private static func benchmarkEnabled(from config: RemoteSDKConfig) -> Bool? {
-        Self.boolValue(
-            from: config,
-            preferredKeys: [
-                "benchmark_enabled",
-                "benchmarkEnabled",
-                "benchmark_mode",
-                "benchmarkMode",
-                "bnechmark_mode",
-                "bnechmarkMode",
-                "benchmark",
-                "stt_benchmark_enabled",
-                "sttBenchmarkEnabled"
-            ]
-        )
-    }
-
-    private static func benchmarkDelaySeconds(from config: RemoteSDKConfig) -> TimeInterval? {
-        guard let value = jsonValue(
-            from: config,
-            preferredKeys: [
-                "benchmark_delay_seconds",
-                "benchmarkDelaySeconds",
-                "delay_seconds",
-                "delaySeconds"
-            ]
-        ),
-              let seconds = durationSeconds(from: value)
-        else {
-            return nil
-        }
-        return max(0, seconds)
-    }
-
-    private static func benchmarkNumberOfInferences(from config: RemoteSDKConfig) -> Int? {
-        guard let value = jsonValue(
-            from: config,
-            preferredKeys: [
-                "number_of_inferences",
-                "numberOfInferences",
-                "benchmark_number_of_inferences",
-                "benchmarkNumberOfInferences",
-                "inference_count",
-                "inferenceCount",
-                "runs_per_file",
-                "runsPerFile"
-            ]
-        ),
-              let count = intValue(from: value)
-        else {
-            return nil
-        }
-        return max(1, count)
-    }
-
-    private static func benchmarkTextToToolModel(from config: RemoteSDKConfig) -> BenchmarkTextToToolModel? {
-        guard let value = benchmarkTextToToolModelValue(from: config) else { return nil }
-
-        return benchmarkTextToToolModel(from: value)
-    }
-
-    private static func benchmarkTextToToolModelValue(from config: RemoteSDKConfig) -> JSONValue? {
-        jsonValue(
-            from: config,
-            preferredKeys: [
-                "text_to_tool_model",
-                "textToToolModel",
-                "benchmark_text_to_tool_model",
-                "benchmarkTextToToolModel",
-                "tool_call_model",
-                "toolCallModel",
-                "tool_model",
-                "toolModel",
-                "text_model",
-                "textModel"
-            ]
-        )
-    }
-
-    private static func benchmarkSpeechToToolModelValue(from config: RemoteSDKConfig) -> JSONValue? {
-        jsonValue(
-            from: config,
-            preferredKeys: [
-                "speech_to_tool_model",
-                "speechToToolModel",
-                "benchmark_speech_to_tool_model",
-                "benchmarkSpeechToToolModel",
-                "audio_to_tool_model",
-                "audioToToolModel",
-                "direct_audio_to_tool_model",
-                "directAudioToToolModel"
-            ]
-        )
-    }
-
-    private static func benchmarkTextToToolModel(from value: JSONValue) -> BenchmarkTextToToolModel? {
-        switch value {
-        case .string(let model):
-            return BenchmarkTextToToolModel.from(remoteValue: model)
-        case .object(let object):
-            let presetValue = firstString(
-                in: object,
-                keys: ["preset", "alias", "type", "id", "name"]
-            )
-            let modelName = firstString(
-                in: object,
-                keys: ["model", "model_name", "modelName", "model_id", "modelId", "repo", "repo_id", "repoId", "huggingface_repo", "huggingFaceRepo"]
-            )
-            let displayName = firstString(
-                in: object,
-                keys: ["display_name", "displayName", "label"]
-            )
-            let quantization = firstString(
-                in: object,
-                keys: ["quantization", "quantization_type", "quantizationType", "precision"]
-            )
-            let provider = firstString(
-                in: object,
-                keys: ["provider"]
-            )
-            let modelSource = firstString(
-                in: object,
-                keys: ["model_source", "modelSource", "source"]
-            )
-            let modelFormat = firstString(
-                in: object,
-                keys: ["model_format", "modelFormat", "format"]
-            )
-            let downloadURLString = firstString(
-                in: object,
-                keys: ["download_url", "downloadURL", "url", "model_url", "modelURL"]
-            )
-            let downloadFilename = firstString(
-                in: object,
-                keys: ["download_filename", "downloadFilename", "filename", "file_name", "fileName"]
-            )
-            let contextSize = firstInt(
-                in: object,
-                keys: ["context_size", "contextSize", "n_ctx", "nCtx"]
-            )
-            let maxGenerationTokens = firstInt(
-                in: object,
-                keys: ["max_generation_tokens", "maxGenerationTokens", "max_tokens", "maxTokens"]
-            )
-
-            if let presetValue,
-               let preset = BenchmarkTextToToolModel.preset(remoteValue: presetValue) {
-                return preset.withOverrides(
-                    displayName: displayName,
-                    modelName: modelName,
-                    quantization: quantization,
-                    provider: provider,
-                    modelSource: modelSource,
-                    modelFormat: modelFormat,
-                    downloadURLString: downloadURLString,
-                    downloadFilename: downloadFilename,
-                    contextSize: contextSize,
-                    maxGenerationTokens: maxGenerationTokens
-                )
-            }
-
-            if let modelName,
-               modelName.contains("/") == false,
-               let preset = BenchmarkTextToToolModel.preset(remoteValue: modelName) {
-                return preset.withOverrides(
-                    displayName: displayName,
-                    quantization: quantization,
-                    provider: provider,
-                    modelSource: modelSource,
-                    modelFormat: modelFormat,
-                    downloadURLString: downloadURLString,
-                    downloadFilename: downloadFilename,
-                    contextSize: contextSize,
-                    maxGenerationTokens: maxGenerationTokens
-                )
-            }
-
-            if let modelName {
-                return BenchmarkTextToToolModel.custom(
-                    modelName: modelName,
-                    displayName: displayName,
-                    quantization: quantization,
-                    provider: provider,
-                    modelSource: modelSource,
-                    modelFormat: modelFormat,
-                    downloadURLString: downloadURLString,
-                    downloadFilename: downloadFilename,
-                    contextSize: contextSize,
-                    maxGenerationTokens: maxGenerationTokens
-                )
-            }
-
-            for key in ["value", "model", "text_to_tool_model", "textToToolModel"] {
-                if let nested = object[key],
-                   let model = benchmarkTextToToolModel(from: nested) {
-                    return model
-                }
-            }
-            return nil
-        default:
-            return nil
-        }
-    }
-
-    private static func isSupportedRemoteTextToToolModel(_ model: BenchmarkTextToToolModel) -> Bool {
-        switch model.kind {
-        case .leapLFM25Audio:
-            return false
-        case .leapLFM25350M:
-            #if canImport(LlamaSwift)
-            return model.matchesRemoteAllowlistPreset(.leapLFM25350M)
-            #else
-            return false
-            #endif
-        case .leapLFM2512BInstruct:
-            #if canImport(LlamaSwift)
-            return model.matchesRemoteAllowlistPreset(.leapLFM2512BInstruct)
-            #else
-            return false
-            #endif
-        case .appleFoundationModels:
-            return model.matchesRemoteAllowlistPreset(.appleFoundationModels)
-        case .functionGemma:
-            #if canImport(LlamaSwift)
-            return model.matchesRemoteAllowlistPreset(.functionGemma)
-            #else
-            return false
-            #endif
-        case .functionGemmaMLX:
-            #if canImport(MLXLLM) && canImport(MLXLMCommon)
-            return model.matchesRemoteAllowlistPreset(.functionGemmaMLX)
-            #else
-            return false
-            #endif
-        case .qwen35ZeroPointEightBOptiQMLX:
-            #if canImport(MLXLLM) && canImport(MLXLMCommon)
-            return model.matchesRemoteAllowlistPreset(.qwen35ZeroPointEightBOptiQMLX)
-            #else
-            return false
-            #endif
-        case .tinyLlamaOnePointOneB:
-            #if canImport(LlamaSwift)
-            return model.matchesRemoteAllowlistPreset(.tinyLlamaOnePointOneB)
-            #else
-            return false
-            #endif
-        case .qwen25OnePointFiveBInstruct:
-            #if canImport(LlamaSwift)
-            return model.matchesRemoteAllowlistPreset(.qwen25OnePointFiveBInstruct)
-            #else
-            return false
-            #endif
-        case .qwen3ZeroPointSixB:
-            #if canImport(LlamaSwift)
-            return model.matchesRemoteAllowlistPreset(.qwen3ZeroPointSixB4Bit)
-            #else
-            return false
-            #endif
-        case .qwen3FourB:
-            #if canImport(LlamaSwift)
-            return model.matchesRemoteAllowlistPreset(.qwen3FourB4Bit)
-            #else
-            return false
-            #endif
-        case .onnxRuntime:
-            return false
-        case .custom:
-            return false
-        }
-    }
-
-    private static func isSupportedRemoteSpeechToToolModel(_ model: BenchmarkTextToToolModel) -> Bool {
-        if LeapSpeechTranscriber.isLoadTemporarilyDisabled {
-            return false
-        }
-        return model.matchesRemoteAllowlistPreset(.leapLFM25Audio)
-    }
-
-    private static func firstInt(in object: [String: JSONValue], keys: [String]) -> Int? {
-        for key in keys {
-            guard let value = object[key] else { continue }
-            if let int = intValue(from: value) {
-                return int
-            }
-        }
-        return nil
-    }
-
-    private static func firstString(in object: [String: JSONValue], keys: [String]) -> String? {
-        for key in keys {
-            guard let value = object[key] else { continue }
-            if let string = nonEmptyString(from: value) {
-                return string
-            }
-        }
-        return nil
-    }
-
-    private static func nonEmptyString(from value: JSONValue) -> String? {
-        switch value {
-        case .string(let string):
-            return string.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
-        case .number(let number):
-            return "\(number)"
-        case .object(let object):
-            for key in ["value", "name", "id", "model", "model_name", "modelName"] {
-                if let nested = object[key],
-                   let string = nonEmptyString(from: nested) {
-                    return string
-                }
-            }
-            return nil
-        default:
-            return nil
-        }
-    }
-
-    private static func benchmarkSteps(from config: RemoteSDKConfig) -> ([BenchmarkStep], String?)? {
-        guard let value = jsonValue(
-            from: config,
-            preferredKeys: [
-                "benchmark_steps",
-                "benchmarkSteps"
-            ]
-        ) else {
-            return nil
-        }
-
-        let stepStrings = benchmarkStepStrings(from: value)
-        guard stepStrings.error == nil else {
-            return ([], stepStrings.error)
-        }
-        guard let rawSteps = stepStrings.steps else {
-            return ([], "benchmark_steps must be a string or array of strings.")
-        }
-        let parsedSteps = rawSteps.compactMap(BenchmarkStep.init(remoteValue:))
-        guard parsedSteps.count == rawSteps.count else {
-            let unsupported = rawSteps.filter { BenchmarkStep(remoteValue: $0) == nil }
-            return (parsedSteps, "Unsupported benchmark steps: \(unsupported.joined(separator: ", ")).")
-        }
-        guard isSupportedBenchmarkStepSequence(parsedSteps) else {
-            return (parsedSteps, "Unsupported benchmark step sequence: \(rawSteps.joined(separator: ", ")).")
-        }
-        return (parsedSteps, nil)
-    }
-
-    private static func benchmarkStepStrings(from value: JSONValue) -> (steps: [String]?, error: String?) {
-        switch value {
-        case .array(let values):
-            var steps: [String] = []
-            for (index, value) in values.enumerated() {
-                guard case .string(let rawStep) = value else {
-                    return (nil, "benchmark_steps[\(index)] must be a string.")
-                }
-                let step = rawStep.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard step.isEmpty == false else {
-                    return (nil, "benchmark_steps[\(index)] must not be empty.")
-                }
-                steps.append(step)
-            }
-            return (steps, nil)
-        case .string(let string):
-            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard trimmed.isEmpty == false else { return ([], nil) }
-            if trimmed.contains(",") {
-                let steps = trimmed
-                    .split(separator: ",")
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { $0.isEmpty == false }
-                return (steps, nil)
-            }
-            return ([trimmed], nil)
-        case .object(let object):
-            for key in ["values", "value", "items", "benchmark_steps", "benchmarkSteps"] {
-                if let nested = object[key] {
-                    return benchmarkStepStrings(from: nested)
-                }
-            }
-            return (nil, "benchmark_steps must be a string or array of strings.")
-        default:
-            return (nil, "benchmark_steps must be a string or array of strings.")
-        }
-    }
-
-    private static func benchmarkSteps(for architecture: AudioToToolArchitecture) -> [BenchmarkStep] {
-        switch architecture {
-        case .twoStep:
-            return [.speechToText, .textToTool]
-        case .oneStep:
-            return [.speechToTool]
-        }
-    }
-
-    private static func isSupportedBenchmarkStepSequence(_ steps: [BenchmarkStep]) -> Bool {
-        switch steps {
-        case [.speechToText], [.speechToText, .textToTool], [.speechToTool]:
-            return true
-        default:
-            return false
-        }
-    }
-
-    private static func stringArrayValue(from config: RemoteSDKConfig, preferredKeys: [String]) -> [String]? {
-        guard let value = jsonValue(from: config, preferredKeys: preferredKeys) else {
-            return nil
-        }
-        return strings(from: value)
-    }
-
-    private static func strings(from value: JSONValue) -> [String]? {
-        switch value {
-        case .array(let values):
-            return values.compactMap { string(from: $0) }
-        case .string(let string):
-            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return [] }
-            if trimmed.contains(",") {
-                return trimmed
-                    .split(separator: ",")
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty }
-            }
-            return [trimmed]
-        case .object(let object):
-            for key in ["values", "value", "items", "recordings", "recordings_match", "recordingsMatch"] {
-                if let nested = object[key],
-                   let values = strings(from: nested) {
-                    return values
-                }
-            }
-            return nil
-        default:
-            return nil
-        }
-    }
-
-    private static func string(from value: JSONValue) -> String? {
-        guard case .string(let string) = value else { return nil }
-        let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
-    }
-
-    private static func intValue(from value: JSONValue) -> Int? {
-        switch value {
-        case .number(let number):
-            return Int(number)
-        case .string(let string):
-            return Int(string.trimmingCharacters(in: .whitespacesAndNewlines))
-        case .object(let object):
-            for key in ["value", "count", "number", "runs", "inferences"] {
-                if let nested = object[key],
-                   let int = intValue(from: nested) {
-                    return int
-                }
-            }
-            return nil
-        default:
-            return nil
-        }
-    }
-
-    #endif
-
-    private static func boolValue(from config: RemoteSDKConfig, preferredKeys: [String]) -> Bool? {
-        guard let value = jsonValue(from: config, preferredKeys: preferredKeys) else {
-            return nil
-        }
-
-        switch value {
-        case .bool(let bool):
-            return bool
-        case .number(let number):
-            return number != 0
-        case .string(let string):
-            switch string.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-            case "true", "1", "yes", "on", "enabled":
-                return true
-            case "false", "0", "no", "off", "disabled", "null", "none":
-                return false
-            default:
-                return nil
-            }
-        case .object(let object):
-            for key in ["enabled", "value", "on", "include", "send"] {
-                if let nested = object[key],
-                   let bool = boolValue(from: ["value": nested], preferredKeys: ["value"]) {
-                    return bool
-                }
-            }
-            return nil
-        case .null:
-            return false
-        default:
-            return nil
-        }
-    }
-
-    private static func jsonValue(from config: RemoteSDKConfig, preferredKeys: [String]) -> JSONValue? {
-        let normalizedKeys = Set(preferredKeys.map(normalizeKey))
-        return findValue(in: .object(config), matching: normalizedKeys)
-    }
-
-    private static func directJSONValue(from config: RemoteSDKConfig, preferredKeys: [String]) -> JSONValue? {
-        let normalizedKeys = Set(preferredKeys.map(normalizeKey))
-        for (key, value) in config where normalizedKeys.contains(normalizeKey(key)) {
-            return value
-        }
-        return nil
-    }
-
-    private static func findValue(in value: JSONValue, matching normalizedKeys: Set<String>) -> JSONValue? {
-        switch value {
-        case .object(let object):
-            for (key, candidate) in object where normalizedKeys.contains(normalizeKey(key)) {
-                return candidate
-            }
-            for descriptorKey in ["key", "name", "type", "id", "setting"] {
-                if let descriptor = object[descriptorKey]?.stringValue,
-                   normalizedKeys.contains(normalizeKey(descriptor)) {
-                    return object["enabled"]
-                        ?? object["value"]
-                        ?? object["on"]
-                        ?? object["include"]
-                        ?? object["send"]
-                        ?? value
-                }
-            }
-            for candidate in object.values {
-                if let found = findValue(in: candidate, matching: normalizedKeys) {
-                    return found
-                }
-            }
-            return nil
-        case .array(let array):
-            for candidate in array {
-                if let found = findValue(in: candidate, matching: normalizedKeys) {
-                    return found
-                }
-            }
-            return nil
-        default:
-            return nil
-        }
-    }
-
-    private static func normalizeKey(_ key: String) -> String {
-        key
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-            .filter { $0.isLetter || $0.isNumber }
     }
 
     private static let dateFormatter: DateFormatter = {

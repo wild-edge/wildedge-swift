@@ -9,6 +9,48 @@ enum BenchmarkToolCallInput {
     case audio(URL)
 }
 
+struct BenchmarkGenerationMetrics {
+    let tokensIn: Int?
+    let tokensOut: Int?
+    let totalTokens: Int?
+    let cachedInputTokens: Int?
+    let tokensPerSecond: Double?
+
+    init(
+        tokensIn: Int? = nil,
+        tokensOut: Int? = nil,
+        totalTokens: Int? = nil,
+        cachedInputTokens: Int? = nil,
+        tokensPerSecond: Double? = nil
+    ) {
+        self.tokensIn = tokensIn
+        self.tokensOut = tokensOut
+        self.totalTokens = totalTokens
+        self.cachedInputTokens = cachedInputTokens
+        self.tokensPerSecond = tokensPerSecond
+    }
+
+    init(stats: GenerationStats) {
+        self.init(
+            tokensIn: Self.nonNegativeInt(stats.promptTokens),
+            tokensOut: Self.nonNegativeInt(stats.completionTokens),
+            totalTokens: Self.nonNegativeInt(stats.totalTokens),
+            cachedInputTokens: Self.nonNegativeInt(stats.cachedPromptTokens),
+            tokensPerSecond: Self.finiteDouble(stats.tokenPerSecond)
+        )
+    }
+
+    private static func nonNegativeInt(_ value: Int64) -> Int? {
+        guard value >= 0 else { return nil }
+        return Int(value)
+    }
+
+    private static func finiteDouble(_ value: Float) -> Double? {
+        guard value.isFinite else { return nil }
+        return Double(value)
+    }
+}
+
 struct BenchmarkToolCallGenerationResult {
     let rawOutput: String
     let durationMs: Int
@@ -21,6 +63,7 @@ struct BenchmarkToolCallGenerationResult {
     let modelSource: String
     let modelFormat: String
     let quantization: String
+    let generationMetrics: BenchmarkGenerationMetrics?
 
     var parsedSuccessfully: Bool {
         parsedJSON != nil && errorDescription == nil
@@ -36,11 +79,14 @@ actor LeapBenchmarkToolCallModel {
     func generate(
         input: BenchmarkToolCallInput,
         textToToolModel: BenchmarkTextToToolModel = .default,
+        speechToToolPrompt: String? = nil,
         progressHandler: (@Sendable (_ progress: Double, _ speed: Int64) -> Void)? = nil
     ) async -> BenchmarkToolCallGenerationResult {
         let start = Date()
         do {
             var rawOutput: String
+            var measuredDurationMs: Int?
+            var generationMetrics: BenchmarkGenerationMetrics?
             let model: BenchmarkTextToToolModel
             switch input {
             case .text(let transcript):
@@ -56,7 +102,13 @@ actor LeapBenchmarkToolCallModel {
                 model = textToToolModel
                 if textToToolModel.usesSharedAudioModel {
                     let transcriber = await LeapSpeechTranscriber.shared()
-                    rawOutput = try await transcriber.toolCall(fromTranscript: trimmedTranscript)
+                    let response = try await transcriber.appMeasuredToolCall(fromTranscript: trimmedTranscript)
+                    rawOutput = ToolCallTranscriptHeuristics.correctedToolCallJSON(
+                        rawOutput: response.text,
+                        transcript: trimmedTranscript
+                    )
+                    measuredDurationMs = response.durationMs
+                    generationMetrics = response.generationMetrics
                 } else if textToToolModel.kind == .appleFoundationModels {
                     rawOutput = try await AppleFoundationModelsBenchmarkTextToToolModel.shared.toolCall(
                         fromTranscript: trimmedTranscript
@@ -78,7 +130,9 @@ actor LeapBenchmarkToolCallModel {
                         transcript: trimmedTranscript
                     )
                 } else if textToToolModel.kind == .functionGemmaMLX
-                    || textToToolModel.kind == .qwen35ZeroPointEightBOptiQMLX {
+                    || textToToolModel.kind == .qwen35ZeroPointEightBOptiQMLX
+                    || textToToolModel.kind == .qwen3ZeroPointSixBInstructMLX
+                    || textToToolModel.kind == .qwen25ZeroPointFiveBInstructMLX {
                     rawOutput = try await MlxBenchmarkTextToToolModel.shared.toolCall(
                         fromTranscript: trimmedTranscript,
                         model: textToToolModel,
@@ -103,18 +157,28 @@ actor LeapBenchmarkToolCallModel {
             case .audio(let url):
                 let transcriber = await LeapSpeechTranscriber.shared()
                 model = .leapLFM25Audio
-                rawOutput = try await transcriber.toolCall(
+                let response = try await transcriber.appMeasuredToolCall(
                     fromAudio: url,
-                    progressHandler: progressHandler
+                    progressHandler: progressHandler,
+                    userPrompt: speechToToolPrompt
                 )
+                rawOutput = speechToToolPrompt == nil
+                    ? ToolCallTranscriptHeuristics.correctedToolCallJSON(
+                        rawOutput: response.text,
+                        transcript: response.text
+                    )
+                    : response.text
+                measuredDurationMs = response.durationMs
+                generationMetrics = response.generationMetrics
             }
 
             let parseResult = ToolCallJSON.parseAndValidate(from: rawOutput)
             return Self.result(
                 rawOutput: rawOutput,
-                durationMs: Int(Date().timeIntervalSince(start) * 1000),
+                durationMs: measuredDurationMs ?? Int(Date().timeIntervalSince(start) * 1000),
                 parseResult: parseResult,
                 generationError: nil,
+                generationMetrics: generationMetrics,
                 model: model
             )
         } catch {
@@ -140,6 +204,7 @@ actor LeapBenchmarkToolCallModel {
         durationMs: Int,
         parseResult: ToolCallParseResult,
         generationError: String?,
+        generationMetrics: BenchmarkGenerationMetrics? = nil,
         model: BenchmarkTextToToolModel = .default
     ) -> BenchmarkToolCallGenerationResult {
         BenchmarkToolCallGenerationResult(
@@ -153,7 +218,8 @@ actor LeapBenchmarkToolCallModel {
             modelName: model.displayName,
             modelSource: model.modelSource,
             modelFormat: model.modelFormat,
-            quantization: model.quantization
+            quantization: model.quantization,
+            generationMetrics: generationMetrics
         )
     }
 }
