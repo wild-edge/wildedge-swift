@@ -7,24 +7,9 @@
 On-device ML inference monitoring for Swift (iOS, macOS). Tracks latency, confidence,
 drift, and hardware metrics without ever sending raw inputs.
 
-## Repository overview
+## Getting started
 
-| Example | Runtime | What it shows |
-|---|---|---|
-| [llamaExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/llamaExample) | llama.cpp · Metal GPU | On-device LLM — in-app GGUF catalog (Qwen2.5, TinyLlama, Liquid AI LFM2), streaming token output, Metal warmup, perf telemetry via `llama_perf_context` |
-| [execuTorchExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/execuTorchExample) | ExecuTorch · XNNPACK CPU | On-device LLM — Llama 3.2 1B catalog (.pte + tokenizer.json), zero-code telemetry via `ExecuTorchLLMInterceptor` (`.execuTorchLLM`), RE2 tokenizer patching, `kernels_quantized` / `kernels_torchao` for INT4 models |
-| [CarScannerExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/CarScannerExample) | OpenRouter / Gemini API | iOS camera app — scans cars with remote vision APIs, tracks each inference and uploads the input image as an attachment |
-| [VoiceRecorderSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/VoiceRecorderSample) | ONNX Runtime | Records audio, runs a local ONNX voice-conversion model, tracks inference + uploads the recording as an attachment |
-| [OnnxExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/OnnxExample) | ONNX Runtime | Zero-code tracking via auto-interceptor |
-| [MLKitExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/MLKitExample) | ML Kit | Zero-code tracking via auto-interceptor |
-| [TFLiteObjcExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteObjcExample) | TensorFlow Lite (ObjC) | Zero-code tracking via `TFLInterpreter` auto-interceptor |
-| [TFLiteExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteExample) | TensorFlow Lite (Swift) | Manual tracking using the pure-Swift `Interpreter` |
-| [Benchmarks](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/Benchmarks) | — | Interactive benchmarks for BlobStore throughput, compaction, encoding formats, and gzip compression |
-| [iOSAppSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/iOSAppSample) | — | General-purpose iOS integration sample |
-| [SPMExamples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/SPMExamples) | — | Swift Package examples runnable from the terminal or Xcode, including multi-step tracing |
-
-
-## Get a DSN from WildEdge
+### 1. Get a DSN from WildEdge
 
 To run the examples or use the SDK in your application, you need a WildEdge DSN.
 A DSN is a single configuration value that contains your Project Key and connection details for the WildEdge API. To get your DSN:
@@ -34,9 +19,9 @@ A DSN is a single configuration value that contains your Project Key and connect
 3. Create a project (or open an existing project).
 4. Copy the project DSN for later.
 
-## Add the SDK to your project
+### 2. Add the SDK to your project
 
-### Swift Package Manager
+#### Swift Package Manager
 
 Add the dependency to your `Package.swift`:
 
@@ -59,7 +44,7 @@ Or add it directly in Xcode via `File > Add Package Dependencies...` using:
 https://github.com/wild-edge/wildedge-swift.git
 ```
 
-### CocoaPods
+#### CocoaPods
 
 Add the pod to your `Podfile`:
 
@@ -73,9 +58,9 @@ Then run:
 pod install
 ```
 
-## Setup
+### 3. Setup
 
-### Auto-init (recommended)
+#### Auto-init (recommended)
 
 The SDK initializes itself before `main()` runs. Provide the DSN via either:
 
@@ -92,7 +77,7 @@ WILDEDGE_DSN=https://<secret>@ingest.wildedge.dev/<key>
 
 `WildEdge.shared` is then ready for use anywhere in your app. Set `WILDEDGE_DEBUG=true` (env var) to see verbose auto-init and event logs.
 
-### Manual init
+#### Manual init
 
 Call `WildEdge.initialize` explicitly when you need programmatic control (e.g. reading the DSN from a config file):
 
@@ -109,9 +94,48 @@ let wildEdge: WildEdgeClient = WildEdge.initialize { builder in
 
 For iOS, call this at `AppDelegate.application(_:didFinishLaunchingWithOptions:)`. If no DSN is set, `WildEdge.initialize` returns a no-op client.
 
-## Usage
+### 4. Track model load and inferences
 
-### ONNX Runtime — zero-code integration
+```swift
+import WildEdge
+
+let handle = wildEdge.registerModel(
+    modelId: "mobilenet_v3_int8_cpu",
+    info: ModelInfo(
+        modelName: "MobileNet V3",
+        modelVersion: "3.0",
+        modelSource: "local",
+        modelFormat: "tflite",
+        quantization: "int8"
+    )
+)
+
+// `interpreter` is your inference runner (e.g. a TFLite Interpreter, Core ML
+// model, or any other on-device/remote inference object) — substitute your own.
+
+// Report model load time once, after the model is ready for inference
+let loadStart = Date()
+try interpreter.allocateTensors()
+handle.trackLoad(
+    durationMs: Int(Date().timeIntervalSince(loadStart) * 1000),
+    accelerator: .cpu
+)
+
+// Time and report each inference
+let start = Date()
+try interpreter.invoke()
+_ = handle.trackInference(
+    durationMs: Int(Date().timeIntervalSince(start) * 1000),
+    inputModality: .image,
+    outputModality: .classification
+)
+```
+
+### 5. Zero-code tracking for supported libraries
+
+Besides the manual steps in step 4, the following libraries are traced automatically via zero-code interceptors — no extra steps needed for those:
+
+#### ONNX Runtime — zero-code integration
 
 The SDK automatically intercepts `ORTSession` creation and `run` calls at the ObjC runtime level — no import or code changes needed. Just run your existing ONNX code and events appear in the dashboard:
 
@@ -125,7 +149,7 @@ let outputs = try session.run(withInputs: inputs, outputNames: ["output"], runOp
 // load, inference, and unload are tracked automatically.
 ```
 
-### ML Kit — zero-code integration
+#### ML Kit — zero-code integration
 
 All built-in ML Kit detectors (Face, Object, Image Labeler, Text Recognizer, Barcode Scanner, Pose) are intercepted automatically. Remote model downloads via `ModelManager` are also tracked:
 
@@ -142,7 +166,7 @@ detector.process(VisionImage(image: image)) { faces, error in
 }
 ```
 
-### TFLite (`TensorFlowLiteObjC`) — zero-code integration
+#### TFLite (`TensorFlowLiteObjC`) — zero-code integration
 
 When your app links `TensorFlowLiteObjC` (i.e. uses `TFLInterpreter`), WildEdge hooks it automatically — no imports or code changes needed:
 
@@ -161,7 +185,7 @@ TFLInterpreter *interpreter = [[TFLInterpreter alloc] initWithModelPath:modelPat
 
 > **Note:** The pure-Swift `TensorFlowLite` package (`Interpreter` class) cannot be intercepted — use explicit model handles for that path (see below).
 
-### ExecuTorch LLM — zero-code integration
+#### ExecuTorch LLM — zero-code integration
 
 When your app links `ExecuTorchLLM` and uses `TextRunner`, WildEdge intercepts load, generate, and dealloc automatically:
 
@@ -185,7 +209,7 @@ try runner.generate(prompt, config) { token in
 
 Token counting is done by wrapping the caller's callback block at the ObjC runtime level — no changes to the callback needed. `ModelHandle` is stored as an associated object on the runner instance so it survives background threads and arbitrary lifetimes.
 
-### TFLite (pure Swift) — manual integration
+#### TFLite (pure Swift) — manual integration
 
 The Swift `Interpreter` class has no ObjC runtime exposure, so use explicit model handles:
 
@@ -242,6 +266,24 @@ Available members of `Interceptors`:
 | `.execuTorchLLM` | ExecuTorch `ExecuTorchLLMTextRunner` (load, generate with token counting, dealloc) |
 | `.mlKit` | Convenience: `.mlKitDetector` + `.mlKitModelManager` combined |
 | `.all` | All interceptors enabled (default) |
+
+## Examples
+
+> **Tip:** Want to see WildEdge in action? Check out the example apps below.
+
+| Example | Runtime | What it shows |
+|---|---|---|
+| [llamaExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/llamaExample) | llama.cpp · Metal GPU | On-device LLM — in-app GGUF catalog (Qwen2.5, TinyLlama, Liquid AI LFM2), streaming token output, Metal warmup, perf telemetry via `llama_perf_context` |
+| [execuTorchExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/execuTorchExample) | ExecuTorch · XNNPACK CPU | On-device LLM — Llama 3.2 1B catalog (.pte + tokenizer.json), zero-code telemetry via `ExecuTorchLLMInterceptor` (`.execuTorchLLM`), RE2 tokenizer patching, `kernels_quantized` / `kernels_torchao` for INT4 models |
+| [CarScannerExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/CarScannerExample) | OpenRouter / Gemini API | iOS camera app — scans cars with remote vision APIs, tracks each inference and uploads the input image as an attachment |
+| [VoiceRecorderSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/VoiceRecorderSample) | ONNX Runtime | Records audio, runs a local ONNX voice-conversion model, tracks inference + uploads the recording as an attachment |
+| [OnnxExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/OnnxExample) | ONNX Runtime | Zero-code tracking via auto-interceptor |
+| [MLKitExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/MLKitExample) | ML Kit | Zero-code tracking via auto-interceptor |
+| [TFLiteObjcExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteObjcExample) | TensorFlow Lite (ObjC) | Zero-code tracking via `TFLInterpreter` auto-interceptor |
+| [TFLiteExample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/TFLiteExample) | TensorFlow Lite (Swift) | Manual tracking using the pure-Swift `Interpreter` |
+| [Benchmarks](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/Benchmarks) | — | Interactive benchmarks for BlobStore throughput, compaction, encoding formats, and gzip compression |
+| [iOSAppSample](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/iOSAppSample) | — | General-purpose iOS integration sample |
+| [SPMExamples](https://github.com/wild-edge/wildedge-swift/tree/main/Examples/SPMExamples) | — | Swift Package examples runnable from the terminal or Xcode, including multi-step tracing |
 
 ## Tracing
 
@@ -460,7 +502,7 @@ Download size is the zipped `.app`/`.ipa` binary delta. Apple's App Store LZFSE 
 
 Full documentation is available at **[docs.wildedge.dev](https://docs.wildedge.dev)**.
 
-## Repo layout
+## Repository overview
 
 - [Package.swift](https://github.com/wild-edge/wildedge-swift/blob/main/Package.swift): Swift SDK package manifest
 - [Sources](https://github.com/wild-edge/wildedge-swift/tree/main/Sources): SDK source code
