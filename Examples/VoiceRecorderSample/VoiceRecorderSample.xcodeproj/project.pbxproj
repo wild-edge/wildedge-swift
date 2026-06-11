@@ -152,7 +152,6 @@
 				EE1111111111111111111111 /* onnxruntime */,
 				BB3333333333333333333333 /* WhisperKit */,
 				CC4444444444444444444444 /* LeapSDK */,
-				DD6666666666666666666666 /* LlamaSwift */,
 				EE7777777777777777777772 /* MLXLLM */,
 				EE7777777777777777777774 /* MLXLMCommon */,
 				EE7777777777777777777776 /* Hub */,
@@ -184,7 +183,6 @@
 				DD1111111111111111111111 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */,
 				BB2222222222222222222222 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
 				CC3333333333333333333333 /* XCRemoteSwiftPackageReference "leap-sdk" */,
-				DD7777777777777777777777 /* XCLocalSwiftPackageReference "Packages/LlamaSwiftMultimodal" */,
 				EE7777777777777777777777 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				EE7777777777777777777778 /* XCRemoteSwiftPackageReference "swift-transformers" */,
 			);
@@ -624,10 +622,6 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "../../../wildedge-swift";
 		};
-		DD7777777777777777777777 /* XCLocalSwiftPackageReference "Packages/LlamaSwiftMultimodal" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Packages/LlamaSwiftMultimodal;
-		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -692,11 +686,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = CC3333333333333333333333 /* XCRemoteSwiftPackageReference "leap-sdk" */;
 			productName = LeapSDK;
-		};
-		DD6666666666666666666666 /* LlamaSwift */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = DD7777777777777777777777 /* XCLocalSwiftPackageReference "Packages/LlamaSwiftMultimodal" */;
-			productName = LlamaSwift;
 		};
 		EE7777777777777777777772 /* MLXLLM */ = {
 			isa = XCSwiftPackageProductDependency;
