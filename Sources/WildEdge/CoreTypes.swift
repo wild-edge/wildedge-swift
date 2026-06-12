@@ -153,6 +153,13 @@ internal func inferQuantization(from path: String) -> String? {
     }
 }
 
+/// Estimates BPE token count from character count.
+/// OpenAI rule of thumb: ~4 chars per token for common English text.
+/// Accumulate char count across streaming chunks and call once at the end.
+internal func approximateBpeTokenCount(charCount: Int) -> Int {
+    max(1, Int((Double(charCount) / 4.0).rounded()))
+}
+
 public struct TopPrediction {
     public var label: String
     public var confidence: Double?
