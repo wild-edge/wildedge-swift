@@ -174,7 +174,8 @@ internal final class TFLInterceptor {
         return (modelId, ModelInfo(
             modelName: modelId,
             modelSource: "local",
-            modelFormat: ext.isEmpty ? "tflite" : ext
+            modelFormat: ext.isEmpty ? "tflite" : ext,
+            quantization: inferQuantization(from: path)
         ))
     }
 

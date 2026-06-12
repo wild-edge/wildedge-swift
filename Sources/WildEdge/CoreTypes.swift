@@ -135,6 +135,24 @@ public struct ModelInfo {
     }
 }
 
+/// Infers a quantization label from a model file name (e.g. `model_int8.onnx` -> `"int8"`).
+/// Returns `nil` when no recognized quantization marker is present.
+internal func inferQuantization(from path: String) -> String? {
+    let name = URL(fileURLWithPath: path).lastPathComponent.lowercased()
+    switch true {
+    case name.contains("int8"), name.contains("_q8"):
+        return "int8"
+    case name.contains("int4"), name.contains("_q4"):
+        return "int4"
+    case name.contains("float16"), name.contains("fp16"), name.contains("_f16"):
+        return "f16"
+    case name.contains("float32"), name.contains("fp32"), name.contains("_f32"):
+        return "f32"
+    default:
+        return nil
+    }
+}
+
 public struct TopPrediction {
     public var label: String
     public var confidence: Double?

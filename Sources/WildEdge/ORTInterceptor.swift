@@ -164,7 +164,8 @@ internal final class ORTInterceptor {
         return (modelId, ModelInfo(
             modelName: modelId,
             modelSource: "local",
-            modelFormat: url.pathExtension.isEmpty ? "onnx" : url.pathExtension
+            modelFormat: url.pathExtension.isEmpty ? "onnx" : url.pathExtension,
+            quantization: inferQuantization(from: path)
         ))
     }
 

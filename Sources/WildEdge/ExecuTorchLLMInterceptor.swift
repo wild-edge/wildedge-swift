@@ -227,7 +227,12 @@ internal final class ExecuTorchLLMInterceptor {
         let url = URL(fileURLWithPath: path)
         let stem = url.deletingPathExtension().lastPathComponent
         let modelId = stem.isEmpty ? "executorch_model" : stem
-        return (modelId, ModelInfo(modelName: modelId, modelSource: "local", modelFormat: "pte"))
+        return (modelId, ModelInfo(
+            modelName: modelId,
+            modelSource: "local",
+            modelFormat: "pte",
+            quantization: inferQuantization(from: path)
+        ))
     }
 
     // MARK: - Dealloc observer
