@@ -252,6 +252,37 @@ public struct GenerationConfig {
     }
 }
 
+public struct ClassificationOutputMeta {
+    public var numPredictions: Int?
+    public var topK: [TopPrediction]?
+    public var avgConfidence: Double?
+
+    public init(numPredictions: Int? = nil, topK: [TopPrediction]? = nil, avgConfidence: Double? = nil) {
+        self.numPredictions = numPredictions
+        self.topK = topK
+        self.avgConfidence = avgConfidence
+    }
+
+    public func toMap() -> [String: Any] {
+        var map: [String: Any] = ["task": "classification"]
+        if let numPredictions {
+            map["num_predictions"] = numPredictions
+        }
+        if let topK {
+            map["top_k"] = topK.map { item in
+                var value: [String: Any] = ["label": item.label]
+                if let confidence = item.confidence { value["confidence"] = confidence }
+                if let bbox = item.bbox             { value["bbox"] = bbox }
+                return value
+            }
+        }
+        if let avgConfidence {
+            map["avg_confidence"] = avgConfidence
+        }
+        return map
+    }
+}
+
 public struct GenerationOutputMeta {
     public var tokensIn: Int?
     public var tokensOut: Int?
