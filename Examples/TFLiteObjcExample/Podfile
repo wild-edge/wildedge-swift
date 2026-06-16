@@ -12,5 +12,5 @@ end
 target 'TFLiteObjcExample' do
   use_frameworks!
   pod 'WildEdge', :path => '../..'
-  pod 'TensorFlowLiteObjC', '~> 2.14'
+  pod 'TensorFlowLiteObjC', '~> 2.17'
 end
