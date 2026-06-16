@@ -14,11 +14,11 @@ PODS:
     - TensorFlowLiteSwift/Core (= 2.17.0)
     - TensorFlowLiteSwift/Privacy (= 2.17.0)
   - TensorFlowLiteSwift/Privacy (2.17.0)
-  - WildEdge (1.0.11)
+  - WildEdge (1.1.0)
 
 DEPENDENCIES:
-  - TensorFlowLiteSwift (~> 2.14)
-  - TensorFlowLiteSwift/Metal (~> 2.14)
+  - TensorFlowLiteSwift (~> 2.17)
+  - TensorFlowLiteSwift/Metal (~> 2.17)
   - WildEdge (from `../..`)
 
 SPEC REPOS:
@@ -33,8 +33,8 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   TensorFlowLiteC: eac6d689a8d391d1b202dc59e3d9165ba64aaf73
   TensorFlowLiteSwift: 723fe42222815e72490c79feeff05305530de393
-  WildEdge: db1270d3adfb5be5c8ced7587f37290d4a264760
+  WildEdge: c4807ad8d983eca050464e47b5554817d14e138d
 
-PODFILE CHECKSUM: c37593003a12ed271db61d3895f60f351f82c5a9
+PODFILE CHECKSUM: 2b36cdf570f5853bf89fe8a4949e9bc31b44f6dc
 
 COCOAPODS: 1.16.2
