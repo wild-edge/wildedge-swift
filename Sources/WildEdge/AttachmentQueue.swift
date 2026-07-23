@@ -20,6 +20,7 @@ internal final class AttachmentQueue {
     private let store: BlobStore
     private let strategy: AttachmentStorageStrategy
     private var count: Int = 0
+    private var disabled = false
     private let lock = NSLock()
 
     // Binary encoding is used for all records: it natively supports the
@@ -51,10 +52,25 @@ internal final class AttachmentQueue {
     func append(_ attachment: PendingAttachment) {
         lock.lock()
         defer { lock.unlock() }
+        guard !disabled else { return }
         guard let dict = encode(attachment) else { return }
         if (try? store.append(dict, encoding: Self.encoding)) != nil {
             count += 1
         }
+    }
+
+    /// Stops accepting new attachments for the rest of the session (e.g. after
+    /// a presign 403 indicates attachments aren't enabled for this project).
+    func disable() {
+        lock.lock()
+        defer { lock.unlock() }
+        disabled = true
+    }
+
+    func isDisabled() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return disabled
     }
 
     // MARK: - Read

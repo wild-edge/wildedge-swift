@@ -458,11 +458,15 @@ internal enum AttachmentUploadResult {
     case uploaded
     case permanentFailure(AttachmentTransmitError)
     case transientFailure
+    /// Attachments are not enabled for this project (presign 403). The caller
+    /// should stop capturing/uploading attachments for the rest of the session.
+    case disabled
 }
 
 internal enum AttachmentTransmitError: Error {
     case badPayload
     case unauthorized
+    case malformed
 }
 
 public struct ApiMeta {

@@ -197,8 +197,9 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         inferenceId: String,
         inferenceTimestamp: Date
     ) {
-        guard let aq = attachmentQueue else { return }
+        guard let aq = attachmentQueue, !aq.isDisabled() else { return }
         attachmentIOQueue.async { [self] in
+            guard !aq.isDisabled() else { return }
             var filtered = attachmentConfig.filter?(attachments) ?? attachments
             if filtered.count > attachmentConfig.maxPerInference {
                 filtered = Array(filtered.prefix(attachmentConfig.maxPerInference))

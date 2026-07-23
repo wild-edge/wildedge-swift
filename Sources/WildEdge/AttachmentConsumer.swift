@@ -97,6 +97,22 @@ internal final class AttachmentConsumer {
             case .transientFailure:
                 logger("Attachment transient failure id=\(attachment.attachmentId), retrying next tick")
                 break uploadLoop
+
+            case .disabled:
+                deleteFile(attachment)
+                dropCount += 1
+                doneCount += 1
+                logger("Attachment uploads disabled for this session (presign 403), id=\(attachment.attachmentId) dropped")
+                queue.disable()
+                if doneCount > 0 {
+                    queue.removeFirstN(doneCount)
+                }
+                if !closed {
+                    closed = true
+                    timer?.cancel()
+                    timer = nil
+                }
+                return
             }
         }
 

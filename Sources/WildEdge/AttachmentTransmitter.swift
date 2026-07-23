@@ -103,8 +103,15 @@ internal final class AttachmentTransmitter {
             break
         case 400:
             return .failure(.permanentFailure(.badPayload))
-        case 401, 403:
+        case 401:
             return .failure(.permanentFailure(.unauthorized))
+        case 403:
+            // Attachments are not enabled for this project; disable capture/upload
+            // for the rest of the session rather than retrying forever.
+            return .failure(.disabled)
+        case 422:
+            // Malformed attachment; retrying would wedge the queue forever.
+            return .failure(.permanentFailure(.malformed))
         default:
             return .failure(.transientFailure)
         }
@@ -160,7 +167,10 @@ internal final class AttachmentTransmitter {
         switch http.statusCode {
         case 200, 201, 202, 204: return .uploaded
         case 400:                return .permanentFailure(.badPayload)
-        case 401, 403:           return .permanentFailure(.unauthorized)
+        case 401:                return .permanentFailure(.unauthorized)
+        case 403:
+            // Presigned URL expired; re-presign with the same attachment_id on the next attempt.
+            return .transientFailure
         case 429, 500...599:     return .transientFailure
         default:                 return .transientFailure
         }
