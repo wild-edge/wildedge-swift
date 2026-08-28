@@ -42,9 +42,28 @@ public final class NoopWildEdgeClient: WildEdgeClient {
             parentSpanId: nil,
             kind: kind,
             status: .ok,
+            attributes: attributes,
             owner: NullSpanOwner()
         )
         return try block(context)
+    }
+
+    public func trace<T>(
+        _ name: String,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        let context = SpanContext(
+            traceId: UUID().uuidString,
+            spanId: UUID().uuidString,
+            parentSpanId: nil,
+            kind: kind,
+            status: .ok,
+            attributes: attributes,
+            owner: NullSpanOwner()
+        )
+        return try await block(context)
     }
 
     public var pendingCount: Int { 0 }
@@ -80,8 +99,29 @@ private final class NullSpanOwner: SpanOwner {
             parentSpanId: parentSpanId,
             kind: kind,
             status: .ok,
+            attributes: attributes,
             owner: self
         )
         return try block(context)
+    }
+
+    func runSpan<T>(
+        name: String,
+        traceId: String,
+        parentSpanId: String?,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        let context = SpanContext(
+            traceId: traceId,
+            spanId: UUID().uuidString,
+            parentSpanId: parentSpanId,
+            kind: kind,
+            status: .ok,
+            attributes: attributes,
+            owner: self
+        )
+        return try await block(context)
     }
 }

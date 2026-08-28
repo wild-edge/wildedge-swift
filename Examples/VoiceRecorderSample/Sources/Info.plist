@@ -17,19 +17,36 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>1.1</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone access is required to record voice messages.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Speech recognition access is required to transcribe voice recordings on device.</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>WILDEDGE_DEBUG</key>
 	<true/>
 	<key>WILDEDGE_DSN</key>
-	<string></string>
+	<string>https://-Lny3QqtKWVSn08uqNWATSZiKCvt2iuBv8zT6LoxvwM@ingest.wildedge.dev/f8ae0493-d106-4b2e-a841-857f79c613bf</string>
 	
 </dict>
 </plist>

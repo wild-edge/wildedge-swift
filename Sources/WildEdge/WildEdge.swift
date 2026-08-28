@@ -18,6 +18,12 @@ public protocol WildEdgeClient: AnyObject {
         attributes: [String: Any]?,
         block: (SpanContext) throws -> T
     ) rethrows -> T
+    func trace<T>(
+        _ name: String,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T
     func flush(timeoutMs: Int64)
     var pendingCount: Int { get }
     func diagnostics() -> SDKDiagnostics
@@ -48,6 +54,15 @@ public extension WildEdgeClient {
         try trace(name, kind: kind, attributes: attributes, block: block)
     }
 
+    func trace<T>(
+        _ name: String,
+        kind: SpanKind = .custom,
+        attributes: [String: Any]? = nil,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        try await trace(name, kind: kind, attributes: attributes, block: block)
+    }
+
     func flush() {
         flush(timeoutMs: Config.defaultShutdownFlushTimeoutMs)
     }
@@ -70,6 +85,9 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     private var closed = false
 
     private static let activeSpanKey = "dev.wildedge.active_span"
+
+    @TaskLocal
+    private static var activeTaskSpan: SpanContext?
 
     internal struct AttachmentConfig {
         let enabled: Bool
@@ -159,6 +177,22 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         block: (SpanContext) throws -> T
     ) rethrows -> T {
         try runSpan(
+            name: name,
+            traceId: UUID().uuidString,
+            parentSpanId: nil,
+            kind: kind,
+            attributes: attributes,
+            block: block
+        )
+    }
+
+    public func trace<T>(
+        _ name: String,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        try await runSpan(
             name: name,
             traceId: UUID().uuidString,
             parentSpanId: nil,
@@ -349,7 +383,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     }
 
     internal var activeSpan: SpanContext? {
-        Thread.current.threadDictionary[Self.activeSpanKey] as? SpanContext
+        Self.activeTaskSpan ?? Thread.current.threadDictionary[Self.activeSpanKey] as? SpanContext
     }
 
     internal func runSpan<T>(
@@ -366,6 +400,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             parentSpanId: parentSpanId,
             kind: kind,
             status: .ok,
+            attributes: attributes,
             owner: self
         )
 
@@ -389,7 +424,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
                 status: context.status,
                 name: name,
                 durationMs: durationMs,
-                attributes: attributes
+                attributes: context.attributesSnapshot()
             )
             publish(event: event)
         }
@@ -398,6 +433,60 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             return try block(context)
         } catch {
             context.status = .error
+            throw error
+        }
+    }
+
+    internal func runSpan<T>(
+        name: String,
+        traceId: String,
+        parentSpanId: String?,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        let context = SpanContext(
+            traceId: traceId,
+            spanId: UUID().uuidString,
+            parentSpanId: parentSpanId,
+            kind: kind,
+            status: .ok,
+            attributes: attributes,
+            owner: self
+        )
+
+        let start = Date()
+        do {
+            let result = try await Self.$activeTaskSpan.withValue(context) {
+                try await block(context)
+            }
+            let durationMs = Int64(Date().timeIntervalSince(start) * 1000)
+            let event = buildSpanEvent(
+                traceId: context.traceId,
+                spanId: context.spanId,
+                parentSpanId: context.parentSpanId,
+                kind: context.kind,
+                status: context.status,
+                name: name,
+                durationMs: durationMs,
+                attributes: context.attributesSnapshot()
+            )
+            publish(event: event)
+            return result
+        } catch {
+            context.status = .error
+            let durationMs = Int64(Date().timeIntervalSince(start) * 1000)
+            let event = buildSpanEvent(
+                traceId: context.traceId,
+                spanId: context.spanId,
+                parentSpanId: context.parentSpanId,
+                kind: context.kind,
+                status: context.status,
+                name: name,
+                durationMs: durationMs,
+                attributes: context.attributesSnapshot()
+            )
+            publish(event: event)
             throw error
         }
     }
@@ -646,4 +735,3 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         )
     }
 }
-
