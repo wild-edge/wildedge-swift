@@ -1,0 +1,1 @@
+set the tempererature to 23 degrees

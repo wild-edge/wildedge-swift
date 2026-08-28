@@ -1,0 +1,5 @@
+model_name,median_duration_ms
+LFM2 350M Text To Tool,254.5
+Qwen3 0.6B 4-bit Text To Tool,490
+TinyLlama 1.1B 4-bit GGUF Text To Tool,946
+FunctionGemma Text To Tool,1265.5

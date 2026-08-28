@@ -2,29 +2,95 @@ name: VoiceRecorderSample
 options:
   bundleIdPrefix: dev.wildedge.sample
   deploymentTarget:
-    iOS: "14.0"
+    iOS: "18.0"
+configs:
+  Debug: debug
+  Benchmark: debug
+  Release: release
 packages:
   WildEdge:
     path: ../..
   onnxruntime-swift-package-manager:
     url: https://github.com/microsoft/onnxruntime-swift-package-manager
     exactVersion: 1.24.2
+  argmax-oss-swift:
+    url: https://github.com/argmaxinc/argmax-oss-swift
+    from: 1.0.0
+  leap-sdk:
+    url: https://github.com/Liquid4All/leap-sdk.git
+    exactVersion: 0.10.6
+  LlamaSwiftMultimodal:
+    path: Packages/LlamaSwiftMultimodal
 targets:
   VoiceRecorderSample:
     type: application
     platform: iOS
-    deploymentTarget: "14.0"
+    deploymentTarget: "18.0"
     sources:
       - Sources
+      - path: benchmark_data
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.wildedge.sample.voice
         SWIFT_VERSION: "5.9"
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
         GENERATE_INFOPLIST_FILE: "NO"
         INFOPLIST_FILE: Sources/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
+      configs:
+        Benchmark:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG BENCHMARK_BUILD
     dependencies:
       - package: WildEdge
         product: WildEdge
       - package: onnxruntime-swift-package-manager
         product: onnxruntime
+      - package: argmax-oss-swift
+        product: WhisperKit
+      - package: leap-sdk
+        product: LeapSDK
+      - package: LlamaSwiftMultimodal
+        product: LlamaSwift
+    postBuildScripts:
+      - name: Prepare Leap runtime for distribution
+        basedOnDependencyAnalysis: false
+        script: |
+          "${SRCROOT}/Scripts/prepare_leap_for_distribution.sh"
+schemes:
+  VoiceRecorderSample:
+    build:
+      targets:
+        VoiceRecorderSample: all
+    run:
+      config: Debug
+      environmentVariables:
+        WILDEDGE_DSN: ""
+        WILDEDGE_DEBUG: "true"
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+  VoiceRecorderSample-Benchmark:
+    build:
+      targets:
+        VoiceRecorderSample: all
+    run:
+      config: Benchmark
+      environmentVariables:
+        WILDEDGE_DSN: ""
+        WILDEDGE_DEBUG: "true"
+    test:
+      config: Benchmark
+    profile:
+      config: Benchmark
+    analyze:
+      config: Benchmark
+    archive:
+      config: Benchmark

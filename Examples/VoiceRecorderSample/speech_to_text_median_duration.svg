@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="330" viewBox="0 0 720 330" role="img" aria-labelledby="stt-title stt-desc">
+  <title id="stt-title">Speech-to-text median duration</title>
+  <desc id="stt-desc">Bar chart comparing speech-to-text median duration. OpenAI Whisper Tiny is fastest at 87 milliseconds, and Apple Speech Recognizer is 184 milliseconds.</desc>
+  <rect width="720" height="330" rx="18" fill="#ffffff"/>
+
+  <image href="wildedge-logo-text.svg" x="42" y="24" width="76" height="53" preserveAspectRatio="xMinYMin meet"/>
+  <text x="164" y="42" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#102a43">Speech-to-text median duration</text>
+  <text x="164" y="66" font-family="Arial, sans-serif" font-size="12" fill="#52606d">Lower is better. Median duration for the speech-to-text stage only.</text>
+
+  <line x1="92" y1="248" x2="672" y2="248" stroke="#d9e2ec" stroke-width="1.5"/>
+  <line x1="92" y1="88" x2="92" y2="248" stroke="#d9e2ec" stroke-width="1.5"/>
+
+  <line x1="92" y1="208" x2="672" y2="208" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="212" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">50</text>
+  <line x1="92" y1="168" x2="672" y2="168" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="172" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">100</text>
+  <line x1="92" y1="128" x2="672" y2="128" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="132" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">150</text>
+  <line x1="92" y1="88" x2="672" y2="88" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="92" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">200</text>
+
+  <rect x="190" y="178.4" width="120" height="69.6" rx="9" fill="#024079"/>
+  <text x="250" y="169" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#024079">87 ms</text>
+  <text x="250" y="276" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#102a43">OpenAI Whisper Tiny</text>
+
+  <rect x="430" y="100.8" width="120" height="147.2" rx="10" fill="#024079"/>
+  <text x="490" y="128" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#ffffff">184 ms</text>
+  <text x="490" y="276" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#102a43">Apple Speech</text>
+  <text x="490" y="292" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d">Recognizer</text>
+
+  <text x="24" y="168" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d" transform="rotate(-90 24 168)">Median duration (ms)</text>
+  <text x="48" y="318" font-family="Arial, sans-serif" font-size="12" fill="#52606d">Measured as the speech-to-text stage only, before text-to-tool generation.</text>
+</svg>

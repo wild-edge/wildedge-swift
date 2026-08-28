@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="360" viewBox="0 0 720 360" role="img" aria-labelledby="ttt-title ttt-desc">
+  <title id="ttt-title">Text-to-tool median duration</title>
+  <desc id="ttt-desc">Bar chart comparing text-to-tool median duration for four models. LFM2 350M is fastest at 254.5 milliseconds, followed by Qwen3 at 490 milliseconds, TinyLlama at 946 milliseconds, and FunctionGemma at 1265.5 milliseconds.</desc>
+  <rect width="720" height="360" rx="18" fill="#ffffff"/>
+
+  <image href="wildedge-logo-text.svg" x="42" y="24" width="76" height="53" preserveAspectRatio="xMinYMin meet"/>
+  <text x="164" y="42" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#102a43">Text-to-tool median duration</text>
+  <text x="164" y="66" font-family="Arial, sans-serif" font-size="12" fill="#52606d">Lower is better. Median duration for the text-to-tool stage only.</text>
+
+  <line x1="92" y1="260" x2="672" y2="260" stroke="#d9e2ec" stroke-width="1.5"/>
+  <line x1="92" y1="80" x2="92" y2="260" stroke="#d9e2ec" stroke-width="1.5"/>
+
+  <line x1="92" y1="215" x2="672" y2="215" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="219" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">350</text>
+  <line x1="92" y1="170" x2="672" y2="170" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="174" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">700</text>
+  <line x1="92" y1="125" x2="672" y2="125" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="129" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">1050</text>
+  <line x1="92" y1="80" x2="672" y2="80" stroke="#f0f4f8" stroke-width="1"/>
+  <text x="80" y="84" text-anchor="end" font-family="Arial, sans-serif" font-size="11" fill="#829ab1">1400</text>
+
+  <rect x="128" y="227.28" width="86" height="32.72" rx="7" fill="#00b78b"/>
+  <text x="171" y="218" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#00b78b">254.5</text>
+  <text x="171" y="288" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#102a43">LFM2 350M</text>
+
+  <rect x="268" y="197" width="86" height="63" rx="8" fill="#00b78b"/>
+  <text x="311" y="188" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#00b78b">490</text>
+  <text x="311" y="288" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#102a43">Qwen3 0.6B</text>
+
+  <rect x="408" y="138.37" width="86" height="121.63" rx="9" fill="#00b78b"/>
+  <text x="451" y="129" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#00b78b">946</text>
+  <text x="451" y="288" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#102a43">TinyLlama</text>
+  <text x="451" y="304" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#52606d">1.1B GGUF</text>
+
+  <rect x="548" y="97.29" width="86" height="162.71" rx="10" fill="#00b78b"/>
+  <text x="591" y="126" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#ffffff">1265.5</text>
+  <text x="591" y="288" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="700" fill="#102a43">FunctionGemma</text>
+
+  <text x="24" y="170" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#52606d" transform="rotate(-90 24 170)">Median duration (ms)</text>
+</svg>

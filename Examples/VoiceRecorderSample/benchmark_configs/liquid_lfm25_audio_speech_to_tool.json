@@ -1,0 +1,14 @@
+{
+  "config_version": 1,
+  "benchmark_params": {
+    "benchmark_steps": ["speech_to_tool"],
+    "delay_seconds": 0,
+    "number_of_inferences": 5,
+    "loop": false,
+    "recordings_match": "*.m4a",
+    "speech_to_tool_model": {
+      "preset": "liquid-lfm2.5-audio-1.5b-gguf",
+      "provider": "llama_cpp_mtmd"
+    }
+  }
+}

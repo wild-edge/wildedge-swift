@@ -1,0 +1,5 @@
+stt_model,llm_model,stt_median_duration_ms,llm_median_duration_ms,total_median_duration_ms
+OpenAI Whisper Tiny,LFM2 350M Text To Tool,87,254.5,341.5
+OpenAI Whisper Tiny,Qwen3 0.6B 4-bit Text To Tool,87,490,577
+OpenAI Whisper Tiny,TinyLlama 1.1B 4-bit GGUF Text To Tool,87,946,1033
+OpenAI Whisper Tiny,FunctionGemma Text To Tool,87,1265.5,1352.5
