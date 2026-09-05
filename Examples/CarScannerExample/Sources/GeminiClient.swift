@@ -4,9 +4,9 @@ import WildEdge
 
 struct GeminiClient {
     static let handle: ModelHandle = WildEdge.shared.registerModel(
-        modelId: "google/gemini-2.5-flash",
+        modelId: "google/gemini-3.6-flash",
         info: ModelInfo(
-            modelName: "gemini-2.5-flash",
+            modelName: "gemini-3.6-flash",
             modelSource: "google",
             modelFormat: "api",
             modelFamily: "gemini"
@@ -31,7 +31,7 @@ struct GeminiClient {
                 ]
             ]]
         ]
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=\(key)")!
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=\(key)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

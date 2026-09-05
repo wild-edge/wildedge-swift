@@ -4,9 +4,9 @@ import WildEdge
 
 struct OpenRouterClient {
     static let handle: ModelHandle = WildEdge.shared.registerModel(
-        modelId: "openrouter/gemini-2.5-flash",
+        modelId: "openrouter/gemini-3.6-flash",
         info: ModelInfo(
-            modelName: "gemini-2.5-flash",
+            modelName: "gemini-3.6-flash",
             modelSource: "openrouter",
             modelFormat: "api",
             modelFamily: "gemini"
@@ -24,7 +24,7 @@ struct OpenRouterClient {
             throw configError("Set OPENROUTER_API_KEY in Info.plist")
         }
         let body: [String: Any] = [
-            "model": "google/gemini-2.5-flash",
+            "model": "google/gemini-3.6-flash",
             "messages": [[
                 "role": "user",
                 "content": [
