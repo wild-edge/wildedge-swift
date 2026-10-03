@@ -3,8 +3,8 @@ import CoreGraphics
 import WildEdge
 
 struct OpenRouterClient {
-    /// The alias's handle. It only records failures that happen before a
-    /// response names the version; everything after goes to `versionHandle`.
+    /// The alias's own handle. Only used for failures before this alias has
+    /// ever answered on this install; see `versionHandle`.
     static let handle: ModelHandle = WildEdge.shared.registerModel(
         modelId: "openrouter/gemini-flash-latest",
         info: ModelInfo(
@@ -41,8 +41,11 @@ struct OpenRouterClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
+        // A failure before the response names a version goes to the version
+        // this alias last resolved to.
+        let lastKnown = versionHandle(nil, idPrefix: "openrouter", source: "openrouter", fallback: Self.handle)
         let start = Date()
-        let (data, response) = try await send(request, reportingTo: Self.handle)
+        let (data, response) = try await send(request, reportingTo: lastKnown)
         let stats = HTTPStats(
             statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0,
             durationMs: Int(Date().timeIntervalSince(start) * 1000),
@@ -53,7 +56,7 @@ struct OpenRouterClient {
 
         if stats.statusCode != 200 {
             let body = String(data: data, encoding: .utf8) ?? "unknown"
-            Self.handle.trackError(
+            lastKnown.trackError(
                 errorCode: "HTTP_\(stats.statusCode)",
                 errorMessage: String(body.prefix(256))
             )

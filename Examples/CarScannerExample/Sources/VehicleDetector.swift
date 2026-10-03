@@ -91,6 +91,14 @@ enum DetectorPrecision: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The protocol's quantization value, which spells half precision `f16`.
+    var quantization: String {
+        switch self {
+        case .fp16: return "f16"
+        case .int8: return "int8"
+        }
+    }
+
     var resourceName: String {
         switch self {
         case .fp16: return "VehicleDetectorModel"
@@ -141,7 +149,7 @@ final class VehicleDetector {
             modelSource: "WildEdgeDev/we-scan-detector-coreml",
             modelFormat: "coreml",
             modelFamily: "rt-detr",
-            quantization: precision.rawValue
+            quantization: precision.quantization
         )
         handle = WildEdge.shared.registerModel(modelId: "rtdetr_r18vd_\(precision.rawValue)", info: info)
 
@@ -160,10 +168,10 @@ final class VehicleDetector {
         } catch {
             print("[VehicleDetector] load failed: \(error)")
             handle.trackLoad(durationMs: Int(Date().timeIntervalSince(loadStart) * 1000),
-                             accelerator: .npu, success: false, errorCode: "coreml_load_error")
+                             accelerator: .ane, success: false, errorCode: "coreml_load_error")
             return nil
         }
-        handle.trackLoad(durationMs: Int(Date().timeIntervalSince(loadStart) * 1000), accelerator: .npu)
+        handle.trackLoad(durationMs: Int(Date().timeIntervalSince(loadStart) * 1000), accelerator: .ane)
     }
 
     deinit {

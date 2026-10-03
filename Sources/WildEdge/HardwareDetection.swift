@@ -52,10 +52,10 @@ internal enum HardwareDetection {
         var accelerators: [Accelerator] = [.cpu]
         #if os(iOS)
         if #available(iOS 13.0, *) { accelerators.append(.gpu) }
-        if #available(iOS 14.0, *) { accelerators.append(.npu) }
+        if #available(iOS 14.0, *) { accelerators.append(.ane) }
         #else
         accelerators.append(.gpu)
-        accelerators.append(.npu)
+        accelerators.append(.ane)
         #endif
         return accelerators
     }

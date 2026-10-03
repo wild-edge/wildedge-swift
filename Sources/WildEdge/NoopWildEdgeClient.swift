@@ -1,8 +1,6 @@
 import Foundation
 
 public final class NoopWildEdgeClient: WildEdgeClient {
-    public var defaultRunId: String?
-
     public init() {}
 
     public func registerModel(modelId: String, info: ModelInfo) -> ModelHandle {
@@ -58,6 +56,28 @@ public final class NoopWildEdgeClient: WildEdgeClient {
         return try block(context)
     }
 
+    public func trace<T>(
+        _ name: String,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        parent: SpanContext?,
+        runId: String?,
+        agentId: String?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        let context = SpanContext(
+            traceId: parent?.traceId ?? UUID().uuidString,
+            spanId: UUID().uuidString,
+            parentSpanId: parent?.spanId,
+            runId: runId ?? parent?.runId,
+            agentId: agentId ?? parent?.agentId,
+            kind: kind,
+            status: .ok,
+            owner: NullSpanOwner()
+        )
+        return try await block(context)
+    }
+
     public var pendingCount: Int { 0 }
 
     public func flush(timeoutMs: Int64) {
@@ -98,5 +118,28 @@ private final class NullSpanOwner: SpanOwner {
             owner: self
         )
         return try block(context)
+    }
+
+    func runSpan<T>(
+        name: String,
+        traceId: String,
+        parentSpanId: String?,
+        runId: String?,
+        agentId: String?,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        let context = SpanContext(
+            traceId: traceId,
+            spanId: UUID().uuidString,
+            parentSpanId: parentSpanId,
+            runId: runId,
+            agentId: agentId,
+            kind: kind,
+            status: .ok,
+            owner: self
+        )
+        return try await block(context)
     }
 }

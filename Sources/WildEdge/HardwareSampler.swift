@@ -178,7 +178,7 @@ internal final class HardwareSampler {
 
     private func bestAccelerator() -> Accelerator {
         let available = HardwareDetection.availableAccelerators()
-        if available.contains(.npu) { return .npu }
+        if available.contains(.ane) { return .ane }
         if available.contains(.gpu) { return .gpu }
         return .cpu
     }

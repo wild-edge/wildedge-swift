@@ -4,11 +4,6 @@ import Foundation
 private func wildedge_loader_force_link()
 
 public protocol WildEdgeClient: AnyObject {
-    /// The run every event belongs to unless it says otherwise: an explicit
-    /// `runId` argument or the active span's run takes precedence. Set it to
-    /// group everything an app does over a stretch of time, such as a session,
-    /// into one run. `nil` (the default) adds no run.
-    var defaultRunId: String? { get set }
     func registerModel(modelId: String, info: ModelInfo) -> ModelHandle
     func trackMemoryWarning(
         level: MemoryWarningLevel,
@@ -30,6 +25,15 @@ public protocol WildEdgeClient: AnyObject {
         agentId: String?,
         block: (SpanContext) throws -> T
     ) rethrows -> T
+    func trace<T>(
+        _ name: String,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        parent: SpanContext?,
+        runId: String?,
+        agentId: String?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T
     func flush(timeoutMs: Int64)
     var pendingCount: Int { get }
     func diagnostics() -> SDKDiagnostics
@@ -66,7 +70,7 @@ public extension WildEdgeClient {
     ///
     /// Without `parent` the span starts a new trace; with it, the span joins
     /// the parent's trace as its child. `runId` and `agentId` default to the
-    /// parent's; `runId` then falls back to `defaultRunId`. Events emitted inside `block` take the trace, the span and
+    /// parent's. Events emitted inside `block` take the trace, the span and
     /// the run from it unless they are given their own.
     func trace<T>(
         _ name: String,
@@ -79,6 +83,23 @@ public extension WildEdgeClient {
     ) rethrows -> T {
         try trace(name, kind: kind, attributes: attributes, parent: parent,
                   runId: runId, agentId: agentId, block: block)
+    }
+
+    /// The async form of `trace`. The span stays active across `await`, and
+    /// child tasks (`async let`, task groups) inherit it. `Task.detached` and
+    /// work dispatched to a GCD queue do not; there, pass the `SpanContext` on
+    /// and use its `span` method, or give events their ids explicitly.
+    func trace<T>(
+        _ name: String,
+        kind: SpanKind = .custom,
+        attributes: [String: Any]? = nil,
+        parent: SpanContext? = nil,
+        runId: String? = nil,
+        agentId: String? = nil,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        try await trace(name, kind: kind, attributes: attributes, parent: parent,
+                        runId: runId, agentId: agentId, block: block)
     }
 
     func flush() {
@@ -101,14 +122,6 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     private let lock = NSLock()
     private var handles: [String: ModelHandle] = [:]
     private var closed = false
-    private var _defaultRunId: String?
-
-    public var defaultRunId: String? {
-        get { lock.lock(); defer { lock.unlock() }; return _defaultRunId }
-        set { lock.lock(); _defaultRunId = newValue; lock.unlock() }
-    }
-
-    private static let activeSpanKey = "dev.wildedge.active_span"
 
     internal struct AttachmentConfig {
         let enabled: Bool
@@ -169,7 +182,6 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             publish: { [weak self] event, sync in self?.publish(event: event, synchronously: sync) },
             hardwareSnapshot: { [weak self] in self?.hardwareSampler.snapshot() },
             activeSpanContext: { [weak self] in self?.activeSpan },
-            defaultRunId: { [weak self] in self?.defaultRunId },
             publishSynchronously: publishSynchronously,
             registerAttachments: { [weak self] attachments, inferenceId, inferenceTimestamp in
                 self?.enqueueAttachments(attachments, inferenceId: inferenceId, inferenceTimestamp: inferenceTimestamp)
@@ -198,8 +210,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             unloadedModelId: unloadedModelId
         )
         applyCorrelation(to: &event, activeSpan: activeSpan, traceId: traceId,
-                         parentSpanId: parentSpanId, runId: runId, agentId: agentId,
-                         defaultRunId: defaultRunId)
+                         parentSpanId: parentSpanId, runId: runId, agentId: agentId)
         publish(event: event)
     }
 
@@ -216,7 +227,28 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             name: name,
             traceId: parent?.traceId ?? UUID().uuidString,
             parentSpanId: parent?.spanId,
-            runId: runId ?? parent?.runId ?? defaultRunId,
+            runId: runId ?? parent?.runId,
+            agentId: agentId ?? parent?.agentId,
+            kind: kind,
+            attributes: attributes,
+            block: block
+        )
+    }
+
+    public func trace<T>(
+        _ name: String,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        parent: SpanContext?,
+        runId: String?,
+        agentId: String?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        try await runSpan(
+            name: name,
+            traceId: parent?.traceId ?? UUID().uuidString,
+            parentSpanId: parent?.spanId,
+            runId: runId ?? parent?.runId,
             agentId: agentId ?? parent?.agentId,
             kind: kind,
             attributes: attributes,
@@ -404,8 +436,11 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         close(timeoutMs: Config.defaultShutdownFlushTimeoutMs)
     }
 
+    /// The span set by this client's innermost `trace` or `span`, if any.
+    /// It is a task-local, so it follows the current task across `await`.
     internal var activeSpan: SpanContext? {
-        Thread.current.threadDictionary[Self.activeSpanKey] as? SpanContext
+        guard let span = ActiveSpan.current, span.isOwned(by: self) else { return nil }
+        return span
     }
 
     internal func runSpan<T>(
@@ -418,7 +453,43 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         attributes: [String: Any]?,
         block: (SpanContext) throws -> T
     ) rethrows -> T {
-        let context = SpanContext(
+        let context = makeSpan(traceId: traceId, parentSpanId: parentSpanId, runId: runId,
+                               agentId: agentId, kind: kind)
+        let start = Date()
+        defer { finishSpan(context, name: name, attributes: attributes, start: start) }
+        do {
+            return try ActiveSpan.$current.withValue(context) { try block(context) }
+        } catch {
+            context.status = .error
+            throw error
+        }
+    }
+
+    internal func runSpan<T>(
+        name: String,
+        traceId: String,
+        parentSpanId: String?,
+        runId: String?,
+        agentId: String?,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        let context = makeSpan(traceId: traceId, parentSpanId: parentSpanId, runId: runId,
+                               agentId: agentId, kind: kind)
+        let start = Date()
+        defer { finishSpan(context, name: name, attributes: attributes, start: start) }
+        do {
+            return try await ActiveSpan.$current.withValue(context) { try await block(context) }
+        } catch {
+            context.status = .error
+            throw error
+        }
+    }
+
+    private func makeSpan(traceId: String, parentSpanId: String?, runId: String?,
+                          agentId: String?, kind: SpanKind) -> SpanContext {
+        SpanContext(
             traceId: traceId,
             spanId: UUID().uuidString,
             parentSpanId: parentSpanId,
@@ -428,40 +499,22 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             status: .ok,
             owner: self
         )
+    }
 
-        let previous = activeSpan
-        Thread.current.threadDictionary[Self.activeSpanKey] = context
-
-        let start = Date()
-        defer {
-            if let previous {
-                Thread.current.threadDictionary[Self.activeSpanKey] = previous
-            } else {
-                Thread.current.threadDictionary.removeObject(forKey: Self.activeSpanKey)
-            }
-
-            let durationMs = Int64(Date().timeIntervalSince(start) * 1000)
-            let event = buildSpanEvent(
-                traceId: context.traceId,
-                spanId: context.spanId,
-                parentSpanId: context.parentSpanId,
-                runId: context.runId,
-                agentId: context.agentId,
-                kind: context.kind,
-                status: context.status,
-                name: name,
-                durationMs: durationMs,
-                attributes: attributes
-            )
-            publish(event: event)
-        }
-
-        do {
-            return try block(context)
-        } catch {
-            context.status = .error
-            throw error
-        }
+    private func finishSpan(_ context: SpanContext, name: String, attributes: [String: Any]?, start: Date) {
+        let event = buildSpanEvent(
+            traceId: context.traceId,
+            spanId: context.spanId,
+            parentSpanId: context.parentSpanId,
+            runId: context.runId,
+            agentId: context.agentId,
+            kind: context.kind,
+            status: context.status,
+            name: name,
+            durationMs: Int64(Date().timeIntervalSince(start) * 1000),
+            attributes: attributes
+        )
+        publish(event: event)
     }
 
     private func makeNoopHandle(modelId: String, info: ModelInfo) -> ModelHandle {

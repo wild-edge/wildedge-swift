@@ -91,7 +91,7 @@ final class BrandClassifier {
             modelSource: "WildEdgeDev/we-scan-brand-classifier",
             modelFormat: "coreml",
             modelFamily: "efficientnetv2",
-            quantization: "fp16"
+            quantization: "f16"
         )
         handle = WildEdge.shared.registerModel(modelId: "effv2s_v11_brand_s0_fp16", info: info)
 
@@ -106,11 +106,11 @@ final class BrandClassifier {
             request.imageCropAndScaleOption = .scaleFill
         } catch {
             print("[BrandClassifier] load failed: \(error)")
-            handle.trackLoad(durationMs: Self.millis(since: loadStart), accelerator: .npu,
+            handle.trackLoad(durationMs: Self.millis(since: loadStart), accelerator: .ane,
                              success: false, errorCode: "coreml_load_error")
             return nil
         }
-        handle.trackLoad(durationMs: Self.millis(since: loadStart), accelerator: .npu)
+        handle.trackLoad(durationMs: Self.millis(since: loadStart), accelerator: .ane)
     }
 
     deinit {

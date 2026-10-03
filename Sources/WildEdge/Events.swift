@@ -90,9 +90,9 @@ internal func buildInferenceEvent(
     if let traceId {
         event["trace_id"] = traceId
     }
-    if let spanId {
-        event["span_id"] = spanId
-    }
+    // An inference is a span; the protocol recommends `span_id` equal to
+    // `inference_id` unless the caller has its own.
+    event["span_id"] = spanId ?? inferenceId
     if let parentSpanId {
         event["parent_span_id"] = parentSpanId
     }
@@ -303,8 +303,7 @@ internal func buildSpanEvent(
 
 /// Adds `trace_id`, `parent_span_id`, `run_id` and `agent_id` to `event`.
 /// Each field is the explicit argument if given, else the active span's, else
-/// absent. `run_id` has one more fallback after the span: the client's
-/// `defaultRunId`. Call it on the caller's thread, before the event is queued: the
+/// absent. Call it on the caller's thread, before the event is queued: the
 /// active span is not visible from the publish queue.
 internal func applyCorrelation(
     to event: inout [String: Any],
@@ -312,12 +311,11 @@ internal func applyCorrelation(
     traceId: String?,
     parentSpanId: String?,
     runId: String?,
-    agentId: String?,
-    defaultRunId: String?
+    agentId: String?
 ) {
     if let traceId = traceId ?? activeSpan?.traceId { event["trace_id"] = traceId }
     if let parentSpanId = parentSpanId ?? activeSpan?.spanId { event["parent_span_id"] = parentSpanId }
-    if let runId = runId ?? activeSpan?.runId ?? defaultRunId { event["run_id"] = runId }
+    if let runId = runId ?? activeSpan?.runId { event["run_id"] = runId }
     if let agentId = agentId ?? activeSpan?.agentId { event["agent_id"] = agentId }
 }
 

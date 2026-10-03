@@ -67,7 +67,7 @@ final class HardwareSamplerTests: XCTestCase {
 
     func testAcceleratorActualIsValidCase() throws {
         let acc = try XCTUnwrap(sampler.snapshot().acceleratorActual)
-        let valid: [Accelerator] = [.cpu, .gpu, .npu, .dsp, .tpu]
+        let valid: [Accelerator] = [.cpu, .gpu, .ane, .npu, .dsp, .tpu, .mps, .vulkan]
         XCTAssertTrue(valid.contains(acc))
     }
 

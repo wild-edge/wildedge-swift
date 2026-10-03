@@ -11,6 +11,22 @@ internal protocol SpanOwner: AnyObject {
         attributes: [String: Any]?,
         block: (SpanContext) throws -> T
     ) rethrows -> T
+
+    func runSpan<T>(
+        name: String,
+        traceId: String,
+        parentSpanId: String?,
+        runId: String?,
+        agentId: String?,
+        kind: SpanKind,
+        attributes: [String: Any]?,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T
+}
+
+/// The span that events fall back to for their correlation fields.
+internal enum ActiveSpan {
+    @TaskLocal static var current: SpanContext?
 }
 
 public final class SpanContext {
@@ -66,5 +82,31 @@ public final class SpanContext {
             attributes: attributes,
             block: block
         )
+    }
+
+    /// The async form of `span`. The child span stays active across `await`.
+    public func span<T>(
+        _ name: String,
+        kind: SpanKind = .custom,
+        attributes: [String: Any]? = nil,
+        block: (SpanContext) async throws -> T
+    ) async rethrows -> T {
+        guard let owner else {
+            return try await block(self)
+        }
+        return try await owner.runSpan(
+            name: name,
+            traceId: traceId,
+            parentSpanId: spanId,
+            runId: runId,
+            agentId: agentId,
+            kind: kind,
+            attributes: attributes,
+            block: block
+        )
+    }
+
+    internal func isOwned(by candidate: SpanOwner) -> Bool {
+        owner === candidate
     }
 }

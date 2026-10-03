@@ -310,28 +310,34 @@ wildEdge.trace("user-query") { trace in
 - `span {}` creates child spans with parent linkage.
 - Every event emitted inside a trace or span inherits its `trace_id` and `parent_span_id`: inferences, loads, unloads, downloads, feedback, errors and memory warnings.
 
-The active span is tracked per thread, so it does not follow an `await` that resumes on another thread. In async code, pass `traceId:` and `parentSpanId:` explicitly.
-
-### Runs
-
-A run groups events across traces, for example one user session or one agent task. Every track call takes an optional `runId:` (and `agentId:`), and each event resolves its run in this order:
-
-1. the `runId:` argument;
-2. the active span's run, set with `trace(_:runId:)` and inherited by child spans;
-3. the client's `defaultRunId`;
-4. none.
-
-To put everything the app does into one run, set `defaultRunId` once:
+The active span is a task-local. In async code use the async form of `trace` and `span`: the span stays active across `await`, and child tasks (`async let`, task groups) inherit it. `Task.detached` and work dispatched to a GCD queue do not; there, pass the `SpanContext` along and call its `span` method, which makes the child span active on that queue:
 
 ```swift
-WildEdge.shared.defaultRunId = UUID().uuidString
+try await wildEdge.trace("scan", kind: .agentStep, runId: scanId) { scan in
+    let box = detectorQueue.sync {
+        scan.span("detect") { _ in detector.detect(image) }   // tracked inside
+    }
+    return try await scan.span("recognize") { _ in
+        try await llm.analyze(image, box)                      // tracked inside
+    }
+}
 ```
 
-It applies to every event the client emits from then on, including spans, until you change it or set it to `nil`. Events already given a run keep it.
+An inference's `span_id` defaults to its `inference_id`, so an inference is itself a span in the trace.
 
-To start a new run per app session, change `defaultRunId` when the app returns from a long stay in the background. [CarScannerExample](Examples/CarScannerExample/Sources/WildEdgeRunSession.swift) does this: it stores the run id, notes when the app went to the background, and starts a new run if it was away for more than two minutes.
+### Runs and sessions
 
-Feedback often arrives after the run that produced the inference has ended. Capture the run id when the inference happens and pass it to `trackFeedback` as `runId:`.
+Three identifiers group events, from widest to narrowest:
+
+| Field | Set by | Groups |
+|---|---|---|
+| `session_id` | the SDK, once per process | everything one app launch sent |
+| `run_id` | you, via `runId:` | one logical workflow, e.g. one scan or one agent task |
+| `trace_id` | `trace` | the spans and events of one workflow run |
+
+Do not use `run_id` for a user session: the protocol keeps it distinct from `session_id`. Give each workflow its own run id with `trace(_:runId:)`; child spans inherit it, and every event inside takes it unless it passes its own `runId:`. Events outside any trace, such as a model warm-up at launch, carry no run.
+
+Feedback usually arrives after the workflow's trace has ended. Capture the `SpanContext` while the trace is running and pass its `traceId`, `spanId` (as `parentSpanId:`) and `runId` to `trackFeedback` explicitly. [CarScannerExample](Examples/CarScannerExample/Sources/CameraViewModel.swift) traces each scan this way.
 
 ## Attachments
 

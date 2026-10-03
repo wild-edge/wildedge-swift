@@ -26,9 +26,15 @@ public struct Interceptors: OptionSet, Sendable {
 public enum Accelerator: String {
     case cpu
     case gpu
+    /// Apple Neural Engine. Use this rather than `npu` on Apple devices.
+    case ane
+    /// A neural processor other than Apple's.
     case npu
     case dsp
     case tpu
+    /// Metal Performance Shaders.
+    case mps
+    case vulkan
 }
 
 public enum MemoryWarningLevel: String {

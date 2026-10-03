@@ -179,27 +179,86 @@ final class LifecycleCorrelationTests: XCTestCase {
         XCTAssertEqual(warnings[2]["run_id"] as? String, "r-explicit")
     }
 
-    func testDefaultRunIdIsTheLastFallback() throws {
+    func testInferenceSpanIdDefaultsToInferenceId() throws {
         let (handle, queue) = makeHandle()
-        client.defaultRunId = "session"
 
-        handle.trackLoad(durationMs: 1)
-        handle.trackInference(durationMs: 1, runId: "r-explicit")
-        client.trackMemoryWarning(level: .warning, memoryAvailableBytes: 1, activeModelIds: [],
-                                  triggeredUnload: false)
-        client.trace("scan", runId: "r-span") { _ in handle.trackError(errorCode: "E") }
-        client.trace("warmup") { _ in }
+        let inferenceId = handle.trackInference(durationMs: 1)
+        handle.trackInference(durationMs: 1, spanId: "s-explicit")
 
-        XCTAssertEqual(events(queue, type: "model_load").first?["run_id"] as? String, "session")
-        XCTAssertEqual(events(queue, type: "inference").first?["run_id"] as? String, "r-explicit")
-        XCTAssertEqual(events(queue, type: "memory_warning").first?["run_id"] as? String, "session")
-        XCTAssertEqual(events(queue, type: "error").first?["run_id"] as? String, "r-span")
-        let spans = events(queue, type: "span")
-        XCTAssertEqual(spans.map { $0["run_id"] as? String }, ["r-span", "session"])
+        let inferences = events(queue, type: "inference")
+        let first = try XCTUnwrap(inferences.first?["inference"] as? [String: Any])
+        XCTAssertEqual(first["inference_id"] as? String, inferenceId)
+        XCTAssertEqual(inferences.first?["span_id"] as? String, inferenceId)
+        XCTAssertEqual(inferences.last?["span_id"] as? String, "s-explicit")
+    }
 
-        client.defaultRunId = nil
-        handle.trackLoad(durationMs: 1)
-        XCTAssertNil(events(queue, type: "model_load").last?["run_id"])
+    func testAsyncTraceSurvivesAwaitAndChildTasks() async throws {
+        let (handle, queue) = makeHandle()
+
+        let scan = try await client.trace("scan", runId: "r1") { scan -> SpanContext in
+            try await Task.sleep(nanoseconds: 1_000_000)
+            handle.trackLoad(durationMs: 1)
+            await Task.yield()
+            async let child: Void = { handle.trackError(errorCode: "E") }()
+            await child
+            await scan.span("recognize") { _ in
+                await Task.yield()
+                handle.trackInference(durationMs: 1)
+            }
+            return scan
+        }
+
+        for type in ["model_load", "error"] {
+            let event = try XCTUnwrap(events(queue, type: type).first, type)
+            XCTAssertEqual(event["run_id"] as? String, "r1", type)
+            XCTAssertEqual(event["trace_id"] as? String, scan.traceId, type)
+            XCTAssertEqual(event["parent_span_id"] as? String, scan.spanId, type)
+        }
+        let inference = try XCTUnwrap(events(queue, type: "inference").first)
+        let recognize = try XCTUnwrap(events(queue, type: "span").first {
+            ($0["span"] as? [String: Any])?["name"] as? String == "recognize"
+        })
+        XCTAssertEqual(inference["run_id"] as? String, "r1")
+        XCTAssertEqual(inference["parent_span_id"] as? String, recognize["span_id"] as? String)
+        XCTAssertEqual(recognize["parent_span_id"] as? String, scan.spanId)
+    }
+
+    func testConcurrentRunsKeepTheirOwnRunId() async throws {
+        let (handle, queue) = makeHandle()
+
+        await withTaskGroup(of: Void.self) { group in
+            for run in ["r1", "r2"] {
+                group.addTask {
+                    await self.client.trace("scan", runId: run) { _ in
+                        for _ in 0..<20 {
+                            await Task.yield()
+                            handle.trackError(errorCode: run)
+                        }
+                    }
+                }
+            }
+        }
+
+        let errors = events(queue, type: "error")
+        XCTAssertEqual(errors.count, 40)
+        for event in errors {
+            let code = (event["error"] as? [String: Any])?["error_code"] as? String
+            XCTAssertEqual(event["run_id"] as? String, code)
+        }
+    }
+
+    func testSpanContextCarriesCorrelationOntoAGCDQueue() throws {
+        let (handle, queue) = makeHandle()
+        let gcd = DispatchQueue(label: "test.gcd")
+
+        let scan = client.trace("scan", runId: "r1") { $0 }
+        gcd.sync {
+            scan.span("detect") { _ in handle.trackInference(durationMs: 1) }
+        }
+
+        let inference = try XCTUnwrap(events(queue, type: "inference").first)
+        XCTAssertEqual(inference["run_id"] as? String, "r1")
+        XCTAssertEqual(inference["trace_id"] as? String, scan.traceId)
     }
 
     func testNoCorrelationOutsideAnyTrace() throws {
