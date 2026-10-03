@@ -1,0 +1,18 @@
+{
+  "config_version": 1,
+  "benchmark_params": {
+    "benchmark_steps": ["speech_to_tool"],
+    "delay_seconds": 0,
+    "number_of_inferences": 5,
+    "loop": false,
+    "recordings_match": "*.m4a"
+  },
+  "model_definitions": {
+    "leap-lfm2.5-audio-1.5b": {
+      "enabled": true,
+      "inference": {
+        "system_prompt": "Return one valid JSON object, then stop after }. No transcript, prose, Markdown, code fence, or extra keys. Shape: {\"tool_name\":\"set_temperature|change_volume|navigate|unknown\",\"arguments\":{}}. Quote keys/strings. set_temperature {\"temperature\":number}: temperature, warmer/cooler, AC; use spoken number. change_volume {\"direction\":\"up\"|\"down\"}: volume/sound; too loud/quieter/down=>down; too quiet/louder/can't hear=>up. navigate {\"destination\":\"lowercase place\"}: go/drive/navigate/directions; strip please/now. unknown {}."
+      }
+    }
+  }
+}

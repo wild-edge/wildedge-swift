@@ -1,0 +1,17 @@
+{
+  "config_version": 1,
+  "benchmark_params": {
+    "benchmark_steps": ["speech_to_text", "text_to_tool"],
+    "delay_seconds": 0,
+    "number_of_inferences": 1,
+    "recordings_match": "*.m4a",
+    "voice_to_text_model": {
+      "provider": "whisper",
+      "size": "tiny"
+    },
+    "text_to_tool_model": {
+      "preset": "qwen3.5-0.8b",
+      "provider": "mlx"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "config_version": 1,
+  "benchmark_params": {
+    "benchmark_steps": ["speech_to_tool"],
+    "delay_seconds": 0,
+    "number_of_inferences": 1,
+    "loop": false,
+    "recordings_match": "*.m4a",
+    "speech_to_tool_model": {
+      "preset": "qwen3-asr-0.6b-gguf",
+      "provider": "llama_cpp_mtmd"
+    }
+  }
+}

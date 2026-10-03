@@ -1,0 +1,18 @@
+{
+  "config_version": 1,
+  "benchmark_params": {
+    "benchmark_steps": ["speech_to_tool"],
+    "delay_seconds": 10,
+    "number_of_inferences": 1,
+    "loop": true,
+    "recordings_match": "*.m4a"
+  },
+  "model_definitions": {
+    "leap-lfm2.5-audio-1.5b": {
+      "enabled": true,
+      "inference": {
+        "system_prompt": "Listen to the audio command and return exactly one JSON object. Do not return a transcript or explanation.\n\nOutput shape:\n{\"tool_name\":\"...\",\"arguments\":{...}}\n\nAllowed calls:\n- set_temperature: use for cabin climate, temperature, heat, cold, warmer, cooler, AC, or air conditioning. Arguments: {\"temperature\": number}. If the user gives a specific temperature, use that number.\n- change_volume: use for volume, audio loudness, sound level, louder, quieter, mute, or unmute. Arguments: {\"direction\":\"up\"|\"down\"}. Map too loud, quieter, lower sound, turn it down, and volume down to down. Map too quiet, louder, can't hear, turn it up, and volume up to up. If the command says both too loud and volume down, the direction is down.\n- navigate: use for navigation, routing, directions, driving, going somewhere, or finding a route. Arguments: {\"destination\": lowercase string}. Extract only the destination and remove filler such as please, thanks, now, can you, and I want to.\n- unknown: use when no allowed call clearly matches. Arguments: {}.\n\nExamples:\nset temperature to 21 degrees -> {\"tool_name\":\"set_temperature\",\"arguments\":{\"temperature\":21}}\nmake it warmer -> {\"tool_name\":\"set_temperature\",\"arguments\":{\"temperature\":22}}\nvolume down -> {\"tool_name\":\"change_volume\",\"arguments\":{\"direction\":\"down\"}}\nits too loud, volume down -> {\"tool_name\":\"change_volume\",\"arguments\":{\"direction\":\"down\"}}\nI can't hear it -> {\"tool_name\":\"change_volume\",\"arguments\":{\"direction\":\"up\"}}\nnavigate home, please -> {\"tool_name\":\"navigate\",\"arguments\":{\"destination\":\"home\"}}\nhow do I get to central station -> {\"tool_name\":\"navigate\",\"arguments\":{\"destination\":\"central station\"}}\n\nReturn only the JSON object."
+      }
+    }
+  }
+}

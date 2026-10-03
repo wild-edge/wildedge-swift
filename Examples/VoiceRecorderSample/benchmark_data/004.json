@@ -1,0 +1,6 @@
+{
+  "tool_name": "set_temperature",
+  "arguments": {
+    "temperature": 23
+  }
+}
