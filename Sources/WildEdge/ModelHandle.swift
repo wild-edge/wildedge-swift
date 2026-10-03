@@ -39,6 +39,27 @@ public final class ModelHandle {
         lock.unlock()
     }
 
+    /// Adds `trace_id`, `parent_span_id`, `run_id` and `agent_id` to a
+    /// lifecycle event, then emits it. Each field is the explicit argument if
+    /// given, else the active span's, else absent. Runs on the caller's thread,
+    /// before the event is queued, because the active span is not visible from
+    /// the publish queue.
+    private func emit(
+        _ event: [String: Any],
+        traceId: String?,
+        parentSpanId: String?,
+        runId: String?,
+        agentId: String?
+    ) {
+        let activeCtx = activeSpanContext()
+        var event = event
+        if let traceId = traceId ?? activeCtx?.traceId { event["trace_id"] = traceId }
+        if let parentSpanId = parentSpanId ?? activeCtx?.spanId { event["parent_span_id"] = parentSpanId }
+        if let runId { event["run_id"] = runId }
+        if let agentId { event["agent_id"] = agentId }
+        emit(event)
+    }
+
     private func emit(_ event: [String: Any]) {
         lock.lock()
         let sync = publishSynchronously
@@ -53,7 +74,11 @@ public final class ModelHandle {
         success: Bool = true,
         errorCode: String? = nil,
         coldStart: Bool? = nil,
-        threads: Int? = nil
+        threads: Int? = nil,
+        traceId: String? = nil,
+        parentSpanId: String? = nil,
+        runId: String? = nil,
+        agentId: String? = nil
     ) {
         lock.lock()
         loadedAt = nowMs()
@@ -68,13 +93,19 @@ public final class ModelHandle {
             errorCode: errorCode,
             coldStart: coldStart,
             threads: threads
-        ))
+        ),
+            traceId: traceId, parentSpanId: parentSpanId, runId: runId, agentId: agentId
+        )
     }
 
     public func trackUnload(
         durationMs: Int = 0,
         reason: String = "explicit",
-        memoryFreedBytes: Int64? = nil
+        memoryFreedBytes: Int64? = nil,
+        traceId: String? = nil,
+        parentSpanId: String? = nil,
+        runId: String? = nil,
+        agentId: String? = nil
     ) {
         lock.lock()
         let localLoadedAt = loadedAt
@@ -93,7 +124,9 @@ public final class ModelHandle {
             reason: reason,
             memoryFreedBytes: memoryFreedBytes,
             uptimeMs: uptimeMs
-        ))
+        ),
+            traceId: traceId, parentSpanId: parentSpanId, runId: runId, agentId: agentId
+        )
     }
 
     public func trackDownload(
@@ -106,7 +139,11 @@ public final class ModelHandle {
         resumed: Bool = false,
         cacheHit: Bool = false,
         success: Bool = true,
-        errorCode: String? = nil
+        errorCode: String? = nil,
+        traceId: String? = nil,
+        parentSpanId: String? = nil,
+        runId: String? = nil,
+        agentId: String? = nil
     ) {
         emit(buildModelDownloadEvent(
             modelId: modelId,
@@ -120,7 +157,9 @@ public final class ModelHandle {
             cacheHit: cacheHit,
             success: success,
             errorCode: errorCode
-        ))
+        ),
+            traceId: traceId, parentSpanId: parentSpanId, runId: runId, agentId: agentId
+        )
     }
 
     @discardableResult
@@ -196,7 +235,11 @@ public final class ModelHandle {
         _ feedbackType: FeedbackType,
         relatedInferenceId: String? = nil,
         delayMs: Int? = nil,
-        editDistance: Int? = nil
+        editDistance: Int? = nil,
+        traceId: String? = nil,
+        parentSpanId: String? = nil,
+        runId: String? = nil,
+        agentId: String? = nil
     ) {
         lock.lock()
         let fallbackInferenceId = lastInferenceId
@@ -212,14 +255,20 @@ public final class ModelHandle {
             feedbackType: feedbackType,
             delayMs: delayMs,
             editDistance: editDistance
-        ))
+        ),
+            traceId: traceId, parentSpanId: parentSpanId, runId: runId, agentId: agentId
+        )
     }
 
     public func trackError(
         errorCode: String,
         errorMessage: String? = nil,
         stackTraceHash: String? = nil,
-        relatedEventId: String? = nil
+        relatedEventId: String? = nil,
+        traceId: String? = nil,
+        parentSpanId: String? = nil,
+        runId: String? = nil,
+        agentId: String? = nil
     ) {
         emit(buildErrorEvent(
             modelId: modelId,
@@ -227,7 +276,9 @@ public final class ModelHandle {
             errorMessage: errorMessage,
             stackTraceHash: stackTraceHash,
             relatedEventId: relatedEventId
-        ))
+        ),
+            traceId: traceId, parentSpanId: parentSpanId, runId: runId, agentId: agentId
+        )
     }
 
     public func close() {
