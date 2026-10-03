@@ -163,7 +163,6 @@ internal func approximateBpeTokenCount(charCount: Int) -> Int {
 public struct TopPrediction {
     public var label: String
     public var confidence: Double?
-    /// Bounding box [x, y, width, height] as integers (e.g. pixel coords or 0–1000 scaled).
     public var bbox: [Int]?
 
     public init(label: String, confidence: Double? = nil, bbox: [Int]? = nil) {
