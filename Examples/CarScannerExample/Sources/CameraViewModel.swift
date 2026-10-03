@@ -470,12 +470,12 @@ final class CameraViewModel: NSObject, ObservableObject {
             let (info, raw, stats, inferenceId, inferenceDate) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions, runId: runId)
             return [ScanResult(provider: "OpenRouter", info: info, photo: meta, rawJSON: raw, httpStats: stats,
                                inferenceId: inferenceId, inferenceDate: inferenceDate,
-                               sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
+                               sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate, runId: runId))]
         case .gemini:
             let (info, raw, stats, inferenceId, inferenceDate) = try await GeminiClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions, runId: runId)
             return [ScanResult(provider: "Gemini", info: info, photo: meta, rawJSON: raw, httpStats: stats,
                                inferenceId: inferenceId, inferenceDate: inferenceDate,
-                               sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
+                               sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate, runId: runId))]
         case .both:
             return try await analyzeWithBoth(uploadData, photo: meta, prompt: carPrompt, runId: runId)
         }
@@ -488,10 +488,13 @@ final class CameraViewModel: NSObject, ObservableObject {
         return hint + "\n\n" + carPrompt
     }
 
-    private func makeFeedback(_ handle: ModelHandle, inferenceId: String, inferenceDate: Date) -> (FeedbackType) -> Void {
+    /// Feedback arrives from the detail view long after the scan ended, so the
+    /// scan's `runId` is captured here and passed explicitly.
+    private func makeFeedback(_ handle: ModelHandle, inferenceId: String, inferenceDate: Date,
+                              runId: String) -> (FeedbackType) -> Void {
         { feedbackType in
             let delayMs = Int(Date().timeIntervalSince(inferenceDate) * 1000)
-            handle.trackFeedback(feedbackType, relatedInferenceId: inferenceId, delayMs: delayMs)
+            handle.trackFeedback(feedbackType, relatedInferenceId: inferenceId, delayMs: delayMs, runId: runId)
         }
     }
 
@@ -520,14 +523,14 @@ final class CameraViewModel: NSObject, ObservableObject {
             let (info, raw, stats, inferenceId, inferenceDate) = try await orTask
             out.append(ScanResult(provider: "OpenRouter", info: info, photo: photo, rawJSON: raw, httpStats: stats,
                                   inferenceId: inferenceId, inferenceDate: inferenceDate,
-                                  sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate)))
+                                  sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate, runId: runId)))
         } catch { firstError = error }
 
         do {
             let (info, raw, stats, inferenceId, inferenceDate) = try await gTask
             out.append(ScanResult(provider: "Gemini", info: info, photo: photo, rawJSON: raw, httpStats: stats,
                                   inferenceId: inferenceId, inferenceDate: inferenceDate,
-                                  sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate)))
+                                  sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate, runId: runId)))
         } catch { if firstError == nil { firstError = error } }
 
         if out.isEmpty, let err = firstError { throw err }
