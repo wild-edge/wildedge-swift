@@ -2,7 +2,7 @@
 
 An iOS example app ("WE Scan") that uses the device camera or photo library to identify cars in real time using vision-language AI models, with inference telemetry via the [WildEdge SDK](https://wildedge.dev).
 
-Point the camera at any car, tap the shutter, and the app sends the image to a cloud vision model (**Gemini 3.6 Flash** via the Google AI API, via OpenRouter, or both simultaneously) and displays the detected make, model, color, year, and confidence score.
+Point the camera at any car, tap the shutter, and the app sends the image to a cloud vision model (the latest **Gemini Flash** via the Google AI API, via OpenRouter, or both simultaneously) and displays the detected make, model, color, year, and confidence score.
 
 ## Requirements
 
@@ -39,6 +39,8 @@ Open `Sources/Info.plist` and replace the placeholder values:
 <key>OPENROUTER_API_KEY</key>
 <string>YOUR_OPENROUTER_API_KEY</string>
 ```
+
+Both providers are called with a `-latest` alias (`gemini-flash-latest`, and `~google/gemini-flash-latest` on OpenRouter), so new Flash releases are picked up without an app update. Each response names the version that actually answered, and the app reports the inference under that version (for example `google/gemini-3.8-flash`), not under the alias.
 
 You only need to fill in the key(s) for the provider(s) you intend to use. Get a Gemini key at [aistudio.google.com](https://aistudio.google.com) and an OpenRouter key at [openrouter.ai](https://openrouter.ai).
 

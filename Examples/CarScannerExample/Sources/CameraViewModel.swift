@@ -456,15 +456,15 @@ final class CameraViewModel: NSObject, ObservableObject {
     ) async throws -> [ScanResult] {
         switch provider {
         case .openRouter:
-            let (info, raw, stats, inferenceId, inferenceDate) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
+            let (info, raw, stats, inferenceId, inferenceDate, handle) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
             return [ScanResult(provider: "OpenRouter", info: info, photo: meta, rawJSON: raw, httpStats: stats,
                                inferenceId: inferenceId, inferenceDate: inferenceDate,
-                               sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
+                               sendFeedback: makeFeedback(handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
         case .gemini:
-            let (info, raw, stats, inferenceId, inferenceDate) = try await GeminiClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
+            let (info, raw, stats, inferenceId, inferenceDate, handle) = try await GeminiClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
             return [ScanResult(provider: "Gemini", info: info, photo: meta, rawJSON: raw, httpStats: stats,
                                inferenceId: inferenceId, inferenceDate: inferenceDate,
-                               sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
+                               sendFeedback: makeFeedback(handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
         case .both:
             return try await analyzeWithBoth(uploadData, photo: meta, prompt: carPrompt)
         }
@@ -509,17 +509,17 @@ final class CameraViewModel: NSObject, ObservableObject {
         var firstError: Error?
 
         do {
-            let (info, raw, stats, inferenceId, inferenceDate) = try await orTask
+            let (info, raw, stats, inferenceId, inferenceDate, handle) = try await orTask
             out.append(ScanResult(provider: "OpenRouter", info: info, photo: photo, rawJSON: raw, httpStats: stats,
                                   inferenceId: inferenceId, inferenceDate: inferenceDate,
-                                  sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate)))
+                                  sendFeedback: makeFeedback(handle, inferenceId: inferenceId, inferenceDate: inferenceDate)))
         } catch { firstError = error }
 
         do {
-            let (info, raw, stats, inferenceId, inferenceDate) = try await gTask
+            let (info, raw, stats, inferenceId, inferenceDate, handle) = try await gTask
             out.append(ScanResult(provider: "Gemini", info: info, photo: photo, rawJSON: raw, httpStats: stats,
                                   inferenceId: inferenceId, inferenceDate: inferenceDate,
-                                  sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate)))
+                                  sendFeedback: makeFeedback(handle, inferenceId: inferenceId, inferenceDate: inferenceDate)))
         } catch { if firstError == nil { firstError = error } }
 
         if out.isEmpty, let err = firstError { throw err }

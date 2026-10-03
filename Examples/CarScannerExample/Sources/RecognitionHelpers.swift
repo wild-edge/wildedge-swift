@@ -56,6 +56,21 @@ private func networkErrorCode(for error: Error) -> String? {
     }
 }
 
+/// The WildEdge handle for the model version that actually answered.
+///
+/// The clients call `-latest` aliases, so the version behind a request is only
+/// known from its response. Each version gets its own handle, registered the
+/// first time it answers, so the dashboard shows real versions rather than the
+/// alias. `fallback`, the alias's own handle, covers a response that names no
+/// version.
+func versionHandle(_ version: String?, idPrefix: String, source: String, fallback: ModelHandle) -> ModelHandle {
+    guard let version, !version.isEmpty else { return fallback }
+    return WildEdge.shared.registerModel(
+        modelId: "\(idPrefix)/\(version)",
+        info: ModelInfo(modelName: version, modelSource: source, modelFormat: "api", modelFamily: "gemini")
+    )
+}
+
 func assertHTTP200(data: Data, response: URLResponse) throws {
     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
         throw apiError(String(data: data, encoding: .utf8) ?? "unknown error")

@@ -152,6 +152,10 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         info: ModelInfo,
         publishSynchronously: Bool
     ) -> ModelHandle {
+        // Apps may register from several tasks at once, e.g. once per model
+        // version as API responses arrive.
+        lock.lock()
+        defer { lock.unlock() }
         if let handle = handles[modelId] {
             if publishSynchronously {
                 handle.setPublishSynchronously(true)

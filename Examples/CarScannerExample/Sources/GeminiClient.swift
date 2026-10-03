@@ -3,10 +3,12 @@ import CoreGraphics
 import WildEdge
 
 struct GeminiClient {
+    /// The alias's handle. It only records failures that happen before a
+    /// response names the version; everything after goes to `versionHandle`.
     static let handle: ModelHandle = WildEdge.shared.registerModel(
-        modelId: "google/gemini-3.6-flash",
+        modelId: "google/gemini-flash-latest",
         info: ModelInfo(
-            modelName: "gemini-3.6-flash",
+            modelName: "gemini-flash-latest",
             modelSource: "google",
             modelFormat: "api",
             modelFamily: "gemini"
@@ -18,7 +20,7 @@ struct GeminiClient {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
-    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil) async throws -> (CarInfo, String, HTTPStats, String, Date) {
+    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil) async throws -> (CarInfo, String, HTTPStats, String, Date, ModelHandle) {
         let key = apiKey
         guard !key.isEmpty, key != "YOUR_GEMINI_API_KEY" else {
             throw configError("Set GEMINI_API_KEY in Info.plist")
@@ -31,7 +33,7 @@ struct GeminiClient {
                 ]
             ]]
         ]
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=\(key)")!
+        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=\(key)")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -57,12 +59,15 @@ struct GeminiClient {
         }
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        // Gemini names the version that answered in `modelVersion`.
+        let handle = versionHandle(json?["modelVersion"] as? String,
+                                   idPrefix: "google", source: "google", fallback: Self.handle)
         guard
             let candidates = json?["candidates"] as? [[String: Any]],
             let parts = (candidates.first?["content"] as? [String: Any])?["parts"] as? [[String: Any]],
             let text = parts.first?["text"] as? String
         else {
-            Self.handle.trackError(
+            handle.trackError(
                 errorCode: "PARSE_ERROR",
                 errorMessage: "Unexpected Gemini response format"
             )
@@ -73,7 +78,7 @@ struct GeminiClient {
         do {
             info = try decodeCarInfo(from: text)
         } catch {
-            Self.handle.trackError(
+            handle.trackError(
                 errorCode: "PARSE_ERROR",
                 errorMessage: error.localizedDescription
             )
@@ -81,7 +86,7 @@ struct GeminiClient {
         }
 
         let inferenceDate = Date()
-        let inferenceId = Self.handle.trackInference(
+        let inferenceId = handle.trackInference(
             durationMs: stats.durationMs,
             inputModality: .multimodal,
             outputModality: .detection,
@@ -92,6 +97,6 @@ struct GeminiClient {
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
                                               payload: .data(imageData, mimeType: "image/jpeg"))]
         )
-        return (info, prettyPrinted(data), stats, inferenceId, inferenceDate)
+        return (info, prettyPrinted(data), stats, inferenceId, inferenceDate, handle)
     }
 }

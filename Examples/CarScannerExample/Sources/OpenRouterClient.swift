@@ -3,10 +3,12 @@ import CoreGraphics
 import WildEdge
 
 struct OpenRouterClient {
+    /// The alias's handle. It only records failures that happen before a
+    /// response names the version; everything after goes to `versionHandle`.
     static let handle: ModelHandle = WildEdge.shared.registerModel(
-        modelId: "openrouter/gemini-3.6-flash",
+        modelId: "openrouter/gemini-flash-latest",
         info: ModelInfo(
-            modelName: "gemini-3.6-flash",
+            modelName: "gemini-flash-latest",
             modelSource: "openrouter",
             modelFormat: "api",
             modelFamily: "gemini"
@@ -18,13 +20,13 @@ struct OpenRouterClient {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
-    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil) async throws -> (CarInfo, String, HTTPStats, String, Date) {
+    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil) async throws -> (CarInfo, String, HTTPStats, String, Date, ModelHandle) {
         let key = apiKey
         guard !key.isEmpty, key != "YOUR_OPENROUTER_API_KEY" else {
             throw configError("Set OPENROUTER_API_KEY in Info.plist")
         }
         let body: [String: Any] = [
-            "model": "google/gemini-3.6-flash",
+            "model": "~google/gemini-flash-latest",
             "messages": [[
                 "role": "user",
                 "content": [
@@ -59,12 +61,15 @@ struct OpenRouterClient {
         }
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        // OpenRouter names the model it routed to in `model`, as `google/<version>`.
+        let handle = versionHandle((json?["model"] as? String).map { $0.split(separator: "/").last.map(String.init) ?? $0 },
+                                   idPrefix: "openrouter", source: "openrouter", fallback: Self.handle)
         guard
             let choices = json?["choices"] as? [[String: Any]],
             let message = choices.first?["message"] as? [String: Any],
             let text = message["content"] as? String
         else {
-            Self.handle.trackError(
+            handle.trackError(
                 errorCode: "PARSE_ERROR",
                 errorMessage: "Unexpected OpenRouter response format"
             )
@@ -75,7 +80,7 @@ struct OpenRouterClient {
         do {
             info = try decodeCarInfo(from: text)
         } catch {
-            Self.handle.trackError(
+            handle.trackError(
                 errorCode: "PARSE_ERROR",
                 errorMessage: error.localizedDescription
             )
@@ -83,7 +88,7 @@ struct OpenRouterClient {
         }
 
         let inferenceDate = Date()
-        let inferenceId = Self.handle.trackInference(
+        let inferenceId = handle.trackInference(
             durationMs: stats.durationMs,
             inputModality: .multimodal,
             outputModality: .detection,
@@ -94,6 +99,6 @@ struct OpenRouterClient {
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
                                               payload: .data(imageData, mimeType: "image/jpeg"))]
         )
-        return (info, prettyPrinted(data), stats, inferenceId, inferenceDate)
+        return (info, prettyPrinted(data), stats, inferenceId, inferenceDate, handle)
     }
 }
