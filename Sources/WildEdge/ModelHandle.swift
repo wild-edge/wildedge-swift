@@ -39,11 +39,7 @@ public final class ModelHandle {
         lock.unlock()
     }
 
-    /// Adds `trace_id`, `parent_span_id`, `run_id` and `agent_id` to a
-    /// lifecycle event, then emits it. Each field is the explicit argument if
-    /// given, else the active span's, else absent. Runs on the caller's thread,
-    /// before the event is queued, because the active span is not visible from
-    /// the publish queue.
+    /// Emits a lifecycle event with its correlation fields applied.
     private func emit(
         _ event: [String: Any],
         traceId: String?,
@@ -51,12 +47,9 @@ public final class ModelHandle {
         runId: String?,
         agentId: String?
     ) {
-        let activeCtx = activeSpanContext()
         var event = event
-        if let traceId = traceId ?? activeCtx?.traceId { event["trace_id"] = traceId }
-        if let parentSpanId = parentSpanId ?? activeCtx?.spanId { event["parent_span_id"] = parentSpanId }
-        if let runId = runId ?? activeCtx?.runId { event["run_id"] = runId }
-        if let agentId = agentId ?? activeCtx?.agentId { event["agent_id"] = agentId }
+        applyCorrelation(to: &event, activeSpan: activeSpanContext(), traceId: traceId,
+                         parentSpanId: parentSpanId, runId: runId, agentId: agentId)
         emit(event)
     }
 

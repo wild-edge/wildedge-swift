@@ -26,7 +26,11 @@ public final class NoopWildEdgeClient: WildEdgeClient {
         memoryAvailableBytes: Int64,
         activeModelIds: [String],
         triggeredUnload: Bool,
-        unloadedModelId: String?
+        unloadedModelId: String?,
+        traceId: String?,
+        parentSpanId: String?,
+        runId: String?,
+        agentId: String?
     ) {
     }
 

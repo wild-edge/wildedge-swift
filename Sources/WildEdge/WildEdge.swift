@@ -10,7 +10,11 @@ public protocol WildEdgeClient: AnyObject {
         memoryAvailableBytes: Int64,
         activeModelIds: [String],
         triggeredUnload: Bool,
-        unloadedModelId: String?
+        unloadedModelId: String?,
+        traceId: String?,
+        parentSpanId: String?,
+        runId: String?,
+        agentId: String?
     )
     func trace<T>(
         _ name: String,
@@ -27,18 +31,29 @@ public protocol WildEdgeClient: AnyObject {
 }
 
 public extension WildEdgeClient {
+    /// Reports a memory warning. Inside a `trace` it takes the trace, span and
+    /// run from the active span unless they are given here.
     func trackMemoryWarning(
         level: MemoryWarningLevel,
         memoryAvailableBytes: Int64,
         activeModelIds: [String],
-        triggeredUnload: Bool
+        triggeredUnload: Bool,
+        unloadedModelId: String? = nil,
+        traceId: String? = nil,
+        parentSpanId: String? = nil,
+        runId: String? = nil,
+        agentId: String? = nil
     ) {
         trackMemoryWarning(
             level: level,
             memoryAvailableBytes: memoryAvailableBytes,
             activeModelIds: activeModelIds,
             triggeredUnload: triggeredUnload,
-            unloadedModelId: nil
+            unloadedModelId: unloadedModelId,
+            traceId: traceId,
+            parentSpanId: parentSpanId,
+            runId: runId,
+            agentId: agentId
         )
     }
 
@@ -153,15 +168,21 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         memoryAvailableBytes: Int64,
         activeModelIds: [String],
         triggeredUnload: Bool,
-        unloadedModelId: String?
+        unloadedModelId: String?,
+        traceId: String?,
+        parentSpanId: String?,
+        runId: String?,
+        agentId: String?
     ) {
-        let event = buildMemoryWarningEvent(
+        var event = buildMemoryWarningEvent(
             level: level,
             memoryAvailableBytes: memoryAvailableBytes,
             activeModelIds: activeModelIds,
             triggeredUnload: triggeredUnload,
             unloadedModelId: unloadedModelId
         )
+        applyCorrelation(to: &event, activeSpan: activeSpan, traceId: traceId,
+                         parentSpanId: parentSpanId, runId: runId, agentId: agentId)
         publish(event: event)
     }
 

@@ -29,8 +29,11 @@ final class LifecycleCorrelationTests: XCTestCase {
         return (handle, queue)
     }
 
+    /// Span and memory-warning events are published asynchronously, so drain
+    /// the publish queue first.
     private func events(_ queue: EventQueue, type: String) -> [[String: Any]] {
-        queue.peekMany(100).filter { $0["event_type"] as? String == type }
+        client.flush(timeoutMs: 0)
+        return queue.peekMany(100).filter { $0["event_type"] as? String == type }
     }
 
     /// Emits one of each lifecycle event, all with the same arguments.
@@ -149,6 +152,31 @@ final class LifecycleCorrelationTests: XCTestCase {
 
         XCTAssertNil(events(queue, type: "inference").first?["run_id"])
         XCTAssertNil(events(queue, type: "span").first?["run_id"])
+    }
+
+    func testMemoryWarningTakesCorrelation() throws {
+        let (_, queue) = makeHandle()
+
+        client.trackMemoryWarning(level: .critical, memoryAvailableBytes: 1, activeModelIds: [],
+                                  triggeredUnload: false)
+        let span = client.trace("scan", runId: "r1", agentId: "a1") { ctx -> SpanContext in
+            client.trackMemoryWarning(level: .critical, memoryAvailableBytes: 1, activeModelIds: ["m1"],
+                                      triggeredUnload: true, unloadedModelId: "m1")
+            client.trackMemoryWarning(level: .critical, memoryAvailableBytes: 1, activeModelIds: [],
+                                      triggeredUnload: false, runId: "r-explicit")
+            return ctx
+        }
+
+        let warnings = events(queue, type: "memory_warning")
+        XCTAssertEqual(warnings.count, 3)
+        for key in ["trace_id", "parent_span_id", "run_id", "agent_id"] {
+            XCTAssertNil(warnings[0][key], "outside trace: \(key)")
+        }
+        XCTAssertEqual(warnings[1]["trace_id"] as? String, span.traceId)
+        XCTAssertEqual(warnings[1]["parent_span_id"] as? String, span.spanId)
+        XCTAssertEqual(warnings[1]["run_id"] as? String, "r1")
+        XCTAssertEqual(warnings[1]["agent_id"] as? String, "a1")
+        XCTAssertEqual(warnings[2]["run_id"] as? String, "r-explicit")
     }
 
     func testNoCorrelationOutsideAnyTrace() throws {
