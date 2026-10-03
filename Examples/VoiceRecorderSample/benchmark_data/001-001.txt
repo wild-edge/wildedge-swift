@@ -1,0 +1,1 @@
+set temperature to 21 degrees
