@@ -34,12 +34,17 @@ public final class NoopWildEdgeClient: WildEdgeClient {
         _ name: String,
         kind: SpanKind,
         attributes: [String: Any]?,
+        parent: SpanContext?,
+        runId: String?,
+        agentId: String?,
         block: (SpanContext) throws -> T
     ) rethrows -> T {
         let context = SpanContext(
-            traceId: UUID().uuidString,
+            traceId: parent?.traceId ?? UUID().uuidString,
             spanId: UUID().uuidString,
-            parentSpanId: nil,
+            parentSpanId: parent?.spanId,
+            runId: runId ?? parent?.runId,
+            agentId: agentId ?? parent?.agentId,
             kind: kind,
             status: .ok,
             owner: NullSpanOwner()
@@ -70,6 +75,8 @@ private final class NullSpanOwner: SpanOwner {
         name: String,
         traceId: String,
         parentSpanId: String?,
+        runId: String?,
+        agentId: String?,
         kind: SpanKind,
         attributes: [String: Any]?,
         block: (SpanContext) throws -> T
@@ -78,6 +85,8 @@ private final class NullSpanOwner: SpanOwner {
             traceId: traceId,
             spanId: UUID().uuidString,
             parentSpanId: parentSpanId,
+            runId: runId,
+            agentId: agentId,
             kind: kind,
             status: .ok,
             owner: self

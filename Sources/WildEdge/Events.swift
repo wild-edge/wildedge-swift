@@ -261,6 +261,8 @@ internal func buildSpanEvent(
     traceId: String,
     spanId: String,
     parentSpanId: String?,
+    runId: String? = nil,
+    agentId: String? = nil,
     kind: SpanKind,
     status: SpanStatus,
     name: String,
@@ -288,6 +290,12 @@ internal func buildSpanEvent(
 
     if let parentSpanId {
         event["parent_span_id"] = parentSpanId
+    }
+    if let runId {
+        event["run_id"] = runId
+    }
+    if let agentId {
+        event["agent_id"] = agentId
     }
 
     return event

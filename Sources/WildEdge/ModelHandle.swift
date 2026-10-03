@@ -55,8 +55,8 @@ public final class ModelHandle {
         var event = event
         if let traceId = traceId ?? activeCtx?.traceId { event["trace_id"] = traceId }
         if let parentSpanId = parentSpanId ?? activeCtx?.spanId { event["parent_span_id"] = parentSpanId }
-        if let runId { event["run_id"] = runId }
-        if let agentId { event["agent_id"] = agentId }
+        if let runId = runId ?? activeCtx?.runId { event["run_id"] = runId }
+        if let agentId = agentId ?? activeCtx?.agentId { event["agent_id"] = agentId }
         emit(event)
     }
 
@@ -215,8 +215,8 @@ public final class ModelHandle {
             traceId: traceId ?? activeCtx?.traceId,
             spanId: spanId,
             parentSpanId: parentSpanId ?? activeCtx?.spanId,
-            runId: runId,
-            agentId: agentId
+            runId: runId ?? activeCtx?.runId,
+            agentId: agentId ?? activeCtx?.agentId
         )
 
         let inferenceId = event["__we_inference_id"] as? String ?? newEventId()

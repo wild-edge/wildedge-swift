@@ -16,6 +16,9 @@ public protocol WildEdgeClient: AnyObject {
         _ name: String,
         kind: SpanKind,
         attributes: [String: Any]?,
+        parent: SpanContext?,
+        runId: String?,
+        agentId: String?,
         block: (SpanContext) throws -> T
     ) rethrows -> T
     func flush(timeoutMs: Int64)
@@ -39,13 +42,23 @@ public extension WildEdgeClient {
         )
     }
 
+    /// Runs `block` inside a new span and makes it the active span.
+    ///
+    /// Without `parent` the span starts a new trace; with it, the span joins
+    /// the parent's trace as its child. `runId` and `agentId` default to the
+    /// parent's. Events emitted inside `block` take the trace, the span and
+    /// the run from it unless they are given their own.
     func trace<T>(
         _ name: String,
         kind: SpanKind = .custom,
         attributes: [String: Any]? = nil,
+        parent: SpanContext? = nil,
+        runId: String? = nil,
+        agentId: String? = nil,
         block: (SpanContext) throws -> T
     ) rethrows -> T {
-        try trace(name, kind: kind, attributes: attributes, block: block)
+        try trace(name, kind: kind, attributes: attributes, parent: parent,
+                  runId: runId, agentId: agentId, block: block)
     }
 
     func flush() {
@@ -156,12 +169,17 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         _ name: String,
         kind: SpanKind,
         attributes: [String: Any]?,
+        parent: SpanContext?,
+        runId: String?,
+        agentId: String?,
         block: (SpanContext) throws -> T
     ) rethrows -> T {
         try runSpan(
             name: name,
-            traceId: UUID().uuidString,
-            parentSpanId: nil,
+            traceId: parent?.traceId ?? UUID().uuidString,
+            parentSpanId: parent?.spanId,
+            runId: runId ?? parent?.runId,
+            agentId: agentId ?? parent?.agentId,
             kind: kind,
             attributes: attributes,
             block: block
@@ -356,6 +374,8 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
         name: String,
         traceId: String,
         parentSpanId: String?,
+        runId: String?,
+        agentId: String?,
         kind: SpanKind,
         attributes: [String: Any]?,
         block: (SpanContext) throws -> T
@@ -364,6 +384,8 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             traceId: traceId,
             spanId: UUID().uuidString,
             parentSpanId: parentSpanId,
+            runId: runId,
+            agentId: agentId,
             kind: kind,
             status: .ok,
             owner: self
@@ -385,6 +407,8 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
                 traceId: context.traceId,
                 spanId: context.spanId,
                 parentSpanId: context.parentSpanId,
+                runId: context.runId,
+                agentId: context.agentId,
                 kind: context.kind,
                 status: context.status,
                 name: name,
