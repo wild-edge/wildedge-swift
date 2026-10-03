@@ -40,7 +40,7 @@ struct OpenRouterClient {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let start = Date()
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await send(request, reportingTo: Self.handle, runId: runId)
         let stats = HTTPStats(
             statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0,
             durationMs: Int(Date().timeIntervalSince(start) * 1000),

@@ -22,6 +22,41 @@ func extractJSON(from text: String) -> String {
     return String(trimmed[start...end])
 }
 
+/// Sends `request` and reports a transport failure (timeout, no connection,
+/// TLS) to `handle` before rethrowing it. Such a failure throws before there is
+/// any response to check, so without this it would never reach WildEdge.
+/// A cancelled request is not a failure and is not reported.
+func send(_ request: URLRequest, reportingTo handle: ModelHandle, runId: String?) async throws -> (Data, URLResponse) {
+    do {
+        return try await URLSession.shared.data(for: request)
+    } catch {
+        if let code = networkErrorCode(for: error) {
+            handle.trackError(
+                errorCode: code,
+                errorMessage: String(error.localizedDescription.prefix(256)),
+                runId: runId
+            )
+        }
+        throw error
+    }
+}
+
+/// `nil` for a cancellation, which is not reported.
+private func networkErrorCode(for error: Error) -> String? {
+    if error is CancellationError { return nil }
+    guard let urlError = error as? URLError else { return "NETWORK_ERROR" }
+    switch urlError.code {
+    case .cancelled:
+        return nil
+    case .timedOut:
+        return "NETWORK_TIMEOUT"
+    case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed:
+        return "NETWORK_OFFLINE"
+    default:
+        return "NETWORK_\(urlError.code.rawValue)"
+    }
+}
+
 func assertHTTP200(data: Data, response: URLResponse) throws {
     guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
         throw apiError(String(data: data, encoding: .utf8) ?? "unknown error")
