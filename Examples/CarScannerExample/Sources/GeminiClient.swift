@@ -51,7 +51,8 @@ struct GeminiClient {
             let body = String(data: data, encoding: .utf8) ?? "unknown"
             Self.handle.trackError(
                 errorCode: "HTTP_\(stats.statusCode)",
-                errorMessage: String(body.prefix(256))
+                errorMessage: String(body.prefix(256)),
+                runId: runId
             )
             try assertHTTP200(data: data, response: response)
         }
@@ -64,7 +65,8 @@ struct GeminiClient {
         else {
             Self.handle.trackError(
                 errorCode: "PARSE_ERROR",
-                errorMessage: "Unexpected Gemini response format"
+                errorMessage: "Unexpected Gemini response format",
+                runId: runId
             )
             throw apiError("Unexpected Gemini response format")
         }
@@ -75,7 +77,8 @@ struct GeminiClient {
         } catch {
             Self.handle.trackError(
                 errorCode: "PARSE_ERROR",
-                errorMessage: error.localizedDescription
+                errorMessage: error.localizedDescription,
+                runId: runId
             )
             throw error
         }

@@ -175,7 +175,10 @@ final class CameraViewModel: NSObject, ObservableObject {
     /// Owned by `detectorQueue` once frames start; see `reloadDetector`.
     private var detector: VehicleDetector?
     /// Also `detectorQueue`-owned. Absent unless the weights are in the bundle.
-    private lazy var brandClassifier = BrandClassifier()
+    /// Loaded by the first scan that needs it, so that scan's run carries the load.
+    private var brandClassifier: BrandClassifier?
+    /// Set once a load has been tried, so a missing model is not retried every scan.
+    private var brandClassifierLoadAttempted = false
     private var activePrecision: DetectorPrecision =
         UserDefaults.standard.string(forKey: "detectorPrecision")
             .flatMap(DetectorPrecision.init(rawValue:)) ?? .fp16
@@ -332,7 +335,7 @@ final class CameraViewModel: NSObject, ObservableObject {
             .flatMap(CGImagePropertyOrientation.init(rawValue:)) ?? .up
 
         return detectorQueue.sync {
-            if detector == nil { detector = VehicleDetector(precision: activePrecision) }
+            if detector == nil { detector = VehicleDetector(precision: activePrecision, runId: runId) }
             guard let detector else { return StillAnalysis(vehicle: nil, brand: .failed) }
 
             // The largest box, not the most confident one: the subject of the
@@ -341,6 +344,10 @@ final class CameraViewModel: NSObject, ObservableObject {
                 .max { $0.frameFraction < $1.frameFraction }
 
             guard activeBrandHintEnabled else { return StillAnalysis(vehicle: vehicle, brand: .disabled) }
+            if !brandClassifierLoadAttempted {
+                brandClassifierLoadAttempted = true
+                brandClassifier = BrandClassifier(runId: runId)
+            }
             guard let classifier = brandClassifier else {
                 return StillAnalysis(vehicle: vehicle, brand: .modelUnavailable)
             }

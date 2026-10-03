@@ -80,7 +80,8 @@ final class BrandClassifier {
     private let request: VNCoreMLRequest
     private let handle: ModelHandle
 
-    init?() {
+    /// `runId` tags the load with the scan that first needed the classifier.
+    init?(runId: String? = nil) {
         guard let url = Bundle.main.url(forResource: Self.modelName, withExtension: "mlmodelc") else {
             print("[BrandClassifier] \(Self.modelName).mlmodelc not in bundle — brand hint disabled")
             return nil
@@ -107,10 +108,10 @@ final class BrandClassifier {
         } catch {
             print("[BrandClassifier] load failed: \(error)")
             handle.trackLoad(durationMs: Self.millis(since: loadStart), accelerator: .npu,
-                             success: false, errorCode: "coreml_load_error")
+                             success: false, errorCode: "coreml_load_error", runId: runId)
             return nil
         }
-        handle.trackLoad(durationMs: Self.millis(since: loadStart), accelerator: .npu)
+        handle.trackLoad(durationMs: Self.millis(since: loadStart), accelerator: .npu, runId: runId)
     }
 
     deinit {

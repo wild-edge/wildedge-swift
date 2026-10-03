@@ -129,7 +129,9 @@ final class VehicleDetector {
     private let queryCount = 300
     private let classCount = 80
 
-    init?(precision: DetectorPrecision) {
+    /// `runId` tags the load when it happens inside a scan; a load for the
+    /// live preview has none.
+    init?(precision: DetectorPrecision, runId: String? = nil) {
         self.precision = precision
         guard let url = Bundle.main.url(forResource: precision.resourceName, withExtension: "mlmodelc") else {
             print("[VehicleDetector] \(precision.resourceName).mlmodelc not in bundle — local detection disabled")
@@ -160,10 +162,10 @@ final class VehicleDetector {
         } catch {
             print("[VehicleDetector] load failed: \(error)")
             handle.trackLoad(durationMs: Int(Date().timeIntervalSince(loadStart) * 1000),
-                             accelerator: .npu, success: false, errorCode: "coreml_load_error")
+                             accelerator: .npu, success: false, errorCode: "coreml_load_error", runId: runId)
             return nil
         }
-        handle.trackLoad(durationMs: Int(Date().timeIntervalSince(loadStart) * 1000), accelerator: .npu)
+        handle.trackLoad(durationMs: Int(Date().timeIntervalSince(loadStart) * 1000), accelerator: .npu, runId: runId)
     }
 
     deinit {
