@@ -50,7 +50,7 @@ public struct DeviceInfo {
         let processInfo = ProcessInfo.processInfo
         let osVersion = processInfo.operatingSystemVersion
 
-        let rawId = UUID().uuidString
+        let rawId = installId()
         let deviceId = projectSecret.isEmpty ? rawId : hmac(key: projectSecret, message: rawId)
 
         let resolvedAppVersion = appVersion
@@ -100,6 +100,20 @@ public struct DeviceInfo {
             map["gpu_name"] = gpuModel
         }
         return map
+    }
+
+    internal static let installIdKey = "dev.wildedge.installId"
+
+    /// A random id created on first use and kept in `defaults`, so `device_id`
+    /// stays the same across launches. It is per install: deleting the app
+    /// clears it, and it is not shared with other apps.
+    internal static func installId(in defaults: UserDefaults = .standard) -> String {
+        if let existing = defaults.string(forKey: installIdKey), !existing.isEmpty {
+            return existing
+        }
+        let created = UUID().uuidString
+        defaults.set(created, forKey: installIdKey)
+        return created
     }
 
     private static func hmac(key: String, message: String) -> String {
