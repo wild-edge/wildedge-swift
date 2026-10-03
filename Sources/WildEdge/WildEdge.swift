@@ -4,6 +4,11 @@ import Foundation
 private func wildedge_loader_force_link()
 
 public protocol WildEdgeClient: AnyObject {
+    /// The run every event belongs to unless it says otherwise: an explicit
+    /// `runId` argument or the active span's run takes precedence. Set it to
+    /// group everything an app does over a stretch of time, such as a session,
+    /// into one run. `nil` (the default) adds no run.
+    var defaultRunId: String? { get set }
     func registerModel(modelId: String, info: ModelInfo) -> ModelHandle
     func trackMemoryWarning(
         level: MemoryWarningLevel,
@@ -61,7 +66,7 @@ public extension WildEdgeClient {
     ///
     /// Without `parent` the span starts a new trace; with it, the span joins
     /// the parent's trace as its child. `runId` and `agentId` default to the
-    /// parent's. Events emitted inside `block` take the trace, the span and
+    /// parent's; `runId` then falls back to `defaultRunId`. Events emitted inside `block` take the trace, the span and
     /// the run from it unless they are given their own.
     func trace<T>(
         _ name: String,
@@ -96,6 +101,12 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
     private let lock = NSLock()
     private var handles: [String: ModelHandle] = [:]
     private var closed = false
+    private var _defaultRunId: String?
+
+    public var defaultRunId: String? {
+        get { lock.lock(); defer { lock.unlock() }; return _defaultRunId }
+        set { lock.lock(); _defaultRunId = newValue; lock.unlock() }
+    }
 
     private static let activeSpanKey = "dev.wildedge.active_span"
 
@@ -154,6 +165,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             publish: { [weak self] event, sync in self?.publish(event: event, synchronously: sync) },
             hardwareSnapshot: { [weak self] in self?.hardwareSampler.snapshot() },
             activeSpanContext: { [weak self] in self?.activeSpan },
+            defaultRunId: { [weak self] in self?.defaultRunId },
             publishSynchronously: publishSynchronously,
             registerAttachments: { [weak self] attachments, inferenceId, inferenceTimestamp in
                 self?.enqueueAttachments(attachments, inferenceId: inferenceId, inferenceTimestamp: inferenceTimestamp)
@@ -182,7 +194,8 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             unloadedModelId: unloadedModelId
         )
         applyCorrelation(to: &event, activeSpan: activeSpan, traceId: traceId,
-                         parentSpanId: parentSpanId, runId: runId, agentId: agentId)
+                         parentSpanId: parentSpanId, runId: runId, agentId: agentId,
+                         defaultRunId: defaultRunId)
         publish(event: event)
     }
 
@@ -199,7 +212,7 @@ public final class WildEdge: WildEdgeClient, SpanOwner {
             name: name,
             traceId: parent?.traceId ?? UUID().uuidString,
             parentSpanId: parent?.spanId,
-            runId: runId ?? parent?.runId,
+            runId: runId ?? parent?.runId ?? defaultRunId,
             agentId: agentId ?? parent?.agentId,
             kind: kind,
             attributes: attributes,

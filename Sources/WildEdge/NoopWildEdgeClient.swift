@@ -1,6 +1,8 @@
 import Foundation
 
 public final class NoopWildEdgeClient: WildEdgeClient {
+    public var defaultRunId: String?
+
     public init() {}
 
     public func registerModel(modelId: String, info: ModelInfo) -> ModelHandle {

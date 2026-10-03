@@ -18,7 +18,7 @@ struct OpenRouterClient {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
-    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil, runId: String? = nil) async throws -> (CarInfo, String, HTTPStats, String, Date) {
+    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil) async throws -> (CarInfo, String, HTTPStats, String, Date) {
         let key = apiKey
         guard !key.isEmpty, key != "YOUR_OPENROUTER_API_KEY" else {
             throw configError("Set OPENROUTER_API_KEY in Info.plist")
@@ -40,7 +40,7 @@ struct OpenRouterClient {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let start = Date()
-        let (data, response) = try await send(request, reportingTo: Self.handle, runId: runId)
+        let (data, response) = try await send(request, reportingTo: Self.handle)
         let stats = HTTPStats(
             statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0,
             durationMs: Int(Date().timeIntervalSince(start) * 1000),
@@ -53,8 +53,7 @@ struct OpenRouterClient {
             let body = String(data: data, encoding: .utf8) ?? "unknown"
             Self.handle.trackError(
                 errorCode: "HTTP_\(stats.statusCode)",
-                errorMessage: String(body.prefix(256)),
-                runId: runId
+                errorMessage: String(body.prefix(256))
             )
             try assertHTTP200(data: data, response: response)
         }
@@ -67,8 +66,7 @@ struct OpenRouterClient {
         else {
             Self.handle.trackError(
                 errorCode: "PARSE_ERROR",
-                errorMessage: "Unexpected OpenRouter response format",
-                runId: runId
+                errorMessage: "Unexpected OpenRouter response format"
             )
             throw apiError("Unexpected OpenRouter response format")
         }
@@ -79,8 +77,7 @@ struct OpenRouterClient {
         } catch {
             Self.handle.trackError(
                 errorCode: "PARSE_ERROR",
-                errorMessage: error.localizedDescription,
-                runId: runId
+                errorMessage: error.localizedDescription
             )
             throw error
         }
@@ -95,7 +92,7 @@ struct OpenRouterClient {
                                          generation: openRouterGenerationMeta(from: json)),
             apiMeta: openRouterApiMeta(from: json),
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
-                                              payload: .data(imageData, mimeType: "image/jpeg"))], runId: runId
+                                              payload: .data(imageData, mimeType: "image/jpeg"))]
         )
         return (info, prettyPrinted(data), stats, inferenceId, inferenceDate)
     }

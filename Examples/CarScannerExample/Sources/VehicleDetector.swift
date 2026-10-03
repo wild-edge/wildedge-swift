@@ -129,9 +129,7 @@ final class VehicleDetector {
     private let queryCount = 300
     private let classCount = 80
 
-    /// `runId` tags the load when it happens inside a scan; a load for the
-    /// live preview has none.
-    init?(precision: DetectorPrecision, runId: String? = nil) {
+    init?(precision: DetectorPrecision) {
         self.precision = precision
         guard let url = Bundle.main.url(forResource: precision.resourceName, withExtension: "mlmodelc") else {
             print("[VehicleDetector] \(precision.resourceName).mlmodelc not in bundle — local detection disabled")
@@ -162,10 +160,10 @@ final class VehicleDetector {
         } catch {
             print("[VehicleDetector] load failed: \(error)")
             handle.trackLoad(durationMs: Int(Date().timeIntervalSince(loadStart) * 1000),
-                             accelerator: .npu, success: false, errorCode: "coreml_load_error", runId: runId)
+                             accelerator: .npu, success: false, errorCode: "coreml_load_error")
             return nil
         }
-        handle.trackLoad(durationMs: Int(Date().timeIntervalSince(loadStart) * 1000), accelerator: .npu, runId: runId)
+        handle.trackLoad(durationMs: Int(Date().timeIntervalSince(loadStart) * 1000), accelerator: .npu)
     }
 
     deinit {
@@ -178,7 +176,7 @@ final class VehicleDetector {
     /// **Deliberately not reported to WildEdge.** This runs several times a
     /// second for as long as the camera is pointed at anything, which would
     /// bury the handful of events that describe an actual scan under two orders
-    /// of magnitude of throwaway frames. The scan path — `detect(_:orientation:runId:)`
+    /// of magnitude of throwaway frames. The scan path — `detect(_:orientation:)` on a still
     /// and the brand classifier — is what carries the telemetry.
     ///
     /// `durationMs` covers only the Vision call: building the request handler
@@ -210,8 +208,7 @@ final class VehicleDetector {
     /// side is not one this model recognises.
     func detect(
         _ image: CGImage,
-        orientation: CGImagePropertyOrientation,
-        runId: String
+        orientation: CGImagePropertyOrientation
     ) -> [VehicleDetection] {
         let start = CACurrentMediaTime()
         do {
@@ -219,7 +216,7 @@ final class VehicleDetector {
         } catch {
             handle.trackInference(durationMs: millis(since: start),
                                   inputModality: .image, outputModality: .detection,
-                                  success: false, errorCode: "coreml_invoke_error", runId: runId)
+                                  success: false, errorCode: "coreml_invoke_error")
             return []
         }
         let duration = millis(since: start)
@@ -229,8 +226,7 @@ final class VehicleDetector {
             durationMs: duration,
             inputModality: .image,
             outputModality: .detection,
-            outputMeta: detectionMeta(from: detections, imageSize: orientation.orientedSize(of: image)),
-            runId: runId
+            outputMeta: detectionMeta(from: detections, imageSize: orientation.orientedSize(of: image))
         )
         return detections
     }

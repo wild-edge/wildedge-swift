@@ -306,9 +306,32 @@ wildEdge.trace("user-query") { trace in
 }
 ```
 
-- `trace {}` creates a root span.
+- `trace {}` creates a root span. Pass `parent:` to start it as a child of an existing span instead.
 - `span {}` creates child spans with parent linkage.
-- `trackInference()` inside trace/span inherits correlation context.
+- Every event emitted inside a trace or span inherits its `trace_id` and `parent_span_id`: inferences, loads, unloads, downloads, feedback, errors and memory warnings.
+
+The active span is tracked per thread, so it does not follow an `await` that resumes on another thread. In async code, pass `traceId:` and `parentSpanId:` explicitly.
+
+### Runs
+
+A run groups events across traces, for example one user session or one agent task. Every track call takes an optional `runId:` (and `agentId:`), and each event resolves its run in this order:
+
+1. the `runId:` argument;
+2. the active span's run, set with `trace(_:runId:)` and inherited by child spans;
+3. the client's `defaultRunId`;
+4. none.
+
+To put everything the app does into one run, set `defaultRunId` once:
+
+```swift
+WildEdge.shared.defaultRunId = UUID().uuidString
+```
+
+It applies to every event the client emits from then on, including spans, until you change it or set it to `nil`. Events already given a run keep it.
+
+To start a new run per app session, change `defaultRunId` when the app returns from a long stay in the background. [CarScannerExample](Examples/CarScannerExample/Sources/WildEdgeRunSession.swift) does this: it stores the run id, notes when the app went to the background, and starts a new run if it was away for more than two minutes.
+
+Feedback often arrives after the run that produced the inference has ended. Capture the run id when the inference happens and pass it to `trackFeedback` as `runId:`.
 
 ## Attachments
 

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0B31FAA3B30CE4856A3452B3 /* WildEdgeRunSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37F1B77D5B3C6330EB7C1185 /* WildEdgeRunSession.swift */; };
 		13CB3E0A8D23CD32FC68452F /* BrandClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61782436882195EFEFD395AA /* BrandClassifier.swift */; };
 		266FF139D4AA30D17A44A90B /* WildEdge in Frameworks */ = {isa = PBXBuildFile; productRef = 70616483117A663E8B0EB6C2 /* WildEdge */; };
 		3017F1DFC49A5CD873F15C21 /* BrandClassifierModel.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = DD1DBDEB7E2CD82C7B2B53AC /* BrandClassifierModel.mlpackage */; };
@@ -32,6 +33,7 @@
 		09779DA113D491B3917DD6F4 /* wildedge-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wildedge-swift"; path = ../..; sourceTree = SOURCE_ROOT; };
 		20FAB616B6F16D62276980DE /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
 		27D62242B7ABC2F87FF8A2D4 /* CarScannerExample.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CarScannerExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		37F1B77D5B3C6330EB7C1185 /* WildEdgeRunSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WildEdgeRunSession.swift; sourceTree = "<group>"; };
 		3993C114560BD1D29E2E9EEC /* VehicleDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleDetector.swift; sourceTree = "<group>"; };
 		4145A0D128AC5B28BD398C87 /* CarScannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarScannerApp.swift; sourceTree = "<group>"; };
 		61782436882195EFEFD395AA /* BrandClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandClassifier.swift; sourceTree = "<group>"; };
@@ -86,6 +88,7 @@
 				3993C114560BD1D29E2E9EEC /* VehicleDetector.swift */,
 				9B6718EC93A23FDD2A14A1FD /* VehicleDetectorModel.mlpackage */,
 				FC03BA738C3DFBB09EDCE56F /* VehicleDetectorModelInt8.mlpackage */,
+				37F1B77D5B3C6330EB7C1185 /* WildEdgeRunSession.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -207,6 +210,7 @@
 				C762EECD7C90E28084B0F4CD /* VehicleDetector.swift in Sources */,
 				A49B6FA33F421DEFCB52425D /* VehicleDetectorModel.mlpackage in Sources */,
 				5657952C335A62115832BF6E /* VehicleDetectorModelInt8.mlpackage in Sources */,
+				0B31FAA3B30CE4856A3452B3 /* WildEdgeRunSession.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

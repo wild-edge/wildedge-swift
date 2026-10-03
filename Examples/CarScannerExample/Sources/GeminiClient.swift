@@ -18,7 +18,7 @@ struct GeminiClient {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
-    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil, runId: String? = nil) async throws -> (CarInfo, String, HTTPStats, String, Date) {
+    func analyze(_ imageData: Data, prompt: String, imageSize: CGSize? = nil) async throws -> (CarInfo, String, HTTPStats, String, Date) {
         let key = apiKey
         guard !key.isEmpty, key != "YOUR_GEMINI_API_KEY" else {
             throw configError("Set GEMINI_API_KEY in Info.plist")
@@ -38,7 +38,7 @@ struct GeminiClient {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let start = Date()
-        let (data, response) = try await send(request, reportingTo: Self.handle, runId: runId)
+        let (data, response) = try await send(request, reportingTo: Self.handle)
         let stats = HTTPStats(
             statusCode: (response as? HTTPURLResponse)?.statusCode ?? 0,
             durationMs: Int(Date().timeIntervalSince(start) * 1000),
@@ -51,8 +51,7 @@ struct GeminiClient {
             let body = String(data: data, encoding: .utf8) ?? "unknown"
             Self.handle.trackError(
                 errorCode: "HTTP_\(stats.statusCode)",
-                errorMessage: String(body.prefix(256)),
-                runId: runId
+                errorMessage: String(body.prefix(256))
             )
             try assertHTTP200(data: data, response: response)
         }
@@ -65,8 +64,7 @@ struct GeminiClient {
         else {
             Self.handle.trackError(
                 errorCode: "PARSE_ERROR",
-                errorMessage: "Unexpected Gemini response format",
-                runId: runId
+                errorMessage: "Unexpected Gemini response format"
             )
             throw apiError("Unexpected Gemini response format")
         }
@@ -77,8 +75,7 @@ struct GeminiClient {
         } catch {
             Self.handle.trackError(
                 errorCode: "PARSE_ERROR",
-                errorMessage: error.localizedDescription,
-                runId: runId
+                errorMessage: error.localizedDescription
             )
             throw error
         }
@@ -93,7 +90,7 @@ struct GeminiClient {
                                          generation: geminiGenerationMeta(from: json)),
             apiMeta: geminiApiMeta(from: json),
             attachments: [InferenceAttachment(name: "input.jpg", role: .input,
-                                              payload: .data(imageData, mimeType: "image/jpeg"))], runId: runId
+                                              payload: .data(imageData, mimeType: "image/jpeg"))]
         )
         return (info, prettyPrinted(data), stats, inferenceId, inferenceDate)
     }

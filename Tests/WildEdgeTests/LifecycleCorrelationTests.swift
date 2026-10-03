@@ -179,6 +179,29 @@ final class LifecycleCorrelationTests: XCTestCase {
         XCTAssertEqual(warnings[2]["run_id"] as? String, "r-explicit")
     }
 
+    func testDefaultRunIdIsTheLastFallback() throws {
+        let (handle, queue) = makeHandle()
+        client.defaultRunId = "session"
+
+        handle.trackLoad(durationMs: 1)
+        handle.trackInference(durationMs: 1, runId: "r-explicit")
+        client.trackMemoryWarning(level: .warning, memoryAvailableBytes: 1, activeModelIds: [],
+                                  triggeredUnload: false)
+        client.trace("scan", runId: "r-span") { _ in handle.trackError(errorCode: "E") }
+        client.trace("warmup") { _ in }
+
+        XCTAssertEqual(events(queue, type: "model_load").first?["run_id"] as? String, "session")
+        XCTAssertEqual(events(queue, type: "inference").first?["run_id"] as? String, "r-explicit")
+        XCTAssertEqual(events(queue, type: "memory_warning").first?["run_id"] as? String, "session")
+        XCTAssertEqual(events(queue, type: "error").first?["run_id"] as? String, "r-span")
+        let spans = events(queue, type: "span")
+        XCTAssertEqual(spans.map { $0["run_id"] as? String }, ["r-span", "session"])
+
+        client.defaultRunId = nil
+        handle.trackLoad(durationMs: 1)
+        XCTAssertNil(events(queue, type: "model_load").last?["run_id"])
+    }
+
     func testNoCorrelationOutsideAnyTrace() throws {
         let (handle, queue) = makeHandle()
 

@@ -175,10 +175,7 @@ final class CameraViewModel: NSObject, ObservableObject {
     /// Owned by `detectorQueue` once frames start; see `reloadDetector`.
     private var detector: VehicleDetector?
     /// Also `detectorQueue`-owned. Absent unless the weights are in the bundle.
-    /// Loaded by the first scan that needs it, so that scan's run carries the load.
-    private var brandClassifier: BrandClassifier?
-    /// Set once a load has been tried, so a missing model is not retried every scan.
-    private var brandClassifierLoadAttempted = false
+    private lazy var brandClassifier = BrandClassifier()
     private var activePrecision: DetectorPrecision =
         UserDefaults.standard.string(forKey: "detectorPrecision")
             .flatMap(DetectorPrecision.init(rawValue:)) ?? .fp16
@@ -260,11 +257,8 @@ final class CameraViewModel: NSObject, ObservableObject {
     /// Everything between having a photo and having an answer, shared by the
     /// shutter and the photo picker.
     private func processCapture(imageData: Data, jobID: UUID, provider captureProvider: RecognitionProvider) async {
-        // One id across every model a scan touches, so the detector, the brand
-        // classifier and the provider calls reassemble into a single run.
-        let runId = "scan-\(jobID.uuidString)"
         let fullImage = UIImage(data: imageData)
-        let analysis = analyzeStill(for: imageData, runId: runId)
+        let analysis = analyzeStill(for: imageData)
 
         // Upload the crop when there is one. The provider then spends its
         // attention on the car rather than the street, and because the
@@ -288,7 +282,7 @@ final class CameraViewModel: NSObject, ObservableObject {
 
         do {
             let results = try await analyzeImage(uploadData, meta: meta, provider: captureProvider,
-                                                 prompt: scanPrompt, runId: runId)
+                                                 prompt: scanPrompt)
             await MainActor.run { self.updateJob(id: jobID, status: .completed(results)) }
         } catch {
             await MainActor.run { self.updateJob(id: jobID, status: .failed(error.localizedDescription)) }
@@ -323,7 +317,7 @@ final class CameraViewModel: NSObject, ObservableObject {
     /// Runs on `detectorQueue`, which owns both models, so this hops there and
     /// waits — it costs at most one preview frame. Every failure along the way
     /// is a nil, and a nil simply means the prompt goes out without a hint.
-    private func analyzeStill(for imageData: Data, runId: String) -> StillAnalysis {
+    private func analyzeStill(for imageData: Data) -> StillAnalysis {
         guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
         else { return StillAnalysis(vehicle: nil, brand: .failed) }
@@ -335,25 +329,21 @@ final class CameraViewModel: NSObject, ObservableObject {
             .flatMap(CGImagePropertyOrientation.init(rawValue:)) ?? .up
 
         return detectorQueue.sync {
-            if detector == nil { detector = VehicleDetector(precision: activePrecision, runId: runId) }
+            if detector == nil { detector = VehicleDetector(precision: activePrecision) }
             guard let detector else { return StillAnalysis(vehicle: nil, brand: .failed) }
 
             // The largest box, not the most confident one: the subject of the
             // photo is the car filling the frame, and that is what to crop to.
-            let vehicle = detector.detect(image, orientation: orientation, runId: runId)
+            let vehicle = detector.detect(image, orientation: orientation)
                 .max { $0.frameFraction < $1.frameFraction }
 
             guard activeBrandHintEnabled else { return StillAnalysis(vehicle: vehicle, brand: .disabled) }
-            if !brandClassifierLoadAttempted {
-                brandClassifierLoadAttempted = true
-                brandClassifier = BrandClassifier(runId: runId)
-            }
             guard let classifier = brandClassifier else {
                 return StillAnalysis(vehicle: vehicle, brand: .modelUnavailable)
             }
             guard let vehicle else { return StillAnalysis(vehicle: nil, brand: .noVehicle) }
             guard let guess = classifier.classify(image, orientation: orientation,
-                                                  box: vehicle.rect, runId: runId) else {
+                                                  box: vehicle.rect) else {
                 return StillAnalysis(vehicle: vehicle, brand: .failed)
             }
             return StillAnalysis(vehicle: vehicle, brand: .guessed(guess))
@@ -462,22 +452,21 @@ final class CameraViewModel: NSObject, ObservableObject {
         _ uploadData: Data,
         meta: PhotoMetadata,
         provider: RecognitionProvider,
-        prompt carPrompt: String,
-        runId: String
+        prompt carPrompt: String
     ) async throws -> [ScanResult] {
         switch provider {
         case .openRouter:
-            let (info, raw, stats, inferenceId, inferenceDate) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions, runId: runId)
+            let (info, raw, stats, inferenceId, inferenceDate) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
             return [ScanResult(provider: "OpenRouter", info: info, photo: meta, rawJSON: raw, httpStats: stats,
                                inferenceId: inferenceId, inferenceDate: inferenceDate,
-                               sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate, runId: runId))]
+                               sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
         case .gemini:
-            let (info, raw, stats, inferenceId, inferenceDate) = try await GeminiClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions, runId: runId)
+            let (info, raw, stats, inferenceId, inferenceDate) = try await GeminiClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
             return [ScanResult(provider: "Gemini", info: info, photo: meta, rawJSON: raw, httpStats: stats,
                                inferenceId: inferenceId, inferenceDate: inferenceDate,
-                               sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate, runId: runId))]
+                               sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
         case .both:
-            return try await analyzeWithBoth(uploadData, photo: meta, prompt: carPrompt, runId: runId)
+            return try await analyzeWithBoth(uploadData, photo: meta, prompt: carPrompt)
         }
     }
 
@@ -488,11 +477,11 @@ final class CameraViewModel: NSObject, ObservableObject {
         return hint + "\n\n" + carPrompt
     }
 
-    /// Feedback arrives from the detail view long after the scan ended, so the
-    /// scan's `runId` is captured here and passed explicitly.
-    private func makeFeedback(_ handle: ModelHandle, inferenceId: String, inferenceDate: Date,
-                              runId: String) -> (FeedbackType) -> Void {
-        { feedbackType in
+    /// Feedback arrives from the detail view, possibly after the session that
+    /// ran the scan has ended, so the scan's run id is captured now.
+    private func makeFeedback(_ handle: ModelHandle, inferenceId: String, inferenceDate: Date) -> (FeedbackType) -> Void {
+        let runId = WildEdge.shared.defaultRunId
+        return { feedbackType in
             let delayMs = Int(Date().timeIntervalSince(inferenceDate) * 1000)
             handle.trackFeedback(feedbackType, relatedInferenceId: inferenceId, delayMs: delayMs, runId: runId)
         }
@@ -512,9 +501,9 @@ final class CameraViewModel: NSObject, ObservableObject {
         return (rendered.jpegData(compressionQuality: compressionQuality) ?? Data(), drawSize)
     }
 
-    private func analyzeWithBoth(_ imageData: Data, photo: PhotoMetadata, prompt carPrompt: String, runId: String) async throws -> [ScanResult] {
-        async let orTask = OpenRouterClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions, runId: runId)
-        async let gTask  = GeminiClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions, runId: runId)
+    private func analyzeWithBoth(_ imageData: Data, photo: PhotoMetadata, prompt carPrompt: String) async throws -> [ScanResult] {
+        async let orTask = OpenRouterClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions)
+        async let gTask  = GeminiClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions)
 
         var out: [ScanResult] = []
         var firstError: Error?
@@ -523,14 +512,14 @@ final class CameraViewModel: NSObject, ObservableObject {
             let (info, raw, stats, inferenceId, inferenceDate) = try await orTask
             out.append(ScanResult(provider: "OpenRouter", info: info, photo: photo, rawJSON: raw, httpStats: stats,
                                   inferenceId: inferenceId, inferenceDate: inferenceDate,
-                                  sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate, runId: runId)))
+                                  sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate)))
         } catch { firstError = error }
 
         do {
             let (info, raw, stats, inferenceId, inferenceDate) = try await gTask
             out.append(ScanResult(provider: "Gemini", info: info, photo: photo, rawJSON: raw, httpStats: stats,
                                   inferenceId: inferenceId, inferenceDate: inferenceDate,
-                                  sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate, runId: runId)))
+                                  sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate)))
         } catch { if firstError == nil { firstError = error } }
 
         if out.isEmpty, let err = firstError { throw err }

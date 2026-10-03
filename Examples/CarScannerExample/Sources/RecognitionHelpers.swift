@@ -26,15 +26,14 @@ func extractJSON(from text: String) -> String {
 /// TLS) to `handle` before rethrowing it. Such a failure throws before there is
 /// any response to check, so without this it would never reach WildEdge.
 /// A cancelled request is not a failure and is not reported.
-func send(_ request: URLRequest, reportingTo handle: ModelHandle, runId: String?) async throws -> (Data, URLResponse) {
+func send(_ request: URLRequest, reportingTo handle: ModelHandle) async throws -> (Data, URLResponse) {
     do {
         return try await URLSession.shared.data(for: request)
     } catch {
         if let code = networkErrorCode(for: error) {
             handle.trackError(
                 errorCode: code,
-                errorMessage: String(error.localizedDescription.prefix(256)),
-                runId: runId
+                errorMessage: String(error.localizedDescription.prefix(256))
             )
         }
         throw error

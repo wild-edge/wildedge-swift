@@ -7,6 +7,7 @@ public final class ModelHandle {
     private let publish: ([String: Any], Bool) -> Void
     private let hardwareSnapshot: () -> HardwareContext?
     private let activeSpanContext: () -> SpanContext?
+    private let defaultRunId: () -> String?
     private let registerAttachments: ([InferenceAttachment], String, Date) -> Void
     private let lock = NSLock()
     private var loadedAt: Int64 = 0
@@ -21,6 +22,7 @@ public final class ModelHandle {
         publish: @escaping ([String: Any], Bool) -> Void,
         hardwareSnapshot: @escaping () -> HardwareContext?,
         activeSpanContext: @escaping () -> SpanContext?,
+        defaultRunId: @escaping () -> String? = { nil },
         publishSynchronously: Bool = false,
         registerAttachments: @escaping ([InferenceAttachment], String, Date) -> Void = { _, _, _ in }
     ) {
@@ -29,6 +31,7 @@ public final class ModelHandle {
         self.publish = publish
         self.hardwareSnapshot = hardwareSnapshot
         self.activeSpanContext = activeSpanContext
+        self.defaultRunId = defaultRunId
         self.publishSynchronously = publishSynchronously
         self.registerAttachments = registerAttachments
     }
@@ -49,7 +52,8 @@ public final class ModelHandle {
     ) {
         var event = event
         applyCorrelation(to: &event, activeSpan: activeSpanContext(), traceId: traceId,
-                         parentSpanId: parentSpanId, runId: runId, agentId: agentId)
+                         parentSpanId: parentSpanId, runId: runId, agentId: agentId,
+                         defaultRunId: defaultRunId())
         emit(event)
     }
 
@@ -208,7 +212,7 @@ public final class ModelHandle {
             traceId: traceId ?? activeCtx?.traceId,
             spanId: spanId,
             parentSpanId: parentSpanId ?? activeCtx?.spanId,
-            runId: runId ?? activeCtx?.runId,
+            runId: runId ?? activeCtx?.runId ?? defaultRunId(),
             agentId: agentId ?? activeCtx?.agentId
         )
 

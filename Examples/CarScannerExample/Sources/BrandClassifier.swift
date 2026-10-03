@@ -80,8 +80,7 @@ final class BrandClassifier {
     private let request: VNCoreMLRequest
     private let handle: ModelHandle
 
-    /// `runId` tags the load with the scan that first needed the classifier.
-    init?(runId: String? = nil) {
+    init?() {
         guard let url = Bundle.main.url(forResource: Self.modelName, withExtension: "mlmodelc") else {
             print("[BrandClassifier] \(Self.modelName).mlmodelc not in bundle — brand hint disabled")
             return nil
@@ -108,10 +107,10 @@ final class BrandClassifier {
         } catch {
             print("[BrandClassifier] load failed: \(error)")
             handle.trackLoad(durationMs: Self.millis(since: loadStart), accelerator: .npu,
-                             success: false, errorCode: "coreml_load_error", runId: runId)
+                             success: false, errorCode: "coreml_load_error")
             return nil
         }
-        handle.trackLoad(durationMs: Self.millis(since: loadStart), accelerator: .npu, runId: runId)
+        handle.trackLoad(durationMs: Self.millis(since: loadStart), accelerator: .npu)
     }
 
     deinit {
@@ -126,8 +125,7 @@ final class BrandClassifier {
     func classify(
         _ image: CGImage,
         orientation: CGImagePropertyOrientation,
-        box: CGRect,
-        runId: String
+        box: CGRect
     ) -> BrandGuess? {
         request.regionOfInterest = Self.regionOfInterest(for: box)
 
@@ -137,7 +135,7 @@ final class BrandClassifier {
         } catch {
             handle.trackInference(durationMs: Self.millis(since: start),
                                   inputModality: .image, outputModality: .classification,
-                                  success: false, errorCode: "coreml_invoke_error", runId: runId)
+                                  success: false, errorCode: "coreml_invoke_error")
             return nil
         }
         let duration = Self.millis(since: start)
@@ -154,8 +152,7 @@ final class BrandClassifier {
                 numPredictions: candidates.count,
                 topK: candidates.prefix(3).map { TopPrediction(label: $0.brand, confidence: $0.probability) },
                 avgConfidence: candidates.first?.probability
-            ).toMap(),
-            runId: runId
+            ).toMap()
         )
         return BrandGuess(candidates: candidates, durationMs: duration)
     }
