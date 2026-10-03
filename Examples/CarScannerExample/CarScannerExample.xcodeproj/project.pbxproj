@@ -7,17 +7,22 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		13CB3E0A8D23CD32FC68452F /* BrandClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61782436882195EFEFD395AA /* BrandClassifier.swift */; };
 		266FF139D4AA30D17A44A90B /* WildEdge in Frameworks */ = {isa = PBXBuildFile; productRef = 70616483117A663E8B0EB6C2 /* WildEdge */; };
+		3017F1DFC49A5CD873F15C21 /* BrandClassifierModel.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = DD1DBDEB7E2CD82C7B2B53AC /* BrandClassifierModel.mlpackage */; };
 		403C6486F5BC47AC091DBEA5 /* RecognitionHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DD7E291FB82275CD71220E /* RecognitionHelpers.swift */; };
 		500008392C922271401492B8 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20FAB616B6F16D62276980DE /* CameraPreviewView.swift */; };
 		53CBF52199F526A6D5DC7879 /* GeminiClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF5841ED8926579898D78F71 /* GeminiClient.swift */; };
+		5657952C335A62115832BF6E /* VehicleDetectorModelInt8.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = FC03BA738C3DFBB09EDCE56F /* VehicleDetectorModelInt8.mlpackage */; };
 		5A4525D0DEE350A8DA2E02AE /* CameraViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B81A4AAFB4AAE0F99AF6A4B /* CameraViewModel.swift */; };
 		61C638888A9ED7D43100790C /* ScanButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84FDE02FAF253090DE93A7CC /* ScanButton.swift */; };
 		6FDE1BEA42313ABAB49417DD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A342C548D42486C99AFC4A17 /* Assets.xcassets */; };
+		A1098DC444EAEC8F21C1D77E /* ScanSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE1A56C0E8A322E1E472891E /* ScanSettingsView.swift */; };
+		A49B6FA33F421DEFCB52425D /* VehicleDetectorModel.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = 9B6718EC93A23FDD2A14A1FD /* VehicleDetectorModel.mlpackage */; };
 		B0AA9821DCA4B35DF432EA11 /* ScanJobDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB25ECAD442486B42C1D20C2 /* ScanJobDetailView.swift */; };
 		BAEE43C75C70404EE994F645 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3529C13102FB506EA48D74C /* ContentView.swift */; };
 		BB0B59FBC21D794C8D919502 /* OpenRouterClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5DD09CF54A0F81DC02AE3B1 /* OpenRouterClient.swift */; };
-		C882663E2FCEB44000AF9AE8 /* ScanSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C882663D2FCEB44000AF9AE8 /* ScanSettingsView.swift */; };
+		C762EECD7C90E28084B0F4CD /* VehicleDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3993C114560BD1D29E2E9EEC /* VehicleDetector.swift */; };
 		CF3044DF76303B6156BE44DF /* CarScannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4145A0D128AC5B28BD398C87 /* CarScannerApp.swift */; };
 		E0E5841DD0BFBE16A7E505C6 /* MarqueeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF7FBEC0CC0C0BAF85152200 /* MarqueeText.swift */; };
 		E152C9C514E0F36F55A46321 /* ScanJobCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BEEAC05723C7F580B785E92 /* ScanJobCell.swift */; };
@@ -26,20 +31,25 @@
 /* Begin PBXFileReference section */
 		09779DA113D491B3917DD6F4 /* wildedge-swift */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "wildedge-swift"; path = ../..; sourceTree = SOURCE_ROOT; };
 		20FAB616B6F16D62276980DE /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
-		27D62242B7ABC2F87FF8A2D4 /* CarScannerExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CarScannerExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		27D62242B7ABC2F87FF8A2D4 /* CarScannerExample.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CarScannerExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3993C114560BD1D29E2E9EEC /* VehicleDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VehicleDetector.swift; sourceTree = "<group>"; };
 		4145A0D128AC5B28BD398C87 /* CarScannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarScannerApp.swift; sourceTree = "<group>"; };
+		61782436882195EFEFD395AA /* BrandClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrandClassifier.swift; sourceTree = "<group>"; };
 		6B81A4AAFB4AAE0F99AF6A4B /* CameraViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraViewModel.swift; sourceTree = "<group>"; };
 		84FDE02FAF253090DE93A7CC /* ScanButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanButton.swift; sourceTree = "<group>"; };
 		8BEEAC05723C7F580B785E92 /* ScanJobCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanJobCell.swift; sourceTree = "<group>"; };
+		9B6718EC93A23FDD2A14A1FD /* VehicleDetectorModel.mlpackage */ = {isa = PBXFileReference; path = VehicleDetectorModel.mlpackage; sourceTree = "<group>"; };
 		A342C548D42486C99AFC4A17 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AF5841ED8926579898D78F71 /* GeminiClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiClient.swift; sourceTree = "<group>"; };
 		B5DD09CF54A0F81DC02AE3B1 /* OpenRouterClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenRouterClient.swift; sourceTree = "<group>"; };
-		C882663D2FCEB44000AF9AE8 /* ScanSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanSettingsView.swift; sourceTree = "<group>"; };
+		BE1A56C0E8A322E1E472891E /* ScanSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanSettingsView.swift; sourceTree = "<group>"; };
 		DB25ECAD442486B42C1D20C2 /* ScanJobDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanJobDetailView.swift; sourceTree = "<group>"; };
+		DD1DBDEB7E2CD82C7B2B53AC /* BrandClassifierModel.mlpackage */ = {isa = PBXFileReference; path = BrandClassifierModel.mlpackage; sourceTree = "<group>"; };
 		DF7FBEC0CC0C0BAF85152200 /* MarqueeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarqueeText.swift; sourceTree = "<group>"; };
 		E27F9095CD5552A2A9DBC787 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		E2DD7E291FB82275CD71220E /* RecognitionHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecognitionHelpers.swift; sourceTree = "<group>"; };
 		F3529C13102FB506EA48D74C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		FC03BA738C3DFBB09EDCE56F /* VehicleDetectorModelInt8.mlpackage */ = {isa = PBXFileReference; path = VehicleDetectorModelInt8.mlpackage; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +68,8 @@
 			isa = PBXGroup;
 			children = (
 				A342C548D42486C99AFC4A17 /* Assets.xcassets */,
+				61782436882195EFEFD395AA /* BrandClassifier.swift */,
+				DD1DBDEB7E2CD82C7B2B53AC /* BrandClassifierModel.mlpackage */,
 				20FAB616B6F16D62276980DE /* CameraPreviewView.swift */,
 				6B81A4AAFB4AAE0F99AF6A4B /* CameraViewModel.swift */,
 				4145A0D128AC5B28BD398C87 /* CarScannerApp.swift */,
@@ -69,8 +81,11 @@
 				E2DD7E291FB82275CD71220E /* RecognitionHelpers.swift */,
 				84FDE02FAF253090DE93A7CC /* ScanButton.swift */,
 				8BEEAC05723C7F580B785E92 /* ScanJobCell.swift */,
-				C882663D2FCEB44000AF9AE8 /* ScanSettingsView.swift */,
 				DB25ECAD442486B42C1D20C2 /* ScanJobDetailView.swift */,
+				BE1A56C0E8A322E1E472891E /* ScanSettingsView.swift */,
+				3993C114560BD1D29E2E9EEC /* VehicleDetector.swift */,
+				9B6718EC93A23FDD2A14A1FD /* VehicleDetectorModel.mlpackage */,
+				FC03BA738C3DFBB09EDCE56F /* VehicleDetectorModelInt8.mlpackage */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -131,6 +146,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					31A0070D233D0289705C55ED = {
+						DevelopmentTeam = "";
+					};
+				};
 			};
 			buildConfigurationList = A69D92B5B85B3EC29786FE55 /* Build configuration list for PBXProject "CarScannerExample" */;
 			developmentRegion = en;
@@ -170,18 +190,23 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				13CB3E0A8D23CD32FC68452F /* BrandClassifier.swift in Sources */,
+				3017F1DFC49A5CD873F15C21 /* BrandClassifierModel.mlpackage in Sources */,
 				500008392C922271401492B8 /* CameraPreviewView.swift in Sources */,
 				5A4525D0DEE350A8DA2E02AE /* CameraViewModel.swift in Sources */,
 				CF3044DF76303B6156BE44DF /* CarScannerApp.swift in Sources */,
 				BAEE43C75C70404EE994F645 /* ContentView.swift in Sources */,
 				53CBF52199F526A6D5DC7879 /* GeminiClient.swift in Sources */,
 				E0E5841DD0BFBE16A7E505C6 /* MarqueeText.swift in Sources */,
-				C882663E2FCEB44000AF9AE8 /* ScanSettingsView.swift in Sources */,
 				BB0B59FBC21D794C8D919502 /* OpenRouterClient.swift in Sources */,
 				403C6486F5BC47AC091DBEA5 /* RecognitionHelpers.swift in Sources */,
 				61C638888A9ED7D43100790C /* ScanButton.swift in Sources */,
 				E152C9C514E0F36F55A46321 /* ScanJobCell.swift in Sources */,
 				B0AA9821DCA4B35DF432EA11 /* ScanJobDetailView.swift in Sources */,
+				A1098DC444EAEC8F21C1D77E /* ScanSettingsView.swift in Sources */,
+				C762EECD7C90E28084B0F4CD /* VehicleDetector.swift in Sources */,
+				A49B6FA33F421DEFCB52425D /* VehicleDetectorModel.mlpackage in Sources */,
+				5657952C335A62115832BF6E /* VehicleDetectorModelInt8.mlpackage in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -193,9 +218,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_REQUIRED = NO;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CODE_SIGN_IDENTITY = "";
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
@@ -204,14 +227,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.36;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.wildedge.example.carscanner;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -222,9 +239,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_REQUIRED = NO;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 7;
+				CODE_SIGN_IDENTITY = "";
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = Sources/Info.plist;
@@ -233,14 +248,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.36;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.wildedge.example.carscanner;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
-				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_VERSION = 5.9;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
@@ -398,7 +407,6 @@
 /* Begin XCSwiftPackageProductDependency section */
 		70616483117A663E8B0EB6C2 /* WildEdge */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = B6EFE55681900F6D63ADDBDE /* XCLocalSwiftPackageReference "../.." */;
 			productName = WildEdge;
 		};
 /* End XCSwiftPackageProductDependency section */

@@ -18,6 +18,8 @@ Point the camera at any car, tap the shutter, and the app sends the image to a c
 ```bash
 cd Examples/CarScannerExample
 
+# Fetch the on-device models first, if you have access (see section 6)
+
 # Generate the Xcode project
 xcodegen generate
 
@@ -78,9 +80,45 @@ For the **Simulator** no signing is required.
 4. Tap any result card in the scan history grid to see the full detail view, including raw JSON, HTTP stats, and WildEdge inference ID.
 5. Use the **settings** icon to adjust the upload image size (256–2048 px) and JPEG compression quality before scanning.
 
+While the camera is live, an on-device detector draws a box around any car, truck, bus or motorcycle in frame. It runs locally at ~4 fps, costs nothing, and is independent of the cloud scan — the shutter still sends the whole frame to the selected provider.
+
 ---
 
-## 6. Troubleshooting
+## 6. On-device models
+
+The detector and the brand classifier are **not in this repository**: `*.mlpackage/` is gitignored, so a fresh checkout has neither. The app still builds and runs without them. With no detector there are no live boxes and no crop, and with no classifier there is no brand hint.
+
+**To get the models, contact [WildEdge](https://wildedge.dev).** Both live in private Hugging Face repositories. The classifier was trained on research-only datasets (VMMRdb, Stanford Cars, DVM-CAR), so its weights must not be redistributed or shipped in a commercial product.
+
+Once you have access, fetch them **before** `xcodegen generate`, since the project only picks up files that exist:
+
+```bash
+hf download WildEdgeDev/we-scan-detector-coreml \
+  --include "coreml/model_fp16.mlpackage/*" "coreml/model_int8.mlpackage/*" \
+  --local-dir /tmp/detector
+cp -R /tmp/detector/coreml/model_fp16.mlpackage Sources/VehicleDetectorModel.mlpackage
+cp -R /tmp/detector/coreml/model_int8.mlpackage Sources/VehicleDetectorModelInt8.mlpackage
+
+hf download WildEdgeDev/we-scan-brand-classifier \
+  --include "coreml/model_fp16.mlpackage/*" --local-dir /tmp/brand
+cp -R /tmp/brand/coreml/model_fp16.mlpackage Sources/BrandClassifierModel.mlpackage
+
+xcodegen generate
+```
+
+---
+
+## 7. On-device vehicle detector
+
+While the camera is live, **RT-DETR r18vd** (Core ML, fp16 or int8) draws a box around any car, truck, bus or motorcycle in frame. `VehicleDetector.swift` runs it through Vision with `.computeUnits = .all`, and the app skips the local loop if the model is missing. RT-DETR needs no NMS: the app keeps any of the 300 queries whose sigmoid score for a vehicle class is at least **0.5**. The 80-class output uses the contiguous COCO map, so the vehicle ids are **2, 3, 5 and 7**, not the 91-class ids listed on the model card. **Settings → On-Device Detector** switches builds at runtime, and fp16 is the default. Both builds take about 30 ms on an iPhone 13 and an iPhone 17 alike, so int8 saves 19 MB but buys no speed and its boxes are less accurate. Live preview frames are not reported to WildEdge; only the detection on each scanned still is.
+
+---
+
+## 8. On-device brand classifier
+
+Before a scan reaches the cloud provider, the app names the manufacturer locally and adds that guess to the prompt. It pads the detector's largest vehicle box by 12% a side and squashes the crop to 224x224, matching how the classifier was trained. The model ranks 43 mostly-European brands, and if the top one clears **0.35** the prompt gets a hint such as "Tesla 78%, Rolls-Royce 1%, Mitsubishi 1%", framed as a prior rather than evidence. Despite being a Core ML classifier, it outputs **raw logits**, so `BrandClassifier.softmax` normalizes them before use. It has no "not a car" class, which is what the threshold guards against. Any failure (missing model, no vehicle, a flat ranking) sends the prompt unchanged. Tapping a scan shows the classifier's brand, confidence, runners-up, latency and whether the hint reached the provider.
+
+## 9. Troubleshooting
 
 ### Package resolution errors / stale cache
 

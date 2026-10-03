@@ -21,3 +21,9 @@ Examples/SPMExamples/Pods/
 Examples/MLKitExample/Pods/
 Examples/TFLiteExample/Pods/
 Examples/TFLiteObjcExample/Pods/
+
+# Core ML weights are fetched, never committed. They are tens of MB each, and
+# the brand classifier's training data is research-only so its weights must not
+# be redistributed at all. See Examples/CarScannerExample/README.md for how to
+# fetch them.
+*.mlpackage/

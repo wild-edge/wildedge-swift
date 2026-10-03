@@ -24,7 +24,7 @@ struct ContentView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            CameraPreviewView(session: viewModel.session)
+            CameraPreviewView(session: viewModel.session, detectionFrame: viewModel.detectionFrame)
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -58,7 +58,22 @@ struct ContentView: View {
                 )
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
-                .padding(.bottom, 12)
+                .padding(.bottom, 6)
+
+                HStack {
+                    Spacer()
+                    if let title = viewModel.detectorStatus.title {
+                        Label(title, systemImage: "bolt.fill")
+                            .font(.system(size: 10, weight: .regular, design: .monospaced))
+                            .foregroundColor(.white.opacity(0.85))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Color.black.opacity(0.35)))
+                    }
+                }
+                .frame(height: 22)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 6)
 
                 ScrollView(showsIndicators: false) {
                     LazyVGrid(columns: columns, spacing: 8) {
@@ -176,6 +191,9 @@ struct ContentView: View {
             ScanSettingsView(
                 imageSize: $viewModel.uploadImageSize,
                 compression: $viewModel.compressionQuality,
+                detectorPrecision: $viewModel.detectorPrecision,
+                detectorInterval: $viewModel.detectorInterval,
+                brandHintEnabled: $viewModel.brandHintEnabled,
                 sourceImage: viewModel.lastCapturedImage
             )
         }

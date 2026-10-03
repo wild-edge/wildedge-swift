@@ -22,7 +22,11 @@ targets:
         SWIFT_VERSION: "5.9"
         GENERATE_INFOPLIST_FILE: "NO"
         INFOPLIST_FILE: Sources/Info.plist
-        TARGETED_DEVICE_FAMILY: "1,2"
+        # iPhone only. The app is portrait-locked by design — the capture
+        # connection, the preview overlay and the detector geometry all assume
+        # it — and an iPad build must declare all four orientations to satisfy
+        # multitasking, which App Store validation rejects otherwise.
+        TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         DEVELOPMENT_TEAM: ""
         CODE_SIGN_IDENTITY: ""

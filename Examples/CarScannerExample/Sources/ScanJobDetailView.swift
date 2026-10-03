@@ -66,19 +66,28 @@ struct ScanJobDetailView: View {
     }
 
     private var thumbnail: some View {
-        Group {
-            if let img = job.thumbnail {
-                Image(uiImage: img).resizable().scaledToFill()
-            } else {
-                LinearGradient(
-                    colors: [Color.gray.opacity(0.5), Color.gray.opacity(0.25)],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
+        // Color.clear fixes the banner at the card's width by 200pt, and the
+        // image rides in an overlay so it cannot vote on the size. A scan
+        // uploads a crop of the car, whose aspect ratio varies wildly from one
+        // photo to the next; as a direct child it drags the card with it.
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: 200)
+            .background(Color.black.opacity(0.9))
+            .overlay {
+                if let img = job.thumbnail {
+                    // Fit, not fill: this banner stands for the image that was
+                    // uploaded, so cutting the ends off a wide crop would
+                    // misrepresent what the provider actually saw.
+                    Image(uiImage: img).resizable().scaledToFit()
+                } else {
+                    LinearGradient(
+                        colors: [Color.gray.opacity(0.5), Color.gray.opacity(0.25)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                }
             }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 200)
-        .clipped()
+            .clipped()
         .overlay {
             if let img = job.thumbnail {
                 let bboxes = thumbnailBBoxes()
@@ -88,18 +97,20 @@ struct ScanJobDetailView: View {
                         let frameH = geo.size.height
                         let imgW = img.size.width
                         let imgH = img.size.height
-                        let scale = max(frameW / imgW, frameH / imgH)
+                        // Matches the .scaledToFit above: the image is letterboxed
+                        // inside the banner, so the offsets are the bars around it.
+                        let scale = min(frameW / imgW, frameH / imgH)
                         let displayW = imgW * scale
                         let displayH = imgH * scale
-                        let xOff = (displayW - frameW) / 2
-                        let yOff = (displayH - frameH) / 2
+                        let xOff = (frameW - displayW) / 2
+                        let yOff = (frameH - displayH) / 2
                         let colors: [Color] = [.yellow, .cyan, .orange]
                         ForEach(Array(bboxes.enumerated()), id: \.offset) { idx, bbox in
                             let color = colors[idx % colors.count]
                             let rw = bbox.width * displayW
                             let rh = bbox.height * displayH
-                            let cx = bbox.x * displayW - xOff + rw / 2
-                            let cy = bbox.y * displayH - yOff + rh / 2
+                            let cx = xOff + bbox.x * displayW + rw / 2
+                            let cy = yOff + bbox.y * displayH + rh / 2
                             Rectangle()
                                 .stroke(color, lineWidth: 2)
                                 .frame(width: rw, height: rh)
@@ -146,6 +157,13 @@ struct ScanJobDetailView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
+                // Pipeline order: what the local model said, what that made the
+                // prompt, then what each provider answered.
+                brandGuessSection
+                Divider()
+                promptSection
+                Divider()
+
                 switch job.status {
                 case .scanning:
                     HStack(spacing: 10) {
@@ -177,6 +195,74 @@ struct ScanJobDetailView: View {
         .frame(maxWidth: .infinity)
         .frame(height: 280)
         .background(Color(UIColor.secondarySystemBackground))
+    }
+
+    /// What the on-device classifier said, and whether that reached the
+    /// provider. A guess below the hint threshold is still shown — knowing the
+    /// local model was unsure is the point of showing it at all.
+    @ViewBuilder
+    private var brandGuessSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("On-Device Classifier")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.secondary)
+
+            if let guess = job.brandGuess?.guess, let top = guess.top {
+                DetailRow(icon: "tag", label: "Brand", value: top.brand)
+                DetailRow(icon: "percent", label: "Confidence",
+                          value: percent(top.probability))
+
+                let runnersUp = guess.candidates.dropFirst().prefix(2)
+                if !runnersUp.isEmpty {
+                    DetailRow(
+                        icon: "list.number",
+                        label: "Then",
+                        value: runnersUp
+                            .map { "\($0.brand) \(percent($0.probability))" }
+                            .joined(separator: ", ")
+                    )
+                }
+
+                DetailRow(icon: "clock", label: "Duration", value: "\(guess.durationMs) ms")
+                DetailRow(
+                    icon: guess.promptHint == nil ? "xmark.circle" : "checkmark.circle",
+                    label: "Sent as hint",
+                    value: guess.promptHint == nil ? "No — below threshold" : "Yes"
+                )
+            } else if let outcome = job.brandGuess {
+                Label(outcome.explanation, systemImage: "car.slash")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                Label("Running…", systemImage: "hourglass")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    /// The prompt as sent, so the brand hint above can be read in context.
+    @ViewBuilder
+    private var promptSection: some View {
+        if let prompt = job.prompt {
+            MonospacedDisclosureSection(title: "Prompt Sent", text: prompt)
+        } else {
+            HStack {
+                Text("Prompt Sent")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(.white)
+                Spacer()
+                Text("Building…")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func percent(_ probability: Double) -> String {
+        "\(Int((probability * 100).rounded()))%"
     }
 
     @ViewBuilder
@@ -224,7 +310,7 @@ struct ScanJobDetailView: View {
 
             Divider()
 
-            JSONResponseSection(json: result.rawJSON)
+            MonospacedDisclosureSection(title: "JSON Response", text: result.rawJSON)
 
             Divider()
 
@@ -312,8 +398,10 @@ struct ScanJobDetailView: View {
     }
 }
 
-struct JSONResponseSection: View {
-    let json: String
+/// A collapsed block of monospaced text: the outgoing prompt, the raw response.
+struct MonospacedDisclosureSection: View {
+    let title: String
+    let text: String
     @State private var isExpanded = false
 
     var body: some View {
@@ -322,7 +410,7 @@ struct JSONResponseSection: View {
                 withAnimation(.spring(duration: 0.25)) { isExpanded.toggle() }
             } label: {
                 HStack {
-                    Text("JSON Response")
+                    Text(title)
                         .font(.caption.weight(.semibold))
                         .foregroundColor(.white)
                     Spacer()
@@ -335,7 +423,7 @@ struct JSONResponseSection: View {
             .buttonStyle(.plain)
 
             if isExpanded {
-                Text(json)
+                Text(text)
                     .font(.system(.caption2, design: .monospaced))
                     .foregroundColor(.primary)
                     .textSelection(.enabled)

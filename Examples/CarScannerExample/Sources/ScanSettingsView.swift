@@ -4,6 +4,9 @@ import UIKit
 struct ScanSettingsView: View {
     @Binding var imageSize: Int
     @Binding var compression: Double
+    @Binding var detectorPrecision: DetectorPrecision
+    @Binding var detectorInterval: Double
+    @Binding var brandHintEnabled: Bool
     var sourceImage: UIImage?
 
     @Environment(\.dismiss) private var dismiss
@@ -13,16 +16,34 @@ struct ScanSettingsView: View {
 
     private let imageSizes = [256, 512, 1024, 2048]
 
+    /// Held at a stable string so the row keeps its width while an estimate
+    /// is in flight.
+    private var estimateText: String {
+        guard sourceImage != nil else { return "No image yet" }
+        guard let bytes = estimatedBytes else { return "—" }
+        return ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
+    }
+
+    /// Shows the gap the slider sets, with the rate it works out to, so that
+    /// neither reading of "detection rate" is left to guesswork.
+    private var intervalLabel: String {
+        String(format: "%.2f s · %.1f fps", detectorInterval, 1 / detectorInterval)
+    }
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
-                Section("Upload Image Size") {
-                    Picker("Size", selection: $imageSize) {
+                Section {
+                    Picker("Max width", selection: $imageSize) {
                         ForEach(imageSizes, id: \.self) { size in
                             Text("\(size) px").tag(size)
                         }
                     }
                     .pickerStyle(.segmented)
+                } header: {
+                    Text("Upload Width Limit")
+                } footer: {
+                    Text("Caps the width of the image sent to the provider. A scan uploads the cropped vehicle, so this is the width across the car rather than across the whole scene — the same number buys far more detail than it used to. It only ever shrinks: a crop narrower than this is sent at its own size. When no vehicle is found, the full frame is sent instead.")
                 }
 
                 Section {
@@ -42,23 +63,70 @@ struct ScanSettingsView: View {
                     Text("Lower values reduce file size; higher values preserve quality.")
                 }
 
-                Section("Estimated Upload Size") {
-                    HStack {
-                        Label("File size", systemImage: "doc")
-                        Spacer()
-                        if sourceImage == nil {
-                            Text("No image yet")
-                                .foregroundColor(.secondary)
-                        } else if isEstimating {
-                            ProgressView().progressViewStyle(.circular)
-                        } else if let bytes = estimatedBytes {
-                            Text(ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))
+                Section {
+                    Picker("Precision", selection: $detectorPrecision) {
+                        ForEach(DetectorPrecision.allCases) { precision in
+                            Text(precision.title).tag(precision)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("On-Device Detector")
+                } footer: {
+                    Text(detectorPrecision.summary)
+                }
+
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Interval")
+                            Spacer()
+                            Text(intervalLabel)
                                 .foregroundColor(.secondary)
                                 .monospacedDigit()
                         }
+                        Slider(
+                            value: $detectorInterval,
+                            in: CameraViewModel.detectorIntervalRange,
+                            step: 0.05
+                        )
                     }
+                } header: {
+                    Text("Detection Interval")
+                } footer: {
+                    Text("How long the app waits between checking the live camera frame for a vehicle. Drag right to wait longer, which updates the overlay less often and uses less battery. It does not affect scanning: a shutter press always runs the detector on the captured photo.")
                 }
-                .id("\(imageSize)-\(String(format: "%.2f", compression))")
+
+                Section {
+                    Toggle("Brand Hint", isOn: $brandHintEnabled)
+                } header: {
+                    Text("On-Device Brand Classifier")
+                } footer: {
+                    Text("Names the car's brand on device and adds that guess to the prompt sent to the provider. Turning this off skips the classifier entirely, so the provider sees the photo with no local opinion attached.")
+                }
+
+                Section {
+                    HStack {
+                        Label("File size", systemImage: "doc")
+                        Spacer()
+                        // The spinner sits in an overlay rather than replacing
+                        // the value: swapping a narrow ProgressView for a wide
+                        // string re-sizes the row every time an estimate runs.
+                        Text(estimateText)
+                            .foregroundColor(.secondary)
+                            .monospacedDigit()
+                            .opacity(isEstimating ? 0 : 1)
+                            .overlay {
+                                if isEstimating {
+                                    ProgressView().progressViewStyle(.circular)
+                                }
+                            }
+                    }
+                } header: {
+                    Text("Estimated Upload Size")
+                } footer: {
+                    Text("Based on the most recent scan, which is the cropped vehicle when one was found. How tightly the car is framed therefore moves this as much as the settings above do.")
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

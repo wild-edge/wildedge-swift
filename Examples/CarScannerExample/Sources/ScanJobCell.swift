@@ -6,28 +6,40 @@ struct ScanJobCell: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        ZStack {
-            thumbnailBackground
+        // Color.clear is the only thing that sizes the cell: it takes the grid
+        // column's width and the aspect ratio turns that into a square. The
+        // thumbnail and the controls ride in overlays, which are sized to the
+        // result rather than contributing to it — a wide crop as a ZStack child
+        // reports a wide ideal size and stretches the cell out of shape.
+        Color.clear
+            .aspectRatio(1, contentMode: .fit)
+            // Square when the column is wide enough, never shorter than this:
+            // three columns on a phone leave about 115pt, too little for the
+            // thumbnail and four lines of result to share.
+            .frame(minHeight: 150)
+            .overlay { thumbnailBackground }
+            .overlay { controls }
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .contentShape(Rectangle())
+            .onTapGesture { onTap() }
+    }
 
-            VStack {
-                HStack {
-                    providerBadge
-                    Spacer()
-                    Button(action: onDismiss) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 18))
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(Color.white, Color.black.opacity(0.5))
-                    }
-                }
-                .padding(6)
+    private var controls: some View {
+        VStack {
+            HStack {
+                providerBadge
                 Spacer()
-                statusBar
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(Color.white, Color.black.opacity(0.5))
+                }
             }
+            .padding(6)
+            Spacer()
+            statusBar
         }
-        .aspectRatio(1, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .onTapGesture { onTap() }
     }
 
     private var thumbnailBackground: some View {
@@ -46,7 +58,6 @@ struct ScanJobCell: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: 200)
     }
 
     @ViewBuilder
@@ -66,8 +77,7 @@ struct ScanJobCell: View {
                 VStack(alignment: .leading, spacing: 2) {
                     if let v = top.brand { Text(v).font(.caption.weight(.semibold)).foregroundColor(.white).lineLimit(1) }
                     if let v = top.model { Text(v).font(.caption).foregroundColor(.white.opacity(0.85)).lineLimit(1) }
-                    if let v = top.color { Text(v).font(.caption2).foregroundColor(.white.opacity(0.7)).lineLimit(1) }
-                    if let v = top.year  { Text(v).font(.caption2).foregroundColor(.white.opacity(0.7)).lineLimit(1) }
+                    if let v = colorAndYear(top) { Text(v).font(.caption2).foregroundColor(.white.opacity(0.7)).lineLimit(1) }
                     if let c = top.confidence { Text("\(c)% confidence").font(.caption2).foregroundColor(.white.opacity(0.6)).lineLimit(1) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -91,6 +101,13 @@ struct ScanJobCell: View {
             .padding(.horizontal, 8).padding(.vertical, 6)
             .background(.ultraThinMaterial)
         }
+    }
+
+    /// Colour and year share a line: each is short, and the cell is a square
+    /// already carrying brand, model and confidence.
+    private func colorAndYear(_ candidate: CarCandidate) -> String? {
+        let parts = [candidate.color, candidate.year].compactMap { $0 }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     private var providerBadge: some View {

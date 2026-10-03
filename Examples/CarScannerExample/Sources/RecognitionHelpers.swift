@@ -28,19 +28,30 @@ func assertHTTP200(data: Data, response: URLResponse) throws {
     }
 }
 
+/// Boxes are reported as [x_min, y_min, x_max, y_max] in pixels of the image
+/// uploaded as the attachment, so they line up with it directly. A scan uploads
+/// a crop of the car, so these are crop coordinates, not coordinates in the
+/// original photo.
 func detectionMeta(from info: CarInfo, imageSize: CGSize? = nil) -> [String: Any] {
     guard info.found, let candidates = info.candidates, !candidates.isEmpty else {
         return DetectionOutputMeta(numPredictions: 0).toMap()
     }
-    let w = imageSize?.width ?? 1
-    let h = imageSize?.height ?? 1
     let topK: [TopPrediction] = candidates.compactMap { c in
         let parts = [c.brand, c.model].compactMap { $0 }
         guard !parts.isEmpty else { return nil }
         let conf = c.confidence.map { Double($0) / 100.0 }
-        let bbox = c.bbox.map { b in
-            [Int((b.x * w).rounded()), Int((b.y * h).rounded()),
-             Int((b.width * w).rounded()), Int((b.height * h).rounded())]
+        // Without a size there is nothing to scale the normalized box by, and
+        // scaling by 1x1 would round every box to zero. Send no box instead.
+        //
+        // The model answers with an origin and a span; WildEdge wants two
+        // corners, so the span is added on before scaling.
+        let bbox: [Int]? = imageSize.flatMap { size in
+            c.bbox.map { b in
+                [Int((b.x * size.width).rounded()),
+                 Int((b.y * size.height).rounded()),
+                 Int(((b.x + b.width) * size.width).rounded()),
+                 Int(((b.y + b.height) * size.height).rounded())]
+            }
         }
         return TopPrediction(label: parts.joined(separator: " "), confidence: conf, bbox: bbox)
     }

@@ -1,4 +1,6 @@
 import AVFoundation
+import ImageIO
+import QuartzCore
 import WildEdge
 import Combine
 import UIKit
@@ -75,7 +77,19 @@ struct ScanJob: Identifiable {
     let provider: RecognitionProvider
     var thumbnail: UIImage?
     var photoMetadata: PhotoMetadata?
+    /// What the on-device classifier made of the car, before any provider saw
+    /// it — or why there is nothing to show.
+    var brandGuess: BrandGuessOutcome?
+    /// Exactly the prompt the providers were given, hint included.
+    var prompt: String?
     var status: ScanJobStatus = .scanning
+}
+
+/// What the on-device models made of a captured still.
+struct StillAnalysis {
+    /// The largest vehicle found, used to crop the upload.
+    let vehicle: VehicleDetection?
+    let brand: BrandGuessOutcome
 }
 
 enum RecognitionProvider: String, CaseIterable {
@@ -93,6 +107,22 @@ enum RecognitionProvider: String, CaseIterable {
 }
 
 final class CameraViewModel: NSObject, ObservableObject {
+    /// Seconds between detector runs, and the default. Expressed as a gap
+    /// rather than a rate so that turning the setting up asks for less work.
+    /// Margin added around the vehicle box before the upload is cut from it.
+    /// Wider than the classifier's 12%: the provider is also judging model and
+    /// year, and the bodywork ends give that away.
+    private static let scanCropPadding: CGFloat = 0.15
+    static let detectorIntervalRange: ClosedRange<Double> = 0.1...1.0
+    /// Absent means on: this defaults to true rather than to Bool's false.
+    private static var storedBrandHintEnabled: Bool {
+        UserDefaults.standard.object(forKey: "brandHintEnabled") as? Bool ?? true
+    }
+    private static var storedDetectorInterval: Double {
+        let stored = UserDefaults.standard.double(forKey: "detectorIntervalSeconds")
+        return detectorIntervalRange.contains(stored) ? stored : 0.25
+    }
+
     @Published var jobs: [ScanJob] = []
     @Published var errorMessage: String?
     @Published var provider: RecognitionProvider = .openRouter
@@ -103,10 +133,62 @@ final class CameraViewModel: NSObject, ObservableObject {
         didSet { UserDefaults.standard.set(compressionQuality, forKey: "compressionQuality") }
     }
     @Published var lastCapturedImage: UIImage?
+    /// The most recent detector frame, for the live overlay.
+    @Published var detectionFrame = VehicleDetectionFrame()
+    /// Drives the live overlay label: loading, then timings.
+    @Published var detectorStatus: LiveDetectorStatus = .idle
+    /// Whether the on-device classifier runs at all, and so whether its brand
+    /// hint is added to the prompt. On by default.
+    @Published var brandHintEnabled: Bool = CameraViewModel.storedBrandHintEnabled {
+        didSet {
+            guard brandHintEnabled != oldValue else { return }
+            UserDefaults.standard.set(brandHintEnabled, forKey: "brandHintEnabled")
+            let enabled = brandHintEnabled
+            detectorQueue.async { self.activeBrandHintEnabled = enabled }
+        }
+    }
+    /// Minimum gap between detector runs, in seconds. Larger means the overlay
+    /// updates less often; the diagram's 3-5 fps while aiming is 0.2-0.35 s.
+    @Published var detectorInterval: Double = CameraViewModel.storedDetectorInterval {
+        didSet {
+            guard detectorInterval != oldValue else { return }
+            UserDefaults.standard.set(detectorInterval, forKey: "detectorIntervalSeconds")
+            let interval = detectorInterval
+            detectorQueue.async { self.activeDetectorInterval = interval }
+        }
+    }
+    @Published var detectorPrecision: DetectorPrecision =
+        UserDefaults.standard.string(forKey: "detectorPrecision")
+            .flatMap(DetectorPrecision.init(rawValue:)) ?? .fp16 {
+        didSet {
+            guard detectorPrecision != oldValue else { return }
+            UserDefaults.standard.set(detectorPrecision.rawValue, forKey: "detectorPrecision")
+            reloadDetector(with: detectorPrecision)
+        }
+    }
 
     let session = AVCaptureSession()
     private let photoOutput = AVCapturePhotoOutput()
+    private let videoOutput = AVCaptureVideoDataOutput()
     private let sessionQueue = DispatchQueue(label: "dev.wildedge.carscanner.session")
+    private let detectorQueue = DispatchQueue(label: "dev.wildedge.carscanner.detector")
+    /// Owned by `detectorQueue` once frames start; see `reloadDetector`.
+    private var detector: VehicleDetector?
+    /// Also `detectorQueue`-owned. Absent unless the weights are in the bundle.
+    private lazy var brandClassifier = BrandClassifier()
+    private var activePrecision: DetectorPrecision =
+        UserDefaults.standard.string(forKey: "detectorPrecision")
+            .flatMap(DetectorPrecision.init(rawValue:)) ?? .fp16
+    /// Read only on `detectorQueue`; `detectorInterval` pushes changes across.
+    private var activeDetectorInterval = CameraViewModel.storedDetectorInterval
+    /// Read only on `detectorQueue`; `brandHintEnabled` pushes changes across.
+    private var activeBrandHintEnabled = CameraViewModel.storedBrandHintEnabled
+    private var lastDetectionAt: CFTimeInterval = 0
+    private var detectionInFlight = false
+    private var loggedFrameGeometry = false
+    /// Durations behind `detectorAverageMs`, newest last.
+    private var recentDetectorMs: [Int] = []
+    private let detectorAverageWindow = 5
     private var captureDevice: AVCaptureDevice?
     private var pendingCaptures: [Int64: (jobID: UUID, provider: RecognitionProvider)] = [:]
 
@@ -168,26 +250,135 @@ final class CameraViewModel: NSObject, ObservableObject {
         let captureProvider = provider
         jobs.insert(ScanJob(id: jobID, date: Date(), provider: captureProvider), at: 0)
         Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { return }
-            let fullImage = UIImage(data: imageData)
-            let thumbnail = fullImage?.preparingThumbnail(of: CGSize(width: 400, height: 400))
-            let (uploadData, meta) = self.makeUploadDataAndMeta(imageData)
-            await MainActor.run {
-                self.lastCapturedImage = fullImage
-                self.updateThumbnail(id: jobID, image: thumbnail)
-                self.updatePhotoMetadata(id: jobID, meta: meta)
-            }
-            do {
-                let results = try await self.analyzeImage(uploadData, meta: meta, provider: captureProvider)
-                await MainActor.run { self.updateJob(id: jobID, status: .completed(results)) }
-            } catch {
-                await MainActor.run { self.updateJob(id: jobID, status: .failed(error.localizedDescription)) }
-            }
+            await self?.processCapture(imageData: imageData, jobID: jobID, provider: captureProvider)
+        }
+    }
+
+    /// Everything between having a photo and having an answer, shared by the
+    /// shutter and the photo picker.
+    private func processCapture(imageData: Data, jobID: UUID, provider captureProvider: RecognitionProvider) async {
+        // One id across every model a scan touches, so the detector, the brand
+        // classifier and the provider calls reassemble into a single run.
+        let runId = "scan-\(jobID.uuidString)"
+        let fullImage = UIImage(data: imageData)
+        let analysis = analyzeStill(for: imageData, runId: runId)
+
+        // Upload the crop when there is one. The provider then spends its
+        // attention on the car rather than the street, and because the
+        // thumbnail is cut from the same crop, the boxes it returns still line
+        // up with what is shown.
+        let cropped = analysis.vehicle.flatMap { vehicle in
+            fullImage.flatMap { croppedToVehicle($0, box: vehicle.rect) }
+        }
+        let scanImage = cropped ?? fullImage
+
+        let (uploadData, meta) = scanImage.map(makeUploadDataAndMeta) ?? makeUploadDataAndMeta(imageData)
+        let thumbnail = scanImage?.preparingThumbnail(of: CGSize(width: 400, height: 400))
+        let scanPrompt = prompt(with: analysis.brand)
+
+        await MainActor.run {
+            self.lastCapturedImage = scanImage
+            self.updateThumbnail(id: jobID, image: thumbnail)
+            self.updatePhotoMetadata(id: jobID, meta: meta)
+            self.updateBrandGuess(id: jobID, guess: analysis.brand, prompt: scanPrompt)
+        }
+
+        do {
+            let results = try await analyzeImage(uploadData, meta: meta, provider: captureProvider,
+                                                 prompt: scanPrompt, runId: runId)
+            await MainActor.run { self.updateJob(id: jobID, status: .completed(results)) }
+        } catch {
+            await MainActor.run { self.updateJob(id: jobID, status: .failed(error.localizedDescription)) }
         }
     }
 
     func removeJob(id: UUID) {
         jobs.removeAll { $0.id == id }
+    }
+
+    /// Swaps the detector build. The detector is only ever touched on
+    /// `detectorQueue`, so the swap has to happen there too.
+    private func reloadDetector(with precision: DetectorPrecision) {
+        detectorStatus = .loading
+        detectionFrame = VehicleDetectionFrame()
+        detectorQueue.async {
+            // Cleared here rather than on the caller's thread: the window is
+            // detectorQueue-owned and a preview frame may be appending to it.
+            self.recentDetectorMs.removeAll()
+            self.activePrecision = precision
+            self.detector = nil          // release the old model before loading the new one
+            self.detector = VehicleDetector(precision: precision)
+        }
+    }
+
+    /// Finds the car in a still and asks the classifier what brand it is.
+    ///
+    /// Takes the full-resolution capture rather than the resized upload: the
+    /// classifier sees a crop of the car, and at the smaller upload sizes that
+    /// crop would be upscaled into its 224px input.
+    ///
+    /// Runs on `detectorQueue`, which owns both models, so this hops there and
+    /// waits — it costs at most one preview frame. Every failure along the way
+    /// is a nil, and a nil simply means the prompt goes out without a hint.
+    private func analyzeStill(for imageData: Data, runId: String) -> StillAnalysis {
+        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+        else { return StillAnalysis(vehicle: nil, brand: .failed) }
+
+        // A decoded capture is the sensor's landscape buffer; the EXIF tag is
+        // what says which way up it should be read.
+        let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any]
+        let orientation = (properties?[kCGImagePropertyOrientation] as? UInt32)
+            .flatMap(CGImagePropertyOrientation.init(rawValue:)) ?? .up
+
+        return detectorQueue.sync {
+            if detector == nil { detector = VehicleDetector(precision: activePrecision) }
+            guard let detector else { return StillAnalysis(vehicle: nil, brand: .failed) }
+
+            // The largest box, not the most confident one: the subject of the
+            // photo is the car filling the frame, and that is what to crop to.
+            let vehicle = detector.detect(image, orientation: orientation, runId: runId)
+                .max { $0.frameFraction < $1.frameFraction }
+
+            guard activeBrandHintEnabled else { return StillAnalysis(vehicle: vehicle, brand: .disabled) }
+            guard let classifier = brandClassifier else {
+                return StillAnalysis(vehicle: vehicle, brand: .modelUnavailable)
+            }
+            guard let vehicle else { return StillAnalysis(vehicle: nil, brand: .noVehicle) }
+            guard let guess = classifier.classify(image, orientation: orientation,
+                                                  box: vehicle.rect, runId: runId) else {
+                return StillAnalysis(vehicle: vehicle, brand: .failed)
+            }
+            return StillAnalysis(vehicle: vehicle, brand: .guessed(guess))
+        }
+    }
+
+    /// Cuts the vehicle out of a capture, with a margin so the provider still
+    /// sees the whole car and a little of its surroundings.
+    ///
+    /// `box` is normalized against the upright image, so the orientation has to
+    /// be baked into the pixels before the box means anything.
+    private func croppedToVehicle(_ image: UIImage, box: CGRect) -> UIImage? {
+        let padded = box
+            .insetBy(dx: -box.width * Self.scanCropPadding, dy: -box.height * Self.scanCropPadding)
+            .intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+        guard !padded.isNull, padded.width > 0, padded.height > 0 else { return nil }
+
+        let size = CGSize(width: image.size.width * image.scale, height: image.size.height * image.scale)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1.0
+        let upright = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+        }
+        guard let cgImage = upright.cgImage else { return nil }
+
+        let rect = CGRect(
+            x: padded.minX * size.width,
+            y: padded.minY * size.height,
+            width: padded.width * size.width,
+            height: padded.height * size.height
+        ).integral
+        return cgImage.cropping(to: rect).map(UIImage.init(cgImage:))
     }
 
     private func updateJob(id: UUID, status: ScanJobStatus) {
@@ -203,6 +394,12 @@ final class CameraViewModel: NSObject, ObservableObject {
     private func updatePhotoMetadata(id: UUID, meta: PhotoMetadata) {
         guard let idx = jobs.firstIndex(where: { $0.id == id }) else { return }
         jobs[idx].photoMetadata = meta
+    }
+
+    private func updateBrandGuess(id: UUID, guess: BrandGuessOutcome, prompt: String) {
+        guard let idx = jobs.firstIndex(where: { $0.id == id }) else { return }
+        jobs[idx].brandGuess = guess
+        jobs[idx].prompt = prompt
     }
 
     private func configureSession() {
@@ -224,37 +421,64 @@ final class CameraViewModel: NSObject, ObservableObject {
         session.sessionPreset = .photo
         if session.canAddInput(input) { session.addInput(input) }
         if session.canAddOutput(photoOutput) { session.addOutput(photoOutput) }
+
+        videoOutput.alwaysDiscardsLateVideoFrames = true
+        videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
+        videoOutput.setSampleBufferDelegate(self, queue: detectorQueue)
+        if session.canAddOutput(videoOutput) { session.addOutput(videoOutput) }
+        // Hand the detector an upright frame: the app is portrait-only, and a
+        // sideways image would cost accuracy as well as complicating the
+        // mapping from detection rects back to the preview.
+        videoOutput.connection(with: .video)?.videoOrientation = .portrait
+
         session.commitConfiguration()
         session.startRunning()
     }
 
     private func makeUploadDataAndMeta(_ imageData: Data) -> (Data, PhotoMetadata) {
-        let targetWidth = CGFloat(uploadImageSize)
-        let uploadData = resizedImageData(imageData, targetWidth: targetWidth)
-        let dims: CGSize? = UIImage(data: imageData).map { img in
-            let w = img.size.width * img.scale
-            let h = img.size.height * img.scale
-            guard w > targetWidth else { return CGSize(width: w, height: h) }
-            return CGSize(width: targetWidth, height: (h * targetWidth / w).rounded())
+        guard let image = UIImage(data: imageData) else {
+            return (imageData, PhotoMetadata(fileSize: imageData.count, dimensions: nil))
         }
-        return (uploadData, PhotoMetadata(fileSize: uploadData.count, dimensions: dims))
+        return makeUploadDataAndMeta(image)
     }
 
-    private func analyzeImage(_ uploadData: Data, meta: PhotoMetadata, provider: RecognitionProvider) async throws -> [ScanResult] {
+    private func makeUploadDataAndMeta(_ image: UIImage) -> (Data, PhotoMetadata) {
+        // The size comes back from the render rather than being recomputed, so
+        // the dimensions reported to WildEdge always describe the exact bytes
+        // that were uploaded. Detection boxes are scaled by this, and a box
+        // scaled against a size the attachment does not have is a wrong box.
+        let upload = resizedImage(image, targetWidth: CGFloat(uploadImageSize))
+        return (upload.data, PhotoMetadata(fileSize: upload.data.count, dimensions: upload.size))
+    }
+
+    private func analyzeImage(
+        _ uploadData: Data,
+        meta: PhotoMetadata,
+        provider: RecognitionProvider,
+        prompt carPrompt: String,
+        runId: String
+    ) async throws -> [ScanResult] {
         switch provider {
         case .openRouter:
-            let (info, raw, stats, inferenceId, inferenceDate) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
+            let (info, raw, stats, inferenceId, inferenceDate) = try await OpenRouterClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions, runId: runId)
             return [ScanResult(provider: "OpenRouter", info: info, photo: meta, rawJSON: raw, httpStats: stats,
                                inferenceId: inferenceId, inferenceDate: inferenceDate,
                                sendFeedback: makeFeedback(OpenRouterClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
         case .gemini:
-            let (info, raw, stats, inferenceId, inferenceDate) = try await GeminiClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions)
+            let (info, raw, stats, inferenceId, inferenceDate) = try await GeminiClient().analyze(uploadData, prompt: carPrompt, imageSize: meta.dimensions, runId: runId)
             return [ScanResult(provider: "Gemini", info: info, photo: meta, rawJSON: raw, httpStats: stats,
                                inferenceId: inferenceId, inferenceDate: inferenceDate,
                                sendFeedback: makeFeedback(GeminiClient.handle, inferenceId: inferenceId, inferenceDate: inferenceDate))]
         case .both:
-            return try await analyzeWithBoth(uploadData, photo: meta)
+            return try await analyzeWithBoth(uploadData, photo: meta, prompt: carPrompt, runId: runId)
         }
+    }
+
+    /// The car prompt, with the on-device classifier's opinion prepended when
+    /// it has one worth stating.
+    private func prompt(with brand: BrandGuessOutcome) -> String {
+        guard let hint = brand.guess?.promptHint else { return carPrompt }
+        return hint + "\n\n" + carPrompt
     }
 
     private func makeFeedback(_ handle: ModelHandle, inferenceId: String, inferenceDate: Date) -> (FeedbackType) -> Void {
@@ -264,8 +488,8 @@ final class CameraViewModel: NSObject, ObservableObject {
         }
     }
 
-    private func resizedImageData(_ data: Data, targetWidth: CGFloat = 512) -> Data {
-        guard let image = UIImage(data: data) else { return data }
+    /// Shrinks to `targetWidth` if wider, and reports the pixel size it wrote.
+    private func resizedImage(_ image: UIImage, targetWidth: CGFloat) -> (data: Data, size: CGSize) {
         let pixelW = image.size.width * image.scale
         let pixelH = image.size.height * image.scale
         let drawSize: CGSize = pixelW > targetWidth
@@ -275,13 +499,12 @@ final class CameraViewModel: NSObject, ObservableObject {
         format.scale = 1.0
         let renderer = UIGraphicsImageRenderer(size: drawSize, format: format)
         let rendered = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: drawSize)) }
-        return rendered.jpegData(compressionQuality: compressionQuality) ?? data
+        return (rendered.jpegData(compressionQuality: compressionQuality) ?? Data(), drawSize)
     }
 
-    private func analyzeWithBoth(_ imageData: Data, photo: PhotoMetadata) async throws -> [ScanResult] {
-        let sharedRunId = "both-\(UUID().uuidString)"
-        async let orTask = OpenRouterClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions, runId: sharedRunId)
-        async let gTask  = GeminiClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions, runId: sharedRunId)
+    private func analyzeWithBoth(_ imageData: Data, photo: PhotoMetadata, prompt carPrompt: String, runId: String) async throws -> [ScanResult] {
+        async let orTask = OpenRouterClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions, runId: runId)
+        async let gTask  = GeminiClient().analyze(imageData, prompt: carPrompt, imageSize: photo.dimensions, runId: runId)
 
         var out: [ScanResult] = []
         var firstError: Error?
@@ -321,21 +544,51 @@ extension CameraViewModel: AVCapturePhotoCaptureDelegate {
         }
 
         Task.detached(priority: .userInitiated) { [weak self] in
-            guard let self else { return }
-            let fullImage = UIImage(data: data)
-            let thumbnail = fullImage?.preparingThumbnail(of: CGSize(width: 400, height: 400))
-            let (uploadData, meta) = self.makeUploadDataAndMeta(data)
-            await MainActor.run {
-                self.lastCapturedImage = fullImage
-                self.updateThumbnail(id: jobID, image: thumbnail)
-                self.updatePhotoMetadata(id: jobID, meta: meta)
-            }
-            do {
-                let results = try await self.analyzeImage(uploadData, meta: meta, provider: captureProvider)
-                await MainActor.run { self.updateJob(id: jobID, status: .completed(results)) }
-            } catch {
-                await MainActor.run { self.updateJob(id: jobID, status: .failed(error.localizedDescription)) }
-            }
+            await self?.processCapture(imageData: data, jobID: jobID, provider: captureProvider)
+        }
+    }
+}
+
+// MARK: - Live vehicle detection
+
+extension CameraViewModel: AVCaptureVideoDataOutputSampleBufferDelegate {
+    func captureOutput(_ output: AVCaptureOutput,
+                       didOutput sampleBuffer: CMSampleBuffer,
+                       from connection: AVCaptureConnection) {
+        // Throttle to the detector's frame budget and never queue a second frame.
+        let now = CACurrentMediaTime()
+        guard !detectionInFlight, now - lastDetectionAt >= activeDetectorInterval else { return }
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        lastDetectionAt = now
+        detectionInFlight = true
+        defer { detectionInFlight = false }
+
+        if detector == nil {
+            DispatchQueue.main.async { self.detectorStatus = .loading }
+            detector = VehicleDetector(precision: activePrecision)
+        }
+        guard let detector else { return }
+
+        let (found, durationMs) = detector.detect(pixelBuffer, orientation: .up)
+        let size = CGSize(width: CVPixelBufferGetWidth(pixelBuffer),
+                          height: CVPixelBufferGetHeight(pixelBuffer))
+        if !loggedFrameGeometry {
+            loggedFrameGeometry = true
+            // Should be portrait. If it prints landscape, the connection's
+            // videoOrientation did not take and the detector is seeing a
+            // sideways frame, which misplaces every box.
+            print("[VehicleDetector] detector frame \(Int(size.width))x\(Int(size.height))")
+        }
+        recentDetectorMs.append(durationMs)
+        if recentDetectorMs.count > detectorAverageWindow { recentDetectorMs.removeFirst() }
+        let stat = DetectorStat(
+            precision: detector.precision,
+            averageMs: recentDetectorMs.reduce(0, +) / recentDetectorMs.count
+        )
+
+        DispatchQueue.main.async {
+            self.detectionFrame = VehicleDetectionFrame(sourceSize: size, detections: found)
+            self.detectorStatus = .running(stat)
         }
     }
 }
