@@ -2,7 +2,7 @@
 
 An iOS example app ("WE Scan") that uses the device camera or photo library to identify cars in real time using vision-language AI models, with inference telemetry via the [WildEdge SDK](https://wildedge.dev).
 
-Point the camera at any car, tap the shutter, and the app sends the image to a cloud vision model — **Gemini 2.5 Flash** via the Google AI API, via OpenRouter, or both simultaneously — and displays the detected make, model, color, year, and confidence score.
+Point the camera at any car, tap the shutter, and the app sends the image to a cloud vision model — **Gemini 3.6 Flash** via the Google AI API, via OpenRouter, or both simultaneously — and displays the detected make, model, color, year, and confidence score.
 
 ## Requirements
 
