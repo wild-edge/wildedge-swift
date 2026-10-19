@@ -3,9 +3,12 @@
 [![CI](https://github.com/wild-edge/wildedge-swift/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/wild-edge/wildedge-swift/actions/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
 [![Platform](https://img.shields.io/badge/platform-iOS%2013%2B%20%7C%20macOS%2012%2B-brightgreen.svg)](Package.swift)
+[![CocoaPods](https://img.shields.io/cocoapods/v/WildEdge)](https://cocoapods.org/pods/WildEdge)
 
 On-device ML inference monitoring for Swift (iOS, macOS). Tracks latency, confidence,
 drift, and hardware metrics without ever sending raw inputs.
+
+**[Get a DSN](https://app.wildedge.dev)** · [Website](https://wildedge.dev) · [Docs](https://docs.wildedge.dev) · [Blog](https://blog.wildedge.dev)
 
 ## Getting started
 
@@ -14,8 +17,8 @@ drift, and hardware metrics without ever sending raw inputs.
 To run the examples or use the SDK in your application, you need a WildEdge DSN.
 A DSN is a single configuration value that contains your Project Key and connection details for the WildEdge API. To get your DSN:
 
-1. Navigate to `https://wildedge.dev/` and sign up or log in.
-2. Open the dashboard at `https://app.wildedge.dev/`.
+1. Navigate to [wildedge.dev](https://wildedge.dev/) and sign up or log in.
+2. Open the dashboard at [app.wildedge.dev](https://app.wildedge.dev/).
 3. Create a project (or open an existing project).
 4. Copy the project DSN for later.
 
